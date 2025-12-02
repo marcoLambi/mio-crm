@@ -15,6 +15,9 @@
     <!-- 3. Traduttore Codice (Babel) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <!-- 4. Libreria per Export Excel (SheetJS) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style>
         /* Piccoli aggiustamenti grafici */
         body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; }
@@ -34,7 +37,7 @@
         import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ==========================================================
-        // CONFIGURAZIONE (I tuoi dati sono già inseriti qui)
+        // CONFIGURAZIONE (I tuoi dati)
         // ==========================================================
         const appId = "miocrm-0001";
         const firebaseConfig = {
@@ -50,7 +53,7 @@
         // Inizializzazione React
         const { useState, useEffect, useMemo } = React;
 
-        // --- ICONE (Disegnate a mano per evitare errori) ---
+        // --- ICONE ---
         const IconBase = ({ children, size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
         );
@@ -78,6 +81,7 @@
         const Loader2 = (p) => <IconBase {...p}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></IconBase>;
         const Check = (p) => <IconBase {...p}><path d="M20 6 9 17l-5-5"/></IconBase>;
         const Target = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></IconBase>;
+        const Download = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
 
         // --- UTILITY FIREBASE ---
         const getReportsCollection = (db, userId) => collection(db, `artifacts/${appId}/users/${userId}/reports`);
@@ -221,6 +225,59 @@
             const getClientHours = (clientName) => reports.filter(r => r.client === clientName).reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
             const getFullPaymentMethod = (client) => [client.paymentMethod1, client.paymentMethod2, client.paymentMethod3].filter(Boolean).join(' - ') || 'Non Specificato';
 
+            // --- EXPORT TO EXCEL ---
+            const exportToExcel = () => {
+                if (!clients.length && !reports.length && !followups.length) {
+                    showMessage("Nessun dato da esportare.", "error");
+                    return;
+                }
+
+                try {
+                    const wb = XLSX.utils.book_new();
+                    const now = new Date().toISOString().slice(0, 10);
+
+                    // 1. Foglio Clienti (Appiattito)
+                    if (clients.length > 0) {
+                        const flatClients = clients.map(c => {
+                            const flat = { ...c };
+                            // Rimuovi oggetti annidati e crea colonne singole
+                            [1, 2, 3, 4].forEach(i => {
+                                const contact = flat[`contact${i}`];
+                                if (contact) {
+                                    flat[`Ref_${i}_Nome`] = contact.nome;
+                                    flat[`Ref_${i}_Mansione`] = contact.mansione;
+                                    flat[`Ref_${i}_Tel`] = contact.telefono;
+                                    flat[`Ref_${i}_Mail`] = contact.mail;
+                                    delete flat[`contact${i}`]; // Rimuovi l'oggetto originale
+                                }
+                            });
+                            return flat;
+                        });
+                        const wsClients = XLSX.utils.json_to_sheet(flatClients);
+                        XLSX.utils.book_append_sheet(wb, wsClients, "Clienti");
+                    }
+
+                    // 2. Foglio Report
+                    if (reports.length > 0) {
+                        const wsReports = XLSX.utils.json_to_sheet(reports);
+                        XLSX.utils.book_append_sheet(wb, wsReports, "Report");
+                    }
+
+                    // 3. Foglio Offerte
+                    if (followups.length > 0) {
+                        const wsFollowups = XLSX.utils.json_to_sheet(followups);
+                        XLSX.utils.book_append_sheet(wb, wsFollowups, "Offerte");
+                    }
+
+                    // Download file
+                    XLSX.writeFile(wb, `Backup_CRM_${now}.xlsx`);
+                    showMessage("Database esportato con successo!", "success");
+                } catch (error) {
+                    console.error("Errore Export:", error);
+                    showMessage("Errore durante l'esportazione.", "error");
+                }
+            };
+
             const createICSFile = (report) => {
                 if (!report.nextContactDate) return;
                 const datePart = report.nextContactDate.replace(/-/g, '');
@@ -292,14 +349,19 @@
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-purple-600"><Target size={16} /><span className="text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
                     </div>
                     <button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 flex justify-center items-center gap-2 active:scale-95 transition-all"><Plus size={20} /> Nuovo Report</button>
+                    
+                    {/* --- TASTO EXPORT EXCEL --- */}
+                    <button onClick={exportToExcel} className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-green-200 flex justify-center items-center gap-2 active:scale-95 transition-all">
+                        <Download size={20} /> Esporta Database Excel
+                    </button>
+                    {/* ------------------------ */}
+
                     {reports.some(r => r.nextContactDate) && (<div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200"><h3 className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><Bell size={18} /> Promemoria Contatti</h3><ul className="space-y-2">{reports.filter(r => r.nextContactDate).sort((a,b) => new Date(a.nextContactDate) - new Date(b.nextContactDate)).slice(0, 3).map(r => (<li key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="text-sm cursor-pointer hover:underline text-yellow-700">{r.nextContactDate} - {r.client} ({r.category})</li>))}</ul></div>)}
                     {followups.length > 0 && (<div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2"><Target size={14} /> Ultime Offerte</h3><ul className="space-y-3">{followups.sort((a, b) => new Date(b.feedbackDate) - new Date(a.feedbackDate)).slice(0, 3).map(f => (<li key={f.id} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2"><span className="font-medium text-gray-800 truncate pr-2">{f.client}</span><div className="text-right"><div className="font-bold text-blue-600">€ {f.amount}</div><div className="text-[10px] text-gray-400">Risc: {f.feedbackDate}</div></div></li>))}</ul></div>)}
                 </div>
             );
 
-            // ... (Other render functions follow same logic, just simplified for this single file format) ...
-            // Nota: Ho mantenuto tutta la logica originale, adattandola al formato HTML singolo.
-            
+            // ... IL RESTO DELL'APP RIMANE INVARIATO ...
             const renderCreateReport = () => (
                 <div className="animate-fade-in pb-20"><h2 className="text-xl font-bold text-gray-800 mb-6">{reportForm.id ? 'Modifica' : 'Nuovo'} Report</h2><form onSubmit={handleReportSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><SectionContainer title="Dati" icon={FileText}><div><label className="block text-sm font-bold text-gray-700 mb-1">Cliente *</label><select required name="client" value={reportForm.client} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option value="">Seleziona...</option>{clients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}</select></div><div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="date" value={reportForm.date} onChange={handleReportChange} required /><Input label="Ore" type="number" step="0.5" name="hours" value={reportForm.hours} onChange={handleReportChange} required /></div><div><label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label><select name="category" value={reportForm.category} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option>MANTENIMENTO RAPPORTO</option><option>ORDINE</option><option>RICHIESTA DI OFFERTA</option><option>RISCONTRO OFFERTA</option><option>COMUNICAZIONE</option><option>INIZIO RAPPORTO FORNITURE</option><option>SOLLECITO INIZIO FORNITURA</option><option>APPUNTAMENTO</option><option>ALTRO</option></select></div><div><label className="block text-sm font-bold text-gray-700 mb-1">Tipo Contatto</label><select name="contactType" value={reportForm.contactType} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option>TELEFONICO</option><option>APPUNTAMENTO</option><option>VISITA</option><option>LINKEDIN</option><option>WHATSAPP</option><option>CANTIERE</option><option>ALTRO</option></select></div><TextArea label="Descrizione" name="description" value={reportForm.description} onChange={handleReportChange} /></SectionContainer><SectionContainer title="Follow-up" icon={AlarmCheck}><TextArea label="Appunti Futuri" name="futureNotes" value={reportForm.futureNotes} onChange={handleReportChange} /><div className="grid grid-cols-2 gap-4"><Input label="Prossimo Contatto" type="date" name="nextContactDate" value={reportForm.nextContactDate} onChange={handleReportChange} /><Input label="Orario" type="time" name="nextContactTime" value={reportForm.nextContactTime} onChange={handleReportChange} /></div></SectionContainer><div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl active:scale-[0.98]">Annulla</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] flex justify-center items-center gap-2"><Save size={18} /> Salva</button></div></form></div>
             );
