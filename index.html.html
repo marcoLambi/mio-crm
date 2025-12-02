@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM WorkReport</title>
+    
+    <!-- 1. Stile Grafico (Tailwind) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Motore dell'App (React) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- 3. Traduttore Codice (Babel) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Piccoli aggiustamenti grafici */
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Nascondi scrollbar */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ==========================================================
+        // CONFIGURAZIONE (I tuoi dati sono già inseriti qui)
+        // ==========================================================
+        const appId = "miocrm-0001";
+        const firebaseConfig = {
+            apiKey: "AIzaSyAjP1UXwDJqAhWVjpb6ePrgtv3nQJ7fWFk",
+            authDomain: "miocrm-0001.firebaseapp.com",
+            projectId: "miocrm-0001",
+            storageBucket: "miocrm-0001.firebasestorage.app",
+            messagingSenderId: "880667208118",
+            appId: "1:880667208118:web:d1d420b2d7d1743fde7917"
+        };
+        // ==========================================================
+
+        // Inizializzazione React
+        const { useState, useEffect, useMemo } = React;
+
+        // --- ICONE (Disegnate a mano per evitare errori) ---
+        const IconBase = ({ children, size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+        );
+        const Plus = (p) => <IconBase {...p}><path d="M5 12h14"/><path d="M12 5v14"/></IconBase>;
+        const LayoutDashboard = (p) => <IconBase {...p}><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></IconBase>;
+        const FileText = (p) => <IconBase {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></IconBase>;
+        const Calendar = (p) => <IconBase {...p}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></IconBase>;
+        const Trash2 = (p) => <IconBase {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconBase>;
+        const X = (p) => <IconBase {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>;
+        const Printer = (p) => <IconBase {...p}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></IconBase>;
+        const Clock = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconBase>;
+        const Briefcase = (p) => <IconBase {...p}><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></IconBase>;
+        const ChevronRight = (p) => <IconBase {...p}><path d="m9 18 6-6-6-6"/></IconBase>;
+        const Users = (p) => <IconBase {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></IconBase>;
+        const MapPin = (p) => <IconBase {...p}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></IconBase>;
+        const Mail = (p) => <IconBase {...p}><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></IconBase>;
+        const Phone = (p) => <IconBase {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></IconBase>;
+        const Edit2 = (p) => <IconBase {...p}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></IconBase>;
+        const Building2 = (p) => <IconBase {...p}><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></IconBase>;
+        const CreditCard = (p) => <IconBase {...p}><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></IconBase>;
+        const MessageSquare = (p) => <IconBase {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></IconBase>;
+        const Save = (p) => <IconBase {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>;
+        const Bell = (p) => <IconBase {...p}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></IconBase>;
+        const AlarmCheck = (p) => <IconBase {...p}><circle cx="12" cy="13" r="8"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/><path d="M6.38 18.7 4 21"/><path d="M17.64 18.67 20 21"/><path d="m9 13 2 2 4-4"/></IconBase>;
+        const Loader2 = (p) => <IconBase {...p}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></IconBase>;
+        const Check = (p) => <IconBase {...p}><path d="M20 6 9 17l-5-5"/></IconBase>;
+        const Target = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></IconBase>;
+
+        // --- UTILITY FIREBASE ---
+        const getReportsCollection = (db, userId) => collection(db, `artifacts/${appId}/users/${userId}/reports`);
+        const getClientsCollection = (db, userId) => collection(db, `artifacts/${appId}/users/${userId}/clients`);
+        const getFollowupsCollection = (db, userId) => collection(db, `artifacts/${appId}/users/${userId}/followups`);
+
+        const getReportDoc = (db, userId, id) => doc(db, `artifacts/${appId}/users/${userId}/reports`, String(id));
+        const getClientDoc = (db, userId, id) => doc(db, `artifacts/${appId}/users/${userId}/clients`, String(id));
+        const getFollowupDoc = (db, userId, id) => doc(db, `artifacts/${appId}/users/${userId}/followups`, String(id));
+
+        // --- COMPONENTI UI DI SUPPORTO ---
+        const Input = ({ label, name, value, onChange, type = 'text', required = false, step = null, placeholder = '' }) => (
+            <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">{label}</label>
+                <input type={type} name={name} value={value} onChange={onChange} required={required} step={step} placeholder={placeholder} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
+            </div>
+        );
+
+        const TextArea = ({ label, name, value, onChange, placeholder = '' }) => (
+            <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">{label}</label>
+                <textarea name={name} value={value} onChange={onChange} placeholder={placeholder} rows="3" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-shadow" />
+            </div>
+        );
+
+        const SectionContainer = ({ title, icon: Icon, children }) => (
+            <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">{Icon && <Icon size={14} />} {title}</h3>
+                {children}
+            </section>
+        );
+
+        const InfoBox = ({ label, value, icon: Icon, color = 'text-gray-700' }) => (
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1 mb-1">{Icon && <Icon size={12} className={color} />} {label}</div>
+                <div className={`text-lg font-semibold ${color}`}>{value || '-'}</div>
+            </div>
+        );
+
+        const InfoRow = ({ label, value }) => (
+            <div className="flex justify-between items-start border-b border-gray-50 pb-2">
+                <span className="text-sm font-medium text-gray-500">{label}:</span>
+                <span className="text-sm font-semibold text-gray-800 text-right max-w-[60%] break-words">{value || '-'}</span>
+            </div>
+        );
+
+        const SectionDisplay = ({ title, content, small = false }) => (
+            <div className="space-y-2">
+                <h3 className={`font-bold ${small ? 'text-xs uppercase text-gray-500 tracking-wide' : 'text-sm text-gray-700'}`}>{title}</h3>
+                <p className={`whitespace-pre-wrap ${small ? 'text-sm text-gray-600' : 'text-base text-gray-800'} p-3 bg-gray-50 rounded-lg border border-gray-100`}>{content || 'Nessuna descrizione fornita.'}</p>
+            </div>
+        );
+
+        const SectionTitle = ({ title, icon }) => (
+            <h2 className="text-base font-bold text-gray-700 border-b border-gray-200 pb-2 flex items-center gap-2">{icon} {title}</h2>
+        );
+
+        const SelectComponent = ({ label, name, value, onChange, options }) => (
+            <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+                <select name={name} value={value} onChange={onChange} className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                    {options.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
+                </select>
+            </div>
+        );
+
+        const App = () => {
+            const [db, setDb] = useState(null);
+            const [auth, setAuth] = useState(null);
+            const [userId, setUserId] = useState(null);
+            const [isAuthReady, setIsAuthReady] = useState(false);
+            const [isLoading, setIsLoading] = useState(true);
+
+            const [reports, setReports] = useState([]);
+            const [clients, setClients] = useState([]);
+            const [followups, setFollowups] = useState([]);
+            const [view, setView] = useState('dashboard');
+            const [selectedReport, setSelectedReport] = useState(null);
+            const [selectedClient, setSelectedClient] = useState(null);
+
+            const [message, setMessage] = useState({ text: '', type: '' });
+            const [confirmAction, setConfirmAction] = useState(null);
+
+            const initialReportState = {
+                id: null, title: '', client: '', date: new Date().toISOString().split('T')[0], hours: '',
+                category: 'MANTENIMENTO RAPPORTO', contactType: 'TELEFONICO', description: '',
+                futureNotes: '', nextContactDate: '', nextContactTime: '', createdAt: null,
+            };
+            const [reportForm, setReportForm] = useState(initialReportState);
+
+            const initialFollowupState = {
+                id: null, client: '', offerNumber: '', amount: '', feedbackDate: '', notes: '', createdAt: null,
+            };
+            const [followupForm, setFollowupForm] = useState(initialFollowupState);
+
+            const paymentOptions = {
+                method1: [{ label: "BB (Bonifico Bancario)", value: "BB" }, { label: "RI.BA (Ricevuta Bancaria)", value: "RI.BA" }],
+                method2: [{ label: "30 giorni", value: "30" }, { label: "60 giorni", value: "60" }, { label: "90 giorni", value: "90" }],
+                method3: [{ label: "DF (Data Fattura)", value: "DF" }, { label: "DFFM (Data Fattura Fine Mese)", value: "DFFM" }, { label: "Anticipato", value: "Anticipato" }],
+            };
+            const initialClientState = {
+                id: null, ragioneSociale: '', pIva: '', email: '', pec: '', telefono: '', sdiCode: '',
+                sedeLegale: '', sedeOperativa: '', magazzino: '', abbigliamento: '', fido: '', fidoDate: '', numeroOperai: '',
+                paymentMethod1: paymentOptions.method1[0].value, paymentMethod2: paymentOptions.method2[0].value, paymentMethod3: paymentOptions.method3[0].value,
+                note: '', comunicazioni: '', updatedAt: '',
+                contact1: { nome: '', mansione: '', telefono: '', mail: '' }, contact2: { nome: '', mansione: '', telefono: '', mail: '' },
+                contact3: { nome: '', mansione: '', telefono: '', mail: '' }, contact4: { nome: '', mansione: '', telefono: '', mail: '' },
+            };
+            const [clientForm, setClientForm] = useState(initialClientState);
+
+            useEffect(() => {
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    const authInstance = getAuth(app);
+                    const dbInstance = getFirestore(app);
+                    setAuth(authInstance);
+                    setDb(dbInstance);
+                    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
+                        if (!user) {
+                            try { await signInAnonymously(authInstance); } catch (error) { console.error("Errore login:", error); }
+                        }
+                        setUserId(authInstance.currentUser?.uid);
+                        setIsAuthReady(true);
+                    });
+                    return () => unsubscribe();
+                } catch (e) { console.error("Init Error:", e); setIsLoading(false); }
+            }, []);
+
+            useEffect(() => {
+                if (!isAuthReady || !db || !userId) return;
+                const unsubscribeReports = onSnapshot(getReportsCollection(db, userId), (s) => setReports(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+                const unsubscribeClients = onSnapshot(getClientsCollection(db, userId), (s) => setClients(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+                const unsubscribeFollowups = onSnapshot(getFollowupsCollection(db, userId), (s) => setFollowups(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+                setIsLoading(false);
+                return () => { unsubscribeReports(); unsubscribeClients(); unsubscribeFollowups(); };
+            }, [isAuthReady, db, userId]);
+
+            const showMessage = (text, type = 'info') => { setMessage({ text, type }); setTimeout(() => setMessage({ text: '', type: '' }), 3000); };
+            const showConfirm = (text, callback) => { setMessage({ text, type: 'confirm' }); setConfirmAction(() => callback); };
+            const handleConfirm = (isConfirmed) => { if (isConfirmed && confirmAction) confirmAction(); setMessage({ text: '', type: '' }); setConfirmAction(null); };
+            const getClientHours = (clientName) => reports.filter(r => r.client === clientName).reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
+            const getFullPaymentMethod = (client) => [client.paymentMethod1, client.paymentMethod2, client.paymentMethod3].filter(Boolean).join(' - ') || 'Non Specificato';
+
+            const createICSFile = (report) => {
+                if (!report.nextContactDate) return;
+                const datePart = report.nextContactDate.replace(/-/g, '');
+                const timePart = report.nextContactTime ? report.nextContactTime.replace(/:/g, '') + '00' : '000000';
+                const now = new Date().toISOString().replace(/[-:]|\.\d{3}/g, '').substring(0, 15) + 'Z';
+                const eventStart = datePart + (report.nextContactTime ? `T${timePart}` : '');
+                const eventEnd = datePart + (report.nextContactTime ? `T${timePart}` : 'T235959');
+                const icsData = [
+                    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//WorkReportApp//IT',
+                    'BEGIN:VEVENT', `UID:${report.id}@workreportapp.it`, `DTSTAMP:${now}`,
+                    `DTSTART:${eventStart}`, `DTEND:${eventEnd}`,
+                    `SUMMARY:Contatto: ${report.client} - ${report.category}`,
+                    `DESCRIPTION:Tipo: ${report.contactType || 'N/A'}. Note: ${report.futureNotes}`,
+                    'END:VEVENT', 'END:VCALENDAR'
+                ].join('\n');
+                const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `Contatto_${report.client}_${report.nextContactDate}.ics`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showMessage('File .ics scaricato.', 'info');
+            };
+
+            const handleReportChange = (e) => { const { name, value } = e.target; setReportForm(prev => ({ ...prev, [name]: value })); };
+            const handleReportSubmit = async (e) => {
+                e.preventDefault(); if (!db || !userId) return;
+                const isEditing = !!reportForm.id;
+                const autoTitle = reportForm.title || `${reportForm.category} - ${new Date(reportForm.date).toLocaleDateString('it-IT')}`;
+                const reportToSave = { ...reportForm, title: autoTitle, id: reportForm.id || String(Date.now()), createdAt: reportForm.createdAt || new Date().toISOString() };
+                try { await setDoc(getReportDoc(db, userId, reportToSave.id), reportToSave); showMessage(isEditing ? 'Modificato.' : 'Creato.', 'success'); if (isEditing) setSelectedReport(reportToSave); setReportForm(initialReportState); setView('list'); } catch (error) { console.error(error); }
+            };
+            const prepareEditReport = (report) => { setSelectedReport(report); setReportForm(report); setView('create'); };
+            const handleDeleteReport = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; await deleteDoc(getReportDoc(db, userId, id)); if (selectedReport?.id === id) setView('list'); showMessage('Eliminato.', 'success'); }); };
+
+            const handleFollowupChange = (e) => { const { name, value } = e.target; setFollowupForm(prev => ({ ...prev, [name]: value })); };
+            const handleFollowupSubmit = async (e) => {
+                e.preventDefault(); if (!db) return;
+                const isEditing = !!followupForm.id;
+                const itemToSave = { ...followupForm, id: followupForm.id || String(Date.now()), createdAt: followupForm.createdAt || new Date().toISOString() };
+                try { await setDoc(getFollowupDoc(db, userId, itemToSave.id), itemToSave); showMessage(isEditing ? 'Aggiornato.' : 'Creato.', 'success'); setFollowupForm(initialFollowupState); setView('followups'); } catch (e) { console.error(e); }
+            };
+            const handleDeleteFollowup = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; await deleteDoc(getFollowupDoc(db, userId, id)); showMessage('Eliminato.', 'success'); }); };
+            const prepareEditFollowup = (item) => { setFollowupForm(item); setView('createFollowup'); };
+
+            const handleClientChange = (e, section = null) => {
+                const { name, value } = e.target;
+                if (section && clientForm[section]) setClientForm(prev => ({ ...prev, [section]: { ...prev[section], [name]: value } }));
+                else setClientForm(prev => ({ ...prev, [name]: value }));
+            };
+            const handleClientSubmit = async (e) => {
+                if(e) e.preventDefault(); if (!db) return;
+                const isEditing = !!clientForm.id;
+                const itemToSave = { ...clientForm, id: clientForm.id || String(Date.now()), updatedAt: new Date().toLocaleDateString('it-IT') };
+                try { await setDoc(getClientDoc(db, userId, itemToSave.id), itemToSave); showMessage(isEditing ? 'Modificato.' : 'Salvato.', 'success'); if (isEditing) setSelectedClient(itemToSave); setClientForm(initialClientState); setView('clients'); } catch (e) { console.error(e); }
+            };
+            const prepareEditClient = (client) => { setSelectedClient(client); setClientForm(client); setView('createClient'); };
+            const handleDeleteClient = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; await deleteDoc(getClientDoc(db, userId, id)); setView('clients'); showMessage('Eliminato.', 'success'); }); };
+
+            if (isLoading) return <div className="min-h-screen bg-gray-100 flex items-center justify-center"><Loader2 size={32} className="animate-spin text-blue-600" /></div>;
+
+            const renderDashboard = () => (
+                <div className="space-y-6 animate-fade-in pb-4">
+                    <header className="mb-6 flex justify-between items-center"><h1 className="text-2xl font-bold text-gray-800">Dashboard</h1><div className="text-xs text-gray-400 p-2 bg-gray-100 rounded-lg hidden sm:block">ID: <span className="font-mono text-gray-600">{userId?.substring(0,8)}...</span></div></header>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-blue-600"><Users size={16} /><span className="text-xs font-bold uppercase text-gray-400">Clienti</span></div><div className="text-3xl font-bold text-gray-800">{clients.length}</div></div>
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-purple-600"><Target size={16} /><span className="text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
+                    </div>
+                    <button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 flex justify-center items-center gap-2 active:scale-95 transition-all"><Plus size={20} /> Nuovo Report</button>
+                    {reports.some(r => r.nextContactDate) && (<div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200"><h3 className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><Bell size={18} /> Promemoria Contatti</h3><ul className="space-y-2">{reports.filter(r => r.nextContactDate).sort((a,b) => new Date(a.nextContactDate) - new Date(b.nextContactDate)).slice(0, 3).map(r => (<li key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="text-sm cursor-pointer hover:underline text-yellow-700">{r.nextContactDate} - {r.client} ({r.category})</li>))}</ul></div>)}
+                    {followups.length > 0 && (<div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2"><Target size={14} /> Ultime Offerte</h3><ul className="space-y-3">{followups.sort((a, b) => new Date(b.feedbackDate) - new Date(a.feedbackDate)).slice(0, 3).map(f => (<li key={f.id} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2"><span className="font-medium text-gray-800 truncate pr-2">{f.client}</span><div className="text-right"><div className="font-bold text-blue-600">€ {f.amount}</div><div className="text-[10px] text-gray-400">Risc: {f.feedbackDate}</div></div></li>))}</ul></div>)}
+                </div>
+            );
+
+            // ... (Other render functions follow same logic, just simplified for this single file format) ...
+            // Nota: Ho mantenuto tutta la logica originale, adattandola al formato HTML singolo.
+            
+            const renderCreateReport = () => (
+                <div className="animate-fade-in pb-20"><h2 className="text-xl font-bold text-gray-800 mb-6">{reportForm.id ? 'Modifica' : 'Nuovo'} Report</h2><form onSubmit={handleReportSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><SectionContainer title="Dati" icon={FileText}><div><label className="block text-sm font-bold text-gray-700 mb-1">Cliente *</label><select required name="client" value={reportForm.client} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option value="">Seleziona...</option>{clients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}</select></div><div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="date" value={reportForm.date} onChange={handleReportChange} required /><Input label="Ore" type="number" step="0.5" name="hours" value={reportForm.hours} onChange={handleReportChange} required /></div><div><label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label><select name="category" value={reportForm.category} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option>MANTENIMENTO RAPPORTO</option><option>ORDINE</option><option>RICHIESTA DI OFFERTA</option><option>RISCONTRO OFFERTA</option><option>COMUNICAZIONE</option><option>INIZIO RAPPORTO FORNITURE</option><option>SOLLECITO INIZIO FORNITURA</option><option>APPUNTAMENTO</option><option>ALTRO</option></select></div><div><label className="block text-sm font-bold text-gray-700 mb-1">Tipo Contatto</label><select name="contactType" value={reportForm.contactType} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option>TELEFONICO</option><option>APPUNTAMENTO</option><option>VISITA</option><option>LINKEDIN</option><option>WHATSAPP</option><option>CANTIERE</option><option>ALTRO</option></select></div><TextArea label="Descrizione" name="description" value={reportForm.description} onChange={handleReportChange} /></SectionContainer><SectionContainer title="Follow-up" icon={AlarmCheck}><TextArea label="Appunti Futuri" name="futureNotes" value={reportForm.futureNotes} onChange={handleReportChange} /><div className="grid grid-cols-2 gap-4"><Input label="Prossimo Contatto" type="date" name="nextContactDate" value={reportForm.nextContactDate} onChange={handleReportChange} /><Input label="Orario" type="time" name="nextContactTime" value={reportForm.nextContactTime} onChange={handleReportChange} /></div></SectionContainer><div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl active:scale-[0.98]">Annulla</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] flex justify-center items-center gap-2"><Save size={18} /> Salva</button></div></form></div>
+            );
+
+            const renderFollowups = () => (
+                <div className="animate-fade-in pb-20"><div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-gray-800">Offerte</h2><button onClick={() => { setFollowupForm(initialFollowupState); setView('createFollowup'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 flex items-center gap-2"><Plus size={16} /> Nuova</button></div><div className="space-y-3">{followups.length === 0 ? (<div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessuna offerta registrata.</div>) : (followups.sort((a, b) => new Date(b.feedbackDate) - new Date(a.feedbackDate)).map(item => (<div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative"><div className="flex justify-between items-start mb-2"><div><h3 className="font-bold text-gray-800 text-lg">{item.client}</h3><span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded">Offerta: {item.offerNumber}</span></div><span className="font-bold text-blue-600 text-lg">€ {item.amount}</span></div><div className="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded border border-gray-50 italic">{item.notes || "Nessuna nota."}</div><div className="flex justify-between items-end border-t border-gray-50 pt-3"><div className="text-xs text-gray-400 flex items-center gap-1"><Calendar size={12} /> Risc: <span className="text-gray-700 font-semibold">{new Date(item.feedbackDate).toLocaleDateString('it-IT')}</span></div><div className="flex gap-2"><button onClick={() => prepareEditFollowup(item)} className="p-1.5 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><Edit2 size={16} /></button><button onClick={() => handleDeleteFollowup(item.id)} className="p-1.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-100"><Trash2 size={16} /></button></div></div></div>)))}</div></div>
+            );
+
+            const renderCreateFollowup = () => (
+                <div className="animate-fade-in pb-20"><h2 className="text-xl font-bold text-gray-800 mb-6">{followupForm.id ? 'Modifica Offerta' : 'Nuova Offerta'}</h2><form onSubmit={handleFollowupSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><SectionContainer title="Dettagli Offerta" icon={Target}><div><label className="block text-sm font-bold text-gray-700 mb-1">Cliente *</label><select required name="client" value={followupForm.client} onChange={handleFollowupChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option value="">Seleziona Cliente...</option>{clients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}</select></div><Input label="Numero Offerta" name="offerNumber" value={followupForm.offerNumber} onChange={handleFollowupChange} required placeholder="Es. OFF-2024/001" /><Input label="Importo (€)" type="number" step="0.01" name="amount" value={followupForm.amount} onChange={handleFollowupChange} required placeholder="0.00" /><Input label="Data Riscontro Atteso" type="date" name="feedbackDate" value={followupForm.feedbackDate} onChange={handleFollowupChange} required /><TextArea label="Note / Oggetto" name="notes" value={followupForm.notes} onChange={handleFollowupChange} placeholder="Dettagli sull'offerta..." /></SectionContainer><div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('followups')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl active:scale-[0.98] transition-transform">Annulla</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] transition-transform flex justify-center items-center gap-2"><Save size={18} /> Salva</button></div></form></div>
+            );
+
+            const renderDetail = () => { if (!selectedReport) return null; return (<div className="animate-fade-in h-full flex flex-col relative bg-white pb-10"><div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center no-print"><button onClick={() => setView('list')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => prepareEditReport(selectedReport)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button><button onClick={() => handleDeleteReport(selectedReport.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button><button onClick={() => window.print()} className="p-2 text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200"><Printer size={20} /></button></div></div><div className="p-6 print:p-0 space-y-6"><div className="border-b border-gray-100 pb-4"><span className="text-sm text-gray-500 uppercase tracking-wide">Rapporto di Intervento</span><h1 className="text-2xl font-bold text-gray-900 mt-1">{selectedReport.title}</h1><div className="text-sm text-gray-600 mt-2">Cliente: <span className="font-semibold text-blue-600">{selectedReport.client}</span></div></div><div className="grid grid-cols-2 gap-4"><InfoBox label="Ore Totali" value={`${selectedReport.hours} h`} color="text-green-600" icon={Clock} /><InfoBox label="Data Intervento" value={new Date(selectedReport.date).toLocaleDateString('it-IT')} color="text-purple-600" icon={Calendar} /><InfoBox label="Categoria" value={selectedReport.category} icon={Briefcase} color="text-gray-700" /><InfoBox label="Tipo Contatto" value={selectedReport.contactType} icon={MessageSquare} color="text-gray-700" /><InfoBox label="Creato il" value={selectedReport.createdAt ? new Date(selectedReport.createdAt).toLocaleDateString('it-IT') : '-'} icon={Check} color="text-gray-700" /></div><SectionDisplay title="Descrizione Dettagliata" content={selectedReport.description} /><div className="bg-blue-50 p-4 rounded-xl border border-blue-200 space-y-3"><h3 className="text-sm font-bold text-blue-800 flex items-center gap-2"><AlarmCheck size={18}/> Prossima Pianificazione</h3><SectionDisplay title="Appunti Futuri" content={selectedReport.futureNotes} small />{(selectedReport.nextContactDate || selectedReport.nextContactTime) ? (<div className="pt-2 border-t border-blue-100"><InfoBox label="Prossimo Contatto" value={`${selectedReport.nextContactDate} ${selectedReport.nextContactTime ? `alle ${selectedReport.nextContactTime}` : ''}`} icon={Calendar} color="text-blue-800" />{selectedReport.nextContactDate && (<button onClick={() => createICSFile(selectedReport)} className="mt-3 w-full flex justify-center items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md active:scale-[0.98] transition-transform"><Calendar size={18} /> Aggiungi al Calendario (ICS)</button>)}</div>) : (<p className="text-sm text-blue-700 italic">Nessun contatto futuro pianificato.</p>)}</div></div></div>); };
+
+            const renderClients = () => (
+                <div className="animate-fade-in pb-24"><div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-gray-800">Schede Clienti</h2><button onClick={() => { setClientForm(initialClientState); setView('createClient'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2"><Plus size={16} /> Aggiungi</button></div>{clients.length === 0 ? <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200"><p className="text-gray-400 mb-2">Nessun cliente in archivio</p><p className="text-gray-400 text-sm">Aggiungi il tuo primo cliente per iniziare.</p></div> : (<div className="space-y-3">{clients.sort((a, b) => a.ragioneSociale.localeCompare(b.ragioneSociale)).map(client => (<div key={client.id} onClick={() => { setSelectedClient(client); setView('clientDetail'); }} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative active:scale-[0.98] transition-transform cursor-pointer"><div className="flex justify-between items-start mb-2"><h3 className="font-bold text-gray-800 text-lg">{client.ragioneSociale}</h3><ChevronRight size={18} className="text-gray-300" /></div><div className="text-sm text-gray-500 flex flex-col gap-1">{client.telefono && <span className="flex items-center gap-2"><Phone size={12}/> {client.telefono}</span>}{client.email && <span className="flex items-center gap-2"><Mail size={12}/> {client.email}</span>}</div><div className="mt-3 pt-3 border-t border-gray-50 flex justify-between items-center"><span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Aggiornato: {client.updatedAt || '-'}</span><span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded font-bold">{getClientHours(client.ragioneSociale)}h Lavoro</span></div></div>))}</div>)}</div>
+            );
+
+            const renderCreateClient = () => (
+                <div className="animate-fade-in pb-24 bg-gray-50 min-h-full"><div className="sticky top-0 bg-white z-10 p-4 border-b border-gray-200 flex items-center justify-between shadow-sm"><div className="flex items-center gap-2"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><h2 className="text-lg font-bold text-gray-800">{clientForm.id ? 'Modifica Scheda' : 'Nuova Scheda'}</h2></div><button onClick={handleClientSubmit} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg shadow-blue-200 flex items-center gap-2 active:scale-[0.98] transition-transform"><Save size={16} /> Salva</button></div><div className="p-4 space-y-6 max-w-lg mx-auto"><SectionContainer title="Anagrafica" icon={Building2}><Input label="Ragione Sociale *" name="ragioneSociale" value={clientForm.ragioneSociale} onChange={handleClientChange} required /><Input label="Partita IVA" name="pIva" value={clientForm.pIva} onChange={handleClientChange} /><div className="grid grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm.telefono} onChange={handleClientChange} /><Input label="Email" name="email" value={clientForm.email} onChange={handleClientChange} /></div></SectionContainer><SectionContainer title="Sedi" icon={MapPin}><Input label="Sede Legale" name="sedeLegale" value={clientForm.sedeLegale} onChange={handleClientChange} /><Input label="Sede Operativa" name="sedeOperativa" value={clientForm.sedeOperativa} onChange={handleClientChange} /><Input label="Magazzino" name="magazzino" value={clientForm.magazzino} onChange={handleClientChange} /></SectionContainer><section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4"><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2"><CreditCard size={14}/> Amministrazione</h3><div className="space-y-3"><label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Metodo Pagamento</label><div className="grid grid-cols-3 gap-2"><SelectComponent label="Tipo Base" name="paymentMethod1" value={clientForm.paymentMethod1} onChange={handleClientChange} options={paymentOptions.method1} /><SelectComponent label="Scadenza" name="paymentMethod2" value={clientForm.paymentMethod2} onChange={handleClientChange} options={paymentOptions.method2} /><SelectComponent label="Struttura" name="paymentMethod3" value={clientForm.paymentMethod3} onChange={handleClientChange} options={paymentOptions.method3} /></div></div><div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100 mt-4"><Input label="Codice Univoco" name="sdiCode" value={clientForm.sdiCode} onChange={handleClientChange} /><Input label="PEC" name="pec" value={clientForm.pec} onChange={handleClientChange} /><Input label="Fido (€)" name="fido" value={clientForm.fido} onChange={handleClientChange} /><Input label="Data Fido" type="date" name="fidoDate" value={clientForm.fidoDate} onChange={handleClientChange} /><Input label="Abbigliamento" name="abbigliamento" value={clientForm.abbigliamento} onChange={handleClientChange} /><Input label="N. Operai" name="numeroOperai" value={clientForm.numeroOperai} onChange={handleClientChange} type="number" /></div></section><SectionContainer title="Note" icon={MessageSquare}><TextArea label="Note Interne" name="note" value={clientForm.note} onChange={handleClientChange} /><TextArea label="Comunicazioni" name="comunicazioni" value={clientForm.comunicazioni} onChange={handleClientChange} /></SectionContainer><SectionContainer title="Rubrica Contatti" icon={Users}>{[1, 2, 3, 4].map(num => (<div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4"><div className="font-bold text-blue-600 mb-3 text-sm">Contatto {num}</div><div className="space-y-3"><Input label="Nome e Cognome" name="nome" value={clientForm[`contact${num}`].nome} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Mansione" name="mansione" value={clientForm[`contact${num}`].mansione} onChange={(e) => handleClientChange(e, `contact${num}`)} /><div className="grid grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm[`contact${num}`].telefono} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Email" name="mail" value={clientForm[`contact${num}`].mail} onChange={(e) => handleClientChange(e, `contact${num}`)} /></div></div></div>))}</SectionContainer></div></div>
+            );
+
+            const renderClientDetail = () => { if (!selectedClient) return null; return (<div className="animate-fade-in pb-24 bg-white min-h-full"><div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => prepareEditClient(selectedClient)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button><button onClick={() => handleDeleteClient(selectedClient.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button></div></div><div className="p-6 space-y-8"><div><h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1><p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p><div className="mt-4 flex flex-wrap gap-2">{selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Phone size={14}/> Chiama</a>}{selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Mail size={14}/> Email</a>}</div></div><div className="space-y-4"><SectionTitle icon={<Building2 size={16}/>} title="Sedi" /><InfoRow label="Sede Legale" value={selectedClient.sedeLegale} /><InfoRow label="Sede Operativa" value={selectedClient.sedeOperativa} /><InfoRow label="Magazzino" value={selectedClient.magazzino} /></div><div className="space-y-4"><SectionTitle icon={<CreditCard size={16}/>} title="Dati Amministrativi" /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><InfoRow label="Codice Univoco" value={selectedClient.sdiCode} /><InfoRow label="PEC" value={selectedClient.pec} /><div className="col-span-1 sm:col-span-2"><InfoRow label="Metodo Pagamento" value={getFullPaymentMethod(selectedClient)} /></div><InfoRow label="Abbigliamento" value={selectedClient.abbigliamento} /><InfoRow label="Fido (€)" value={selectedClient.fido} /><InfoRow label="Data Fido" value={selectedClient.fidoDate || '-'} /><InfoRow label="N. Operai" value={selectedClient.numeroOperai} /></div></div><div className="space-y-4"><SectionTitle icon={<Users size={16}/>} title="Referenti" />{[1,2,3,4].map(num => { const c = selectedClient[`contact${num}`]; if (!c.nome && !c.mansione && !c.telefono && !c.mail) return null; return (<div key={num} className="bg-gray-50 p-3 rounded-lg border border-gray-100"><div className="font-bold text-gray-800">{c.nome || `Contatto ${num}`}</div><div className="text-xs text-blue-600 font-medium mb-1">{c.mansione || '-'}</div><div className="text-xs text-gray-500 space-y-0.5">{c.telefono && <div>Tel: <a href={`tel:${c.telefono}`} className="underline text-blue-500">{c.telefono}</a></div>}{c.mail && <div>Mail: <a href={`mailto:${c.mail}`} className="underline text-blue-500">{c.mail}</a></div>}</div></div>); })} {![1,2,3,4].some(num => selectedClient[`contact${num}`].nome) && (<p className="text-sm text-gray-400 italic">Nessun referente salvato.</p>)}</div><div className="space-y-4"><SectionTitle icon={<MessageSquare size={16}/>} title="Note & Comunicazioni" /><SectionDisplay title="Note Interne" content={selectedClient.note} small /><SectionDisplay title="Comunicazioni al Cliente" content={selectedClient.comunicazioni} small /></div><div className="text-xs text-center text-gray-300 pt-8">Ultimo aggiornamento: {selectedClient.updatedAt}</div></div></div>); };
+
+            const renderList = () => (
+                <div className="animate-fade-in pb-20"><div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-gray-800">Storico Completo</h2><button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2"><Plus size={16} /> Nuovo</button></div><div className="space-y-3">{reports.length === 0 ? (<div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessun report salvato.</div>) : (reports.sort((a, b) => new Date(b.date) - new Date(a.date)).map(report => (<div key={report.id} onClick={() => { setSelectedReport(report); setView('detail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform"><div className="flex justify-between items-center"><h3 className="font-bold text-gray-800 truncate pr-4">{report.title}</h3><span className="font-bold text-blue-600 flex-shrink-0">{report.hours}h</span></div><div className="text-sm text-gray-500 flex justify-between items-center mt-1"><span className="truncate">{report.client}</span><span className="text-xs text-gray-400 flex-shrink-0">{new Date(report.date).toLocaleDateString('it-IT')}</span></div>{report.nextContactDate && (<div className="mt-2 text-xs font-semibold text-yellow-700 flex items-center gap-1 bg-yellow-50 p-1 rounded"><Bell size={12} className="text-yellow-500" /> Contatto: {new Date(report.nextContactDate).toLocaleDateString('it-IT')}</div>)}</div>)))}</div></div>
+            );
+
+            const NavItem = ({ icon: Icon, label, currentView, targetView, setView }) => {
+                const isActive = (['create', 'detail'].includes(currentView) && targetView === 'list' && ['create', 'detail', 'list'].includes(currentView)) || (['createClient', 'clientDetail'].includes(currentView) && targetView === 'clients' && ['createClient', 'clientDetail', 'clients'].includes(currentView)) || (['createFollowup'].includes(currentView) && targetView === 'followups' && ['createFollowup', 'followups'].includes(currentView)) || (currentView === targetView);
+                return (<button onClick={() => { if (['create', 'detail'].includes(currentView) && targetView === 'list') setView('list'); else if (['createClient', 'clientDetail'].includes(currentView) && targetView === 'clients') setView('clients'); else if (['createFollowup'].includes(currentView) && targetView === 'followups') setView('followups'); else if (currentView !== targetView) setView(targetView); }} className={`flex flex-col items-center p-2 rounded-xl transition-colors active:scale-95 ${isActive ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}><Icon size={24} className="mb-0.5" /><span className="text-xs font-medium">{label}</span></button>);
+            };
+
+            const CustomMessageModal = () => {
+                if (!message.text) return null;
+                const baseStyle = "fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-300";
+                if (message.type === 'confirm') return (<div className={`${baseStyle} bg-black bg-opacity-40`}><div className="bg-white rounded-xl shadow-2xl p-6 max-w-xs w-full space-y-4"><p className="font-semibold text-gray-800">{message.text}</p><div className="flex justify-end gap-3"><button onClick={() => handleConfirm(false)} className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg font-medium hover:bg-gray-200 active:scale-95 transition-transform">Annulla</button><button onClick={() => handleConfirm(true)} className="px-4 py-2 text-white bg-red-500 rounded-lg font-medium hover:bg-red-600 active:scale-95 transition-transform">Conferma</button></div></div></div>);
+                return (<div className={`fixed top-4 left-1/2 -translate-x-1/2 p-3 rounded-lg shadow-xl text-white flex items-center gap-2 ${message.type === 'success' ? 'bg-green-500' : message.type === 'error' ? 'bg-red-500' : 'bg-blue-500'} transition-transform duration-300 z-50`}>{message.type === 'success' ? <Check size={20}/> : message.type === 'error' ? <X size={20}/> : <Bell size={20}/>}<span className="font-medium text-sm">{message.text}</span></div>);
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-100 flex justify-center items-start pt-0 sm:pt-6 font-sans text-gray-900">
+                    <div className="main-container w-full sm:max-w-md bg-white h-screen sm:h-[850px] sm:rounded-[2.5rem] sm:shadow-2xl overflow-hidden flex flex-col relative ring-8 ring-gray-900/5">
+                        <div className="flex-1 overflow-y-auto scrollbar-hide">{view === 'dashboard' && <div className="p-6">{renderDashboard()}</div>}{view === 'clients' && <div className="p-6">{renderClients()}</div>}{view === 'createClient' && renderCreateClient()}{view === 'clientDetail' && renderClientDetail()}{view === 'list' && <div className="p-6">{renderList()}</div>}{view === 'create' && <div className="p-6">{renderCreateReport()}</div>}{view === 'detail' && renderDetail()}{view === 'followups' && <div className="p-6">{renderFollowups()}</div>}{view === 'createFollowup' && <div className="p-6">{renderCreateFollowup()}</div>}</div>
+                        <nav className="bottom-nav fixed bottom-0 left-0 right-0 sm:static bg-white border-t border-gray-200 z-20 sm:p-0 sm:rounded-b-[2.5rem] p-3 shadow-top sm:shadow-none"><div className="flex justify-around"><NavItem icon={LayoutDashboard} label="Home" currentView={view} targetView="dashboard" setView={setView} /><NavItem icon={FileText} label="Report" currentView={view} targetView="list" setView={setView} /><NavItem icon={Target} label="Offerte" currentView={view} targetView="followups" setView={setView} /><NavItem icon={Users} label="Clienti" currentView={view} targetView="clients" setView={setView} /></div></nav>
+                        <CustomMessageModal />
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
