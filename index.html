@@ -74,7 +74,7 @@
         const Edit2 = (p) => <IconBase {...p}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></IconBase>;
         const Building2 = (p) => <IconBase {...p}><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></IconBase>;
         const CreditCard = (p) => <IconBase {...p}><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></IconBase>;
-        const MessageSquare = (p) => <IconBase {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></IconBase>;
+        const MessageSquare = (p) => <IconBase {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2-2z"/></IconBase>;
         const Save = (p) => <IconBase {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>;
         const Bell = (p) => <IconBase {...p}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></IconBase>;
         const AlarmCheck = (p) => <IconBase {...p}><circle cx="12" cy="13" r="8"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/><path d="M6.38 18.7 4 21"/><path d="M17.64 18.67 20 21"/><path d="m9 13 2 2 4-4"/></IconBase>;
@@ -339,6 +339,28 @@
             const prepareEditClient = (client) => { setSelectedClient(client); setClientForm(client); setView('createClient'); };
             const handleDeleteClient = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; await deleteDoc(getClientDoc(db, userId, id)); setView('clients'); showMessage('Eliminato.', 'success'); }); };
 
+            // --- CALCOLO STATUS CLIENTE (BADGE) ---
+            const getClientStatus = (clientName) => {
+                const clientReports = reports.filter(r => r.client === clientName);
+                if (clientReports.length === 0) return { label: 'FREDDO', color: 'bg-blue-100 text-blue-800 border-blue-200' };
+
+                // Ordina dal più recente
+                const sortedReports = clientReports.sort((a, b) => new Date(b.date) - new Date(a.date));
+                const lastReportDate = new Date(sortedReports[0].date);
+                const today = new Date();
+                
+                // Normalizza a mezzanotte per evitare errori di ore
+                lastReportDate.setHours(0,0,0,0);
+                today.setHours(0,0,0,0);
+
+                const diffTime = today - lastReportDate;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays < 15) return { label: 'CALDO', color: 'bg-rose-100 text-rose-800 border-rose-200' }; // Meno di 15gg
+                if (diffDays <= 30) return { label: 'TIEPIDO', color: 'bg-amber-100 text-amber-800 border-amber-200' }; // 15-30gg
+                return { label: 'FREDDO', color: 'bg-blue-100 text-blue-800 border-blue-200' }; // Più di 30gg
+            };
+
             if (isLoading) return <div className="min-h-screen bg-gray-100 flex items-center justify-center"><Loader2 size={32} className="animate-spin text-blue-600" /></div>;
 
             const renderDashboard = () => (
@@ -377,7 +399,49 @@
             const renderDetail = () => { if (!selectedReport) return null; return (<div className="animate-fade-in h-full flex flex-col relative bg-white pb-10"><div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center no-print"><button onClick={() => setView('list')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => prepareEditReport(selectedReport)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button><button onClick={() => handleDeleteReport(selectedReport.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button><button onClick={() => window.print()} className="p-2 text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200"><Printer size={20} /></button></div></div><div className="p-6 print:p-0 space-y-6"><div className="border-b border-gray-100 pb-4"><span className="text-sm text-gray-500 uppercase tracking-wide">Rapporto di Intervento</span><h1 className="text-2xl font-bold text-gray-900 mt-1">{selectedReport.title}</h1><div className="text-sm text-gray-600 mt-2">Cliente: <span className="font-semibold text-blue-600">{selectedReport.client}</span></div></div><div className="grid grid-cols-2 gap-4"><InfoBox label="Ore Totali" value={`${selectedReport.hours} h`} color="text-green-600" icon={Clock} /><InfoBox label="Data Intervento" value={new Date(selectedReport.date).toLocaleDateString('it-IT')} color="text-purple-600" icon={Calendar} /><InfoBox label="Categoria" value={selectedReport.category} icon={Briefcase} color="text-gray-700" /><InfoBox label="Tipo Contatto" value={selectedReport.contactType} icon={MessageSquare} color="text-gray-700" /><InfoBox label="Creato il" value={selectedReport.createdAt ? new Date(selectedReport.createdAt).toLocaleDateString('it-IT') : '-'} icon={Check} color="text-gray-700" /></div><SectionDisplay title="Descrizione Dettagliata" content={selectedReport.description} /><div className="bg-blue-50 p-4 rounded-xl border border-blue-200 space-y-3"><h3 className="text-sm font-bold text-blue-800 flex items-center gap-2"><AlarmCheck size={18}/> Prossima Pianificazione</h3><SectionDisplay title="Appunti Futuri" content={selectedReport.futureNotes} small />{(selectedReport.nextContactDate || selectedReport.nextContactTime) ? (<div className="pt-2 border-t border-blue-100"><InfoBox label="Prossimo Contatto" value={`${selectedReport.nextContactDate} ${selectedReport.nextContactTime ? `alle ${selectedReport.nextContactTime}` : ''}`} icon={Calendar} color="text-blue-800" />{selectedReport.nextContactDate && (<button onClick={() => createICSFile(selectedReport)} className="mt-3 w-full flex justify-center items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md active:scale-[0.98] transition-transform"><Calendar size={18} /> Aggiungi al Calendario (ICS)</button>)}</div>) : (<p className="text-sm text-blue-700 italic">Nessun contatto futuro pianificato.</p>)}</div></div></div>); };
 
             const renderClients = () => (
-                <div className="animate-fade-in pb-24"><div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-gray-800">Schede Clienti</h2><button onClick={() => { setClientForm(initialClientState); setView('createClient'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2"><Plus size={16} /> Aggiungi</button></div>{clients.length === 0 ? <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200"><p className="text-gray-400 mb-2">Nessun cliente in archivio</p><p className="text-gray-400 text-sm">Aggiungi il tuo primo cliente per iniziare.</p></div> : (<div className="space-y-3">{clients.sort((a, b) => a.ragioneSociale.localeCompare(b.ragioneSociale)).map(client => (<div key={client.id} onClick={() => { setSelectedClient(client); setView('clientDetail'); }} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative active:scale-[0.98] transition-transform cursor-pointer"><div className="flex justify-between items-start mb-2"><h3 className="font-bold text-gray-800 text-lg">{client.ragioneSociale}</h3><ChevronRight size={18} className="text-gray-300" /></div><div className="text-sm text-gray-500 flex flex-col gap-1">{client.telefono && <span className="flex items-center gap-2"><Phone size={12}/> {client.telefono}</span>}{client.email && <span className="flex items-center gap-2"><Mail size={12}/> {client.email}</span>}</div><div className="mt-3 pt-3 border-t border-gray-50 flex justify-between items-center"><span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Aggiornato: {client.updatedAt || '-'}</span><span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded font-bold">{getClientHours(client.ragioneSociale)}h Lavoro</span></div></div>))}</div>)}</div>
+                <div className="animate-fade-in pb-24">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-gray-800">Schede Clienti</h2>
+                        <button onClick={() => { setClientForm(initialClientState); setView('createClient'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2">
+                            <Plus size={16} /> Aggiungi
+                        </button>
+                    </div>
+                    {clients.length === 0 ? 
+                        <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
+                            <p className="text-gray-400 mb-2">Nessun cliente in archivio</p>
+                            <p className="text-gray-400 text-sm">Aggiungi il tuo primo cliente per iniziare.</p>
+                        </div> 
+                    : (
+                        <div className="space-y-3">
+                            {clients.sort((a, b) => a.ragioneSociale.localeCompare(b.ragioneSociale)).map(client => {
+                                // --- CALCOLO BADGE STATUS ---
+                                const status = getClientStatus(client.ragioneSociale);
+                                return (
+                                    <div key={client.id} onClick={() => { setSelectedClient(client); setView('clientDetail'); }} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative active:scale-[0.98] transition-transform cursor-pointer">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <h3 className="font-bold text-gray-800 text-lg">{client.ragioneSociale}</h3>
+                                                {/* --- BADGE RENDER --- */}
+                                                <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold border ${status.color}`}>
+                                                    {status.label}
+                                                </span>
+                                            </div>
+                                            <ChevronRight size={18} className="text-gray-300" />
+                                        </div>
+                                        <div className="text-sm text-gray-500 flex flex-col gap-1 mt-2">
+                                            {client.telefono && <span className="flex items-center gap-2"><Phone size={12}/> {client.telefono}</span>}
+                                            {client.email && <span className="flex items-center gap-2"><Mail size={12}/> {client.email}</span>}
+                                        </div>
+                                        <div className="mt-3 pt-3 border-t border-gray-50 flex justify-between items-center">
+                                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Aggiornato: {client.updatedAt || '-'}</span>
+                                            <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded font-bold">{getClientHours(client.ragioneSociale)}h Lavoro</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
             );
 
             const renderCreateClient = () => (
