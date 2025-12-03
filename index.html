@@ -74,7 +74,7 @@
         const Edit2 = (p) => <IconBase {...p}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></IconBase>;
         const Building2 = (p) => <IconBase {...p}><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></IconBase>;
         const CreditCard = (p) => <IconBase {...p}><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></IconBase>;
-        const MessageSquare = (p) => <IconBase {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2-2z"/></IconBase>;
+        const MessageSquare = (p) => <IconBase {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></IconBase>;
         const Save = (p) => <IconBase {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>;
         const Bell = (p) => <IconBase {...p}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></IconBase>;
         const AlarmCheck = (p) => <IconBase {...p}><circle cx="12" cy="13" r="8"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/><path d="M6.38 18.7 4 21"/><path d="M17.64 18.67 20 21"/><path d="m9 13 2 2 4-4"/></IconBase>;
@@ -82,15 +82,18 @@
         const Check = (p) => <IconBase {...p}><path d="M20 6 9 17l-5-5"/></IconBase>;
         const Target = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></IconBase>;
         const Download = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
+        const Lock = (p) => <IconBase {...p}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></IconBase>;
+        const LogOut = (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></IconBase>;
 
-        // --- UTILITY FIREBASE ---
-        const getReportsCollection = (db, userId) => collection(db, `artifacts/${appId}/users/${userId}/reports`);
-        const getClientsCollection = (db, userId) => collection(db, `artifacts/${appId}/users/${userId}/clients`);
-        const getFollowupsCollection = (db, userId) => collection(db, `artifacts/${appId}/users/${userId}/followups`);
+        // --- UTILITY FIREBASE CON USER KEY (Shared) ---
+        // Ora usiamo "secretKey" invece di "userId" per condividere i dati
+        const getReportsCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/reports`);
+        const getClientsCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/clients`);
+        const getFollowupsCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/followups`);
 
-        const getReportDoc = (db, userId, id) => doc(db, `artifacts/${appId}/users/${userId}/reports`, String(id));
-        const getClientDoc = (db, userId, id) => doc(db, `artifacts/${appId}/users/${userId}/clients`, String(id));
-        const getFollowupDoc = (db, userId, id) => doc(db, `artifacts/${appId}/users/${userId}/followups`, String(id));
+        const getReportDoc = (db, secretKey, id) => doc(db, `artifacts/${appId}/users/${secretKey}/reports`, String(id));
+        const getClientDoc = (db, secretKey, id) => doc(db, `artifacts/${appId}/users/${secretKey}/clients`, String(id));
+        const getFollowupDoc = (db, secretKey, id) => doc(db, `artifacts/${appId}/users/${secretKey}/followups`, String(id));
 
         // --- COMPONENTI UI DI SUPPORTO ---
         const Input = ({ label, name, value, onChange, type = 'text', required = false, step = null, placeholder = '' }) => (
@@ -151,9 +154,13 @@
         const App = () => {
             const [db, setDb] = useState(null);
             const [auth, setAuth] = useState(null);
-            const [userId, setUserId] = useState(null);
             const [isAuthReady, setIsAuthReady] = useState(false);
-            const [isLoading, setIsLoading] = useState(true);
+            const [isLoading, setIsLoading] = useState(false); // Iniziamo false, true solo dopo il login
+
+            // STATO PER LA CHIAVE CONDIVISA
+            const [userKey, setUserKey] = useState(localStorage.getItem('crm_user_key') || '');
+            const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('crm_user_key'));
+            const [loginInput, setLoginInput] = useState('');
 
             const [reports, setReports] = useState([]);
             const [clients, setClients] = useState([]);
@@ -192,6 +199,7 @@
             };
             const [clientForm, setClientForm] = useState(initialClientState);
 
+            // 1. INIT FIREBASE (Sempre anonimo per connettersi, ma usiamo userKey per i dati)
             useEffect(() => {
                 try {
                     const app = initializeApp(firebaseConfig);
@@ -203,21 +211,46 @@
                         if (!user) {
                             try { await signInAnonymously(authInstance); } catch (error) { console.error("Errore login:", error); }
                         }
-                        setUserId(authInstance.currentUser?.uid);
                         setIsAuthReady(true);
                     });
                     return () => unsubscribe();
-                } catch (e) { console.error("Init Error:", e); setIsLoading(false); }
+                } catch (e) { console.error("Init Error:", e); }
             }, []);
 
+            // 2. FETCH DATA (Solo se Loggato e Auth Ready)
             useEffect(() => {
-                if (!isAuthReady || !db || !userId) return;
-                const unsubscribeReports = onSnapshot(getReportsCollection(db, userId), (s) => setReports(s.docs.map(d => ({ ...d.data(), id: d.id }))));
-                const unsubscribeClients = onSnapshot(getClientsCollection(db, userId), (s) => setClients(s.docs.map(d => ({ ...d.data(), id: d.id }))));
-                const unsubscribeFollowups = onSnapshot(getFollowupsCollection(db, userId), (s) => setFollowups(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+                if (!isAuthReady || !db || !userKey) return;
+                
+                setIsLoading(true);
+                // Normalizza la chiave per sicurezza (tutto minuscolo, senza spazi)
+                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
+
+                const unsubscribeReports = onSnapshot(getReportsCollection(db, safeKey), (s) => setReports(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+                const unsubscribeClients = onSnapshot(getClientsCollection(db, safeKey), (s) => setClients(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+                const unsubscribeFollowups = onSnapshot(getFollowupsCollection(db, safeKey), (s) => setFollowups(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+                
                 setIsLoading(false);
                 return () => { unsubscribeReports(); unsubscribeClients(); unsubscribeFollowups(); };
-            }, [isAuthReady, db, userId]);
+            }, [isAuthReady, db, userKey]);
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if(!loginInput.trim()) return;
+                const safeKey = loginInput.trim().toLowerCase().replace(/\s/g, '');
+                localStorage.setItem('crm_user_key', safeKey);
+                setUserKey(safeKey);
+                setIsLoggedIn(true);
+            };
+
+            const handleLogout = () => {
+                localStorage.removeItem('crm_user_key');
+                setUserKey('');
+                setIsLoggedIn(false);
+                setLoginInput('');
+                setReports([]);
+                setClients([]);
+                setFollowups([]);
+            };
 
             const showMessage = (text, type = 'info') => { setMessage({ text, type }); setTimeout(() => setMessage({ text: '', type: '' }), 3000); };
             const showConfirm = (text, callback) => { setMessage({ text, type: 'confirm' }); setConfirmAction(() => callback); };
@@ -306,23 +339,27 @@
 
             const handleReportChange = (e) => { const { name, value } = e.target; setReportForm(prev => ({ ...prev, [name]: value })); };
             const handleReportSubmit = async (e) => {
-                e.preventDefault(); if (!db || !userId) return;
+                e.preventDefault(); if (!db || !userKey) return;
                 const isEditing = !!reportForm.id;
                 const autoTitle = reportForm.title || `${reportForm.category} - ${new Date(reportForm.date).toLocaleDateString('it-IT')}`;
                 const reportToSave = { ...reportForm, title: autoTitle, id: reportForm.id || String(Date.now()), createdAt: reportForm.createdAt || new Date().toISOString() };
-                try { await setDoc(getReportDoc(db, userId, reportToSave.id), reportToSave); showMessage(isEditing ? 'Modificato.' : 'Creato.', 'success'); if (isEditing) setSelectedReport(reportToSave); setReportForm(initialReportState); setView('list'); } catch (error) { console.error(error); }
+                
+                // Normalizza key
+                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
+                try { await setDoc(getReportDoc(db, safeKey, reportToSave.id), reportToSave); showMessage(isEditing ? 'Modificato.' : 'Creato.', 'success'); if (isEditing) setSelectedReport(reportToSave); setReportForm(initialReportState); setView('list'); } catch (error) { console.error(error); }
             };
             const prepareEditReport = (report) => { setSelectedReport(report); setReportForm(report); setView('create'); };
-            const handleDeleteReport = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; await deleteDoc(getReportDoc(db, userId, id)); if (selectedReport?.id === id) setView('list'); showMessage('Eliminato.', 'success'); }); };
+            const handleDeleteReport = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getReportDoc(db, safeKey, id)); if (selectedReport?.id === id) setView('list'); showMessage('Eliminato.', 'success'); }); };
 
             const handleFollowupChange = (e) => { const { name, value } = e.target; setFollowupForm(prev => ({ ...prev, [name]: value })); };
             const handleFollowupSubmit = async (e) => {
                 e.preventDefault(); if (!db) return;
                 const isEditing = !!followupForm.id;
                 const itemToSave = { ...followupForm, id: followupForm.id || String(Date.now()), createdAt: followupForm.createdAt || new Date().toISOString() };
-                try { await setDoc(getFollowupDoc(db, userId, itemToSave.id), itemToSave); showMessage(isEditing ? 'Aggiornato.' : 'Creato.', 'success'); setFollowupForm(initialFollowupState); setView('followups'); } catch (e) { console.error(e); }
+                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
+                try { await setDoc(getFollowupDoc(db, safeKey, itemToSave.id), itemToSave); showMessage(isEditing ? 'Aggiornato.' : 'Creato.', 'success'); setFollowupForm(initialFollowupState); setView('followups'); } catch (e) { console.error(e); }
             };
-            const handleDeleteFollowup = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; await deleteDoc(getFollowupDoc(db, userId, id)); showMessage('Eliminato.', 'success'); }); };
+            const handleDeleteFollowup = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getFollowupDoc(db, safeKey, id)); showMessage('Eliminato.', 'success'); }); };
             const prepareEditFollowup = (item) => { setFollowupForm(item); setView('createFollowup'); };
 
             const handleClientChange = (e, section = null) => {
@@ -334,56 +371,97 @@
                 if(e) e.preventDefault(); if (!db) return;
                 const isEditing = !!clientForm.id;
                 const itemToSave = { ...clientForm, id: clientForm.id || String(Date.now()), updatedAt: new Date().toLocaleDateString('it-IT') };
-                try { await setDoc(getClientDoc(db, userId, itemToSave.id), itemToSave); showMessage(isEditing ? 'Modificato.' : 'Salvato.', 'success'); if (isEditing) setSelectedClient(itemToSave); setClientForm(initialClientState); setView('clients'); } catch (e) { console.error(e); }
+                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
+                try { await setDoc(getClientDoc(db, safeKey, itemToSave.id), itemToSave); showMessage(isEditing ? 'Modificato.' : 'Salvato.', 'success'); if (isEditing) setSelectedClient(itemToSave); setClientForm(initialClientState); setView('clients'); } catch (e) { console.error(e); }
             };
             const prepareEditClient = (client) => { setSelectedClient(client); setClientForm(client); setView('createClient'); };
-            const handleDeleteClient = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; await deleteDoc(getClientDoc(db, userId, id)); setView('clients'); showMessage('Eliminato.', 'success'); }); };
+            const handleDeleteClient = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getClientDoc(db, safeKey, id)); setView('clients'); showMessage('Eliminato.', 'success'); }); };
 
-            // --- CALCOLO STATUS CLIENTE (BADGE) ---
             const getClientStatus = (clientName) => {
                 const clientReports = reports.filter(r => r.client === clientName);
                 if (clientReports.length === 0) return { label: 'FREDDO', color: 'bg-blue-100 text-blue-800 border-blue-200' };
 
-                // Ordina dal più recente
                 const sortedReports = clientReports.sort((a, b) => new Date(b.date) - new Date(a.date));
                 const lastReportDate = new Date(sortedReports[0].date);
                 const today = new Date();
                 
-                // Normalizza a mezzanotte per evitare errori di ore
                 lastReportDate.setHours(0,0,0,0);
                 today.setHours(0,0,0,0);
 
                 const diffTime = today - lastReportDate;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                if (diffDays < 15) return { label: 'CALDO', color: 'bg-rose-100 text-rose-800 border-rose-200' }; // Meno di 15gg
-                if (diffDays <= 30) return { label: 'TIEPIDO', color: 'bg-amber-100 text-amber-800 border-amber-200' }; // 15-30gg
-                return { label: 'FREDDO', color: 'bg-blue-100 text-blue-800 border-blue-200' }; // Più di 30gg
+                if (diffDays < 15) return { label: 'CALDO', color: 'bg-rose-100 text-rose-800 border-rose-200' };
+                if (diffDays <= 30) return { label: 'TIEPIDO', color: 'bg-amber-100 text-amber-800 border-amber-200' };
+                return { label: 'FREDDO', color: 'bg-blue-100 text-blue-800 border-blue-200' };
             };
+
+            const renderLogin = () => (
+                <div className="flex flex-col items-center justify-center h-full p-8 animate-fade-in bg-white rounded-[2.5rem]">
+                    <div className="bg-blue-50 p-6 rounded-full mb-6 text-blue-600">
+                        <Lock size={48} />
+                    </div>
+                    <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">WorkReport CRM</h1>
+                    <p className="text-gray-500 text-center mb-8 text-sm">Inserisci la tua Chiave Segreta per accedere ai tuoi dati.</p>
+                    
+                    <form onSubmit={handleLogin} className="w-full max-w-xs space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Chiave Segreta (Username)</label>
+                            <input 
+                                type="text" 
+                                value={loginInput} 
+                                onChange={(e) => setLoginInput(e.target.value)} 
+                                placeholder="es. miorossi123" 
+                                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-center font-bold text-gray-800 text-lg"
+                                autoFocus
+                            />
+                            <p className="text-[10px] text-gray-400 mt-2 text-center">Usa la stessa chiave su PC e Smartphone per sincronizzare i dati.</p>
+                        </div>
+                        <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-all">
+                            Accedi
+                        </button>
+                    </form>
+                </div>
+            );
+
+            // --- RENDER VIEWS (Identiche a prima, ma avvolte dal controllo Login) ---
+            
+            if (!isLoggedIn) {
+                return (
+                    <div className="min-h-screen bg-gray-100 flex justify-center items-start pt-0 sm:pt-6 font-sans text-gray-900">
+                        <div className="w-full sm:max-w-md bg-white h-screen sm:h-[850px] sm:rounded-[2.5rem] sm:shadow-2xl overflow-hidden ring-8 ring-gray-900/5">
+                            {renderLogin()}
+                        </div>
+                    </div>
+                );
+            }
 
             if (isLoading) return <div className="min-h-screen bg-gray-100 flex items-center justify-center"><Loader2 size={32} className="animate-spin text-blue-600" /></div>;
 
             const renderDashboard = () => (
                 <div className="space-y-6 animate-fade-in pb-4">
-                    <header className="mb-6 flex justify-between items-center"><h1 className="text-2xl font-bold text-gray-800">Dashboard</h1><div className="text-xs text-gray-400 p-2 bg-gray-100 rounded-lg hidden sm:block">ID: <span className="font-mono text-gray-600">{userId?.substring(0,8)}...</span></div></header>
+                    <header className="mb-6 flex justify-between items-center">
+                        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+                        <button onClick={handleLogout} className="text-xs text-red-500 p-2 bg-red-50 rounded-lg flex items-center gap-1 font-bold">
+                            <LogOut size={14} /> Esci
+                        </button>
+                    </header>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-blue-600"><Users size={16} /><span className="text-xs font-bold uppercase text-gray-400">Clienti</span></div><div className="text-3xl font-bold text-gray-800">{clients.length}</div></div>
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-purple-600"><Target size={16} /><span className="text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
                     </div>
                     <button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 flex justify-center items-center gap-2 active:scale-95 transition-all"><Plus size={20} /> Nuovo Report</button>
                     
-                    {/* --- TASTO EXPORT EXCEL --- */}
                     <button onClick={exportToExcel} className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-green-200 flex justify-center items-center gap-2 active:scale-95 transition-all">
                         <Download size={20} /> Esporta Database Excel
                     </button>
-                    {/* ------------------------ */}
 
                     {reports.some(r => r.nextContactDate) && (<div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200"><h3 className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><Bell size={18} /> Promemoria Contatti</h3><ul className="space-y-2">{reports.filter(r => r.nextContactDate).sort((a,b) => new Date(a.nextContactDate) - new Date(b.nextContactDate)).slice(0, 3).map(r => (<li key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="text-sm cursor-pointer hover:underline text-yellow-700">{r.nextContactDate} - {r.client} ({r.category})</li>))}</ul></div>)}
                     {followups.length > 0 && (<div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2"><Target size={14} /> Ultime Offerte</h3><ul className="space-y-3">{followups.sort((a, b) => new Date(b.feedbackDate) - new Date(a.feedbackDate)).slice(0, 3).map(f => (<li key={f.id} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2"><span className="font-medium text-gray-800 truncate pr-2">{f.client}</span><div className="text-right"><div className="font-bold text-blue-600">€ {f.amount}</div><div className="text-[10px] text-gray-400">Risc: {f.feedbackDate}</div></div></li>))}</ul></div>)}
                 </div>
             );
 
-            // ... IL RESTO DELL'APP RIMANE INVARIATO ...
+            // ... REINSERIAMO I RENDER ORIGINALI IDENTICI A PRIMA ...
             const renderCreateReport = () => (
                 <div className="animate-fade-in pb-20"><h2 className="text-xl font-bold text-gray-800 mb-6">{reportForm.id ? 'Modifica' : 'Nuovo'} Report</h2><form onSubmit={handleReportSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><SectionContainer title="Dati" icon={FileText}><div><label className="block text-sm font-bold text-gray-700 mb-1">Cliente *</label><select required name="client" value={reportForm.client} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option value="">Seleziona...</option>{clients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}</select></div><div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="date" value={reportForm.date} onChange={handleReportChange} required /><Input label="Ore" type="number" step="0.5" name="hours" value={reportForm.hours} onChange={handleReportChange} required /></div><div><label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label><select name="category" value={reportForm.category} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option>MANTENIMENTO RAPPORTO</option><option>ORDINE</option><option>RICHIESTA DI OFFERTA</option><option>RISCONTRO OFFERTA</option><option>COMUNICAZIONE</option><option>INIZIO RAPPORTO FORNITURE</option><option>SOLLECITO INIZIO FORNITURA</option><option>APPUNTAMENTO</option><option>ALTRO</option></select></div><div><label className="block text-sm font-bold text-gray-700 mb-1">Tipo Contatto</label><select name="contactType" value={reportForm.contactType} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option>TELEFONICO</option><option>APPUNTAMENTO</option><option>VISITA</option><option>LINKEDIN</option><option>WHATSAPP</option><option>CANTIERE</option><option>ALTRO</option></select></div><TextArea label="Descrizione" name="description" value={reportForm.description} onChange={handleReportChange} /></SectionContainer><SectionContainer title="Follow-up" icon={AlarmCheck}><TextArea label="Appunti Futuri" name="futureNotes" value={reportForm.futureNotes} onChange={handleReportChange} /><div className="grid grid-cols-2 gap-4"><Input label="Prossimo Contatto" type="date" name="nextContactDate" value={reportForm.nextContactDate} onChange={handleReportChange} /><Input label="Orario" type="time" name="nextContactTime" value={reportForm.nextContactTime} onChange={handleReportChange} /></div></SectionContainer><div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl active:scale-[0.98]">Annulla</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] flex justify-center items-center gap-2"><Save size={18} /> Salva</button></div></form></div>
             );
@@ -414,14 +492,12 @@
                     : (
                         <div className="space-y-3">
                             {clients.sort((a, b) => a.ragioneSociale.localeCompare(b.ragioneSociale)).map(client => {
-                                // --- CALCOLO BADGE STATUS ---
                                 const status = getClientStatus(client.ragioneSociale);
                                 return (
                                     <div key={client.id} onClick={() => { setSelectedClient(client); setView('clientDetail'); }} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative active:scale-[0.98] transition-transform cursor-pointer">
                                         <div className="flex justify-between items-start mb-2">
                                             <div>
                                                 <h3 className="font-bold text-gray-800 text-lg">{client.ragioneSociale}</h3>
-                                                {/* --- BADGE RENDER --- */}
                                                 <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold border ${status.color}`}>
                                                     {status.label}
                                                 </span>
