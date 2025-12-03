@@ -269,30 +269,62 @@
                     const wb = XLSX.utils.book_new();
                     const now = new Date().toISOString().slice(0, 10);
 
-                    // 1. Foglio Clienti (Appiattito)
+                    // 1. Foglio Clienti (Ordinato come da UI)
                     if (clients.length > 0) {
-                        const flatClients = clients.map(c => {
-                            const flat = { ...c };
-                            // Rimuovi oggetti annidati e crea colonne singole
+                        const orderedClients = clients.map(c => {
+                            const row = {
+                                "Ragione Sociale": c.ragioneSociale,
+                                "Partita IVA": c.pIva,
+                                "Telefono": c.telefono,
+                                "Email": c.email,
+                                "Sede Legale": c.sedeLegale,
+                                "Sede Operativa": c.sedeOperativa,
+                                "Magazzino": c.magazzino,
+                                "Pagamento (Tipo)": c.paymentMethod1,
+                                "Pagamento (Scadenza)": c.paymentMethod2,
+                                "Pagamento (Struttura)": c.paymentMethod3,
+                                "Codice Univoco (SDI)": c.sdiCode,
+                                "PEC": c.pec,
+                                "Fido (€)": c.fido,
+                                "Data Fido": c.fidoDate,
+                                "Abbigliamento": c.abbigliamento,
+                                "N. Operai": c.numeroOperai,
+                                "Note Interne": c.note,
+                                "Comunicazioni": c.comunicazioni,
+                                "Ultimo Aggiornamento": c.updatedAt
+                            };
+
+                            // Aggiungo i contatti in ordine
                             [1, 2, 3, 4].forEach(i => {
-                                const contact = flat[`contact${i}`];
-                                if (contact) {
-                                    flat[`Ref_${i}_Nome`] = contact.nome;
-                                    flat[`Ref_${i}_Mansione`] = contact.mansione;
-                                    flat[`Ref_${i}_Tel`] = contact.telefono;
-                                    flat[`Ref_${i}_Mail`] = contact.mail;
-                                    delete flat[`contact${i}`]; // Rimuovi l'oggetto originale
-                                }
+                                const contact = c[`contact${i}`] || {};
+                                row[`Ref. ${i} Nome`] = contact.nome || '';
+                                row[`Ref. ${i} Mansione`] = contact.mansione || '';
+                                row[`Ref. ${i} Tel`] = contact.telefono || '';
+                                row[`Ref. ${i} Mail`] = contact.mail || '';
                             });
-                            return flat;
+
+                            return row;
                         });
-                        const wsClients = XLSX.utils.json_to_sheet(flatClients);
+                        
+                        const wsClients = XLSX.utils.json_to_sheet(orderedClients);
                         XLSX.utils.book_append_sheet(wb, wsClients, "Clienti");
                     }
 
-                    // 2. Foglio Report
+                    // 2. Foglio Report (Ordinato)
                     if (reports.length > 0) {
-                        const wsReports = XLSX.utils.json_to_sheet(reports);
+                        const orderedReports = reports.map(r => ({
+                            "Cliente": r.client,
+                            "Data Intervento": r.date,
+                            "Ore": r.hours,
+                            "Categoria": r.category,
+                            "Tipo Contatto": r.contactType,
+                            "Descrizione": r.description,
+                            "Appunti Futuri": r.futureNotes,
+                            "Data Prossimo Contatto": r.nextContactDate,
+                            "Orario Prossimo Contatto": r.nextContactTime,
+                            "Creato il": r.createdAt ? new Date(r.createdAt).toLocaleString() : ''
+                        }));
+                        const wsReports = XLSX.utils.json_to_sheet(orderedReports);
                         XLSX.utils.book_append_sheet(wb, wsReports, "Report");
                     }
 
