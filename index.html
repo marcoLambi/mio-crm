@@ -509,49 +509,72 @@
 
             const renderDetail = () => { if (!selectedReport) return null; return (<div className="animate-fade-in h-full flex flex-col relative bg-white pb-10"><div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center no-print"><button onClick={() => setView('list')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => prepareEditReport(selectedReport)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button><button onClick={() => handleDeleteReport(selectedReport.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button><button onClick={() => window.print()} className="p-2 text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200"><Printer size={20} /></button></div></div><div className="p-6 print:p-0 space-y-6"><div className="border-b border-gray-100 pb-4"><span className="text-sm text-gray-500 uppercase tracking-wide">Rapporto di Intervento</span><h1 className="text-2xl font-bold text-gray-900 mt-1">{selectedReport.title}</h1><div className="text-sm text-gray-600 mt-2">Cliente: <span className="font-semibold text-blue-600">{selectedReport.client}</span></div></div><div className="grid grid-cols-2 gap-4"><InfoBox label="Ore Totali" value={`${selectedReport.hours} h`} color="text-green-600" icon={Clock} /><InfoBox label="Data Intervento" value={new Date(selectedReport.date).toLocaleDateString('it-IT')} color="text-purple-600" icon={Calendar} /><InfoBox label="Categoria" value={selectedReport.category} icon={Briefcase} color="text-gray-700" /><InfoBox label="Tipo Contatto" value={selectedReport.contactType} icon={MessageSquare} color="text-gray-700" /><InfoBox label="Creato il" value={selectedReport.createdAt ? new Date(selectedReport.createdAt).toLocaleDateString('it-IT') : '-'} icon={Check} color="text-gray-700" /></div><SectionDisplay title="Descrizione Dettagliata" content={selectedReport.description} /><div className="bg-blue-50 p-4 rounded-xl border border-blue-200 space-y-3"><h3 className="text-sm font-bold text-blue-800 flex items-center gap-2"><AlarmCheck size={18}/> Prossima Pianificazione</h3><SectionDisplay title="Appunti Futuri" content={selectedReport.futureNotes} small />{(selectedReport.nextContactDate || selectedReport.nextContactTime) ? (<div className="pt-2 border-t border-blue-100"><InfoBox label="Prossimo Contatto" value={`${selectedReport.nextContactDate} ${selectedReport.nextContactTime ? `alle ${selectedReport.nextContactTime}` : ''}`} icon={Calendar} color="text-blue-800" />{selectedReport.nextContactDate && (<button onClick={() => addToGoogleCalendar(selectedReport)} className="mt-3 w-full flex justify-center items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md active:scale-[0.98] transition-transform"><Calendar size={18} /> Apri Calendario</button>)}</div>) : (<p className="text-sm text-blue-700 italic">Nessun contatto futuro pianificato.</p>)}</div></div></div>); };
 
-            const renderClients = () => (
-                <div className="animate-fade-in pb-24">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-gray-800">Schede Clienti</h2>
-                        <button onClick={() => { setClientForm(initialClientState); setView('createClient'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2">
-                            <Plus size={16} /> Aggiungi
-                        </button>
-                    </div>
-                    {clients.length === 0 ? 
-                        <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
-                            <p className="text-gray-400 mb-2">Nessun cliente in archivio</p>
-                            <p className="text-gray-400 text-sm">Aggiungi il tuo primo cliente per iniziare.</p>
-                        </div> 
-                    : (
-                        <div className="space-y-3">
-                            {sortedClients.map(client => {
-                                const status = getClientStatus(client.ragioneSociale);
-                                return (
-                                    <div key={client.id} onClick={() => { setSelectedClient(client); setView('clientDetail'); }} className="bg-gray-100 p-5 rounded-xl shadow-sm border border-gray-200 relative active:scale-[0.98] transition-transform cursor-pointer">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <h3 className="font-bold text-gray-800 text-lg">{client.ragioneSociale}</h3>
-                                            <div className="flex flex-col items-end gap-1 pl-2">
-                                                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap ${status.color}`}>
-                                                    {status.label}
-                                                </span>
-                                                <ChevronRight size={18} className="text-gray-300" />
+            const renderClients = () => {
+                // Calcolo duplicati
+                const nameCounts = clients.reduce((acc, client) => {
+                    const name = (client.ragioneSociale || '').trim().toLowerCase();
+                    acc[name] = (acc[name] || 0) + 1;
+                    return acc;
+                }, {});
+
+                return (
+                    <div className="animate-fade-in pb-24">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-gray-800">Schede Clienti</h2>
+                            <button onClick={() => { setClientForm(initialClientState); setView('createClient'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2">
+                                <Plus size={16} /> Aggiungi
+                            </button>
+                        </div>
+                        {clients.length === 0 ? 
+                            <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
+                                <p className="text-gray-400 mb-2">Nessun cliente in archivio</p>
+                                <p className="text-gray-400 text-sm">Aggiungi il tuo primo cliente per iniziare.</p>
+                            </div> 
+                        : (
+                            <div className="space-y-3">
+                                {sortedClients.map(client => {
+                                    const status = getClientStatus(client.ragioneSociale);
+                                    const normalizedName = (client.ragioneSociale || '').trim().toLowerCase();
+                                    const isDuplicate = nameCounts[normalizedName] > 1;
+
+                                    const cardStyle = isDuplicate 
+                                        ? "bg-red-50 border-red-300 shadow-red-100" 
+                                        : "bg-gray-100 border-gray-200";
+
+                                    return (
+                                        <div key={client.id} onClick={() => { setSelectedClient(client); setView('clientDetail'); }} className={`${cardStyle} p-5 rounded-xl shadow-sm border relative active:scale-[0.98] transition-transform cursor-pointer`}>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <h3 className="font-bold text-gray-800 text-lg">{client.ragioneSociale}</h3>
+                                                    {isDuplicate && (
+                                                        <span className="text-[10px] font-bold text-red-600 uppercase tracking-wider block mt-1">
+                                                            ⚠️ Contatto Duplicato
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col items-end gap-1 pl-2">
+                                                    <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap ${status.color}`}>
+                                                        {status.label}
+                                                    </span>
+                                                    <ChevronRight size={18} className="text-gray-300" />
+                                                </div>
+                                            </div>
+                                            <div className="text-sm text-gray-500 flex flex-col gap-1 mt-2">
+                                                {client.telefono && <span className="flex items-center gap-2"><Phone size={12}/> {client.telefono}</span>}
+                                                {client.email && <span className="flex items-center gap-2"><Mail size={12}/> {client.email}</span>}
+                                            </div>
+                                            <div className="mt-3 pt-3 border-t border-gray-50 flex justify-between items-center">
+                                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Aggiornato: {client.updatedAt || '-'}</span>
+                                                <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded font-bold">{getClientHours(client.ragioneSociale)}h Lavoro</span>
                                             </div>
                                         </div>
-                                        <div className="text-sm text-gray-500 flex flex-col gap-1 mt-2">
-                                            {client.telefono && <span className="flex items-center gap-2"><Phone size={12}/> {client.telefono}</span>}
-                                            {client.email && <span className="flex items-center gap-2"><Mail size={12}/> {client.email}</span>}
-                                        </div>
-                                        <div className="mt-3 pt-3 border-t border-gray-50 flex justify-between items-center">
-                                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Aggiornato: {client.updatedAt || '-'}</span>
-                                            <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded font-bold">{getClientHours(client.ragioneSociale)}h Lavoro</span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            );
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                );
+            };
 
             const renderCreateClient = () => (
                 <div className="animate-fade-in pb-24 bg-gray-50 min-h-full"><div className="sticky top-0 bg-white z-10 p-4 border-b border-gray-200 flex items-center justify-between shadow-sm"><div className="flex items-center gap-2"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><h2 className="text-lg font-bold text-gray-800">{clientForm.id ? 'Modifica Scheda' : 'Nuova Scheda'}</h2></div><button onClick={handleClientSubmit} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg shadow-blue-200 flex items-center gap-2 active:scale-[0.98] transition-transform"><Save size={16} /> Salva</button></div><div className="p-4 space-y-6 max-w-lg mx-auto"><SectionContainer title="Anagrafica" icon={Building2}><Input label="Ragione Sociale *" name="ragioneSociale" value={clientForm.ragioneSociale} onChange={handleClientChange} required /><Input label="Partita IVA" name="pIva" value={clientForm.pIva} onChange={handleClientChange} /><div className="grid grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm.telefono} onChange={handleClientChange} /><Input label="Email" name="email" value={clientForm.email} onChange={handleClientChange} /></div></SectionContainer><SectionContainer title="Sedi" icon={MapPin}><Input label="Sede Legale" name="sedeLegale" value={clientForm.sedeLegale} onChange={handleClientChange} /><Input label="Sede Operativa" name="sedeOperativa" value={clientForm.sedeOperativa} onChange={handleClientChange} /><Input label="Magazzino" name="magazzino" value={clientForm.magazzino} onChange={handleClientChange} /></SectionContainer><section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4"><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2"><CreditCard size={14}/> Amministrazione</h3><div className="space-y-3"><label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Metodo Pagamento</label><div className="grid grid-cols-3 gap-2"><SelectComponent label="Tipo Base" name="paymentMethod1" value={clientForm.paymentMethod1} onChange={handleClientChange} options={paymentOptions.method1} /><SelectComponent label="Scadenza" name="paymentMethod2" value={clientForm.paymentMethod2} onChange={handleClientChange} options={paymentOptions.method2} /><SelectComponent label="Struttura" name="paymentMethod3" value={clientForm.paymentMethod3} onChange={handleClientChange} options={paymentOptions.method3} /></div></div><div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100 mt-4"><Input label="Codice Univoco" name="sdiCode" value={clientForm.sdiCode} onChange={handleClientChange} /><Input label="PEC" name="pec" value={clientForm.pec} onChange={handleClientChange} /><Input label="Fido (€)" name="fido" value={clientForm.fido} onChange={handleClientChange} /><Input label="Data Fido" type="date" name="fidoDate" value={clientForm.fidoDate} onChange={handleClientChange} /><Input label="Abbigliamento" name="abbigliamento" value={clientForm.abbigliamento} onChange={handleClientChange} /><Input label="N. Operai" name="numeroOperai" value={clientForm.numeroOperai} onChange={handleClientChange} type="number" /></div></section><SectionContainer title="Note" icon={MessageSquare}><TextArea label="Note Interne" name="note" value={clientForm.note} onChange={handleClientChange} /><TextArea label="Comunicazioni" name="comunicazioni" value={clientForm.comunicazioni} onChange={handleClientChange} /></SectionContainer><SectionContainer title="Rubrica Contatti" icon={Users}>{[1, 2, 3, 4].map(num => (<div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4"><div className="font-bold text-blue-600 mb-3 text-sm">Contatto {num}</div><div className="space-y-3"><Input label="Nome e Cognome" name="nome" value={clientForm[`contact${num}`].nome} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Mansione" name="mansione" value={clientForm[`contact${num}`].mansione} onChange={(e) => handleClientChange(e, `contact${num}`)} /><div className="grid grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm[`contact${num}`].telefono} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Email" name="mail" value={clientForm[`contact${num}`].mail} onChange={(e) => handleClientChange(e, `contact${num}`)} /></div></div></div>))}</SectionContainer></div></div>
