@@ -494,7 +494,7 @@
                             {clients.sort((a, b) => a.ragioneSociale.localeCompare(b.ragioneSociale)).map(client => {
                                 const status = getClientStatus(client.ragioneSociale);
                                 return (
-                                    <div key={client.id} onClick={() => { setSelectedClient(client); setView('clientDetail'); }} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 relative active:scale-[0.98] transition-transform cursor-pointer">
+                                    <div key={client.id} onClick={() => { setSelectedClient(client); setView('clientDetail'); }} className="bg-gray-100 p-5 rounded-xl shadow-sm border border-gray-200 relative active:scale-[0.98] transition-transform cursor-pointer">
                                         <div className="flex justify-between items-start mb-2">
                                             <h3 className="font-bold text-gray-800 text-lg">{client.ragioneSociale}</h3>
                                             <div className="flex flex-col items-end gap-1 pl-2">
