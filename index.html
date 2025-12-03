@@ -87,6 +87,7 @@
         const Download = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
         const Lock = (p) => <IconBase {...p}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></IconBase>;
         const LogOut = (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></IconBase>;
+        const AlertTriangle = (p) => <IconBase {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconBase>;
 
         // --- UTILITY FIREBASE CON USER KEY (Shared) ---
         // Ora usiamo "secretKey" invece di "userId" per condividere i dati
@@ -539,6 +540,18 @@
                                     const normalizedName = (client.ragioneSociale || '').trim().toLowerCase();
                                     const isDuplicate = nameCounts[normalizedName] > 1;
 
+                                    // Check if incomplete (excluding contacts, notes, and communications)
+                                    let isIncomplete = false;
+                                    const ignoredKeys = ['id', 'updatedAt', 'contact1', 'contact2', 'contact3', 'contact4', 'note', 'comunicazioni'];
+                                    
+                                    for (const key in client) {
+                                        if (ignoredKeys.includes(key)) continue;
+                                        if (!client[key] || (typeof client[key] === 'string' && client[key].trim() === '')) {
+                                            isIncomplete = true;
+                                            break;
+                                        }
+                                    }
+
                                     const cardStyle = isDuplicate 
                                         ? "bg-red-50 border-red-300 shadow-red-100" 
                                         : "bg-gray-100 border-gray-200";
@@ -565,7 +578,17 @@
                                                 {client.telefono && <span className="flex items-center gap-2"><Phone size={12}/> {client.telefono}</span>}
                                                 {client.email && <span className="flex items-center gap-2"><Mail size={12}/> {client.email}</span>}
                                             </div>
-                                            <div className="mt-3 pt-3 border-t border-gray-50 flex justify-between items-center">
+                                            
+                                            {/* Badge Anagrafica Incompleta */}
+                                            {isIncomplete && (
+                                                <div className="mt-3 mb-1">
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
+                                                        <AlertTriangle size={10} /> ANAGRAFICA INCOMPLETA
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            <div className="mt-2 pt-3 border-t border-gray-200 flex justify-between items-center">
                                                 <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Aggiornato: {client.updatedAt || '-'}</span>
                                                 <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded font-bold">{getClientHours(client.ragioneSociale)}h Lavoro</span>
                                             </div>
