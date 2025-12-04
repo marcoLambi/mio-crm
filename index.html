@@ -15,7 +15,7 @@
     <!-- 3. Traduttore Codice (Babel) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- 4. Libreria per Export/Import Excel (SheetJS) -->
+    <!-- 4. Libreria per Export Excel (SheetJS) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
@@ -364,19 +364,16 @@
                         let importedClients = 0;
                         let importedReports = 0;
 
-                        // Helper per importare clienti
                         const processClientSheet = async (sheetName) => {
                             const ws = wb.Sheets[sheetName];
                             if (!ws) return;
                             const data = XLSX.utils.sheet_to_json(ws);
-                            
                             for (const row of data) {
-                                // Verifica duplicato per Ragione Sociale (case insensitive)
                                 const exists = clients.some(c => (c.ragioneSociale||'').toLowerCase() === (row["Ragione Sociale"]||'').toLowerCase());
                                 if (!exists && row["Ragione Sociale"]) {
                                     const newClient = {
                                         ...initialClientState,
-                                        id: String(Date.now() + Math.random()), // ID univoco
+                                        id: String(Date.now() + Math.random()),
                                         ragioneSociale: row["Ragione Sociale"] || '',
                                         pIva: row["Partita IVA"] || '',
                                         telefono: row["Telefono"] || '',
@@ -397,8 +394,6 @@
                                         comunicazioni: row["Comunicazioni"] || '',
                                         updatedAt: new Date().toLocaleDateString('it-IT')
                                     };
-
-                                    // Ricostruzione Referenti
                                     [1, 2, 3, 4].forEach(i => {
                                         newClient[`contact${i}`] = {
                                             nome: row[`Ref. ${i} Nome`] || '',
@@ -407,19 +402,16 @@
                                             mail: row[`Ref. ${i} Mail`] || ''
                                         };
                                     });
-
                                     await setDoc(getClientDoc(db, safeKey, newClient.id), newClient);
                                     importedClients++;
                                 }
                             }
                         };
 
-                        // Helper per importare report
                         const processReportSheet = async (sheetName) => {
                             const ws = wb.Sheets[sheetName];
                             if (!ws) return;
                             const data = XLSX.utils.sheet_to_json(ws);
-                            
                             for (const row of data) {
                                 if (row["Cliente"] && row["Data Inserimento"]) {
                                     const newReport = {
@@ -442,11 +434,9 @@
                             }
                         };
 
-                        // Rilevamento fogli o CSV singolo
                         if (wb.SheetNames.includes("Clienti")) await processClientSheet("Clienti");
                         if (wb.SheetNames.includes("Report")) await processReportSheet("Report");
                         
-                        // Se è un CSV semplice o non ha i nomi standard, prova a indovinare dal contenuto del primo foglio
                         if (!wb.SheetNames.includes("Clienti") && !wb.SheetNames.includes("Report")) {
                             const firstSheetData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
                             if (firstSheetData.length > 0) {
@@ -462,16 +452,14 @@
                     }
                 };
                 reader.readAsBinaryString(file);
-                // Reset input
                 e.target.value = null;
             };
 
             const addToGoogleCalendar = (report) => {
                 if (!report.nextContactDate) return;
-                
                 const startTime = report.nextContactTime || '09:00';
                 const startDateTime = new Date(`${report.nextContactDate}T${startTime}`);
-                const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // 1 ora dopo
+                const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
 
                 const formatDate = (date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
 
@@ -524,7 +512,6 @@
             const getClientStatus = (clientName) => {
                 const clientReports = reports.filter(r => r.client === clientName);
                 if (clientReports.length === 0) return { label: 'FREDDO', color: 'bg-blue-100 text-blue-800 border-blue-200' };
-
                 const sortedReports = clientReports.sort((a, b) => new Date(b.date) - new Date(a.date));
                 const lastReportDate = new Date(sortedReports[0].date);
                 const today = new Date();
@@ -532,7 +519,6 @@
                 today.setHours(0,0,0,0);
                 const diffTime = today - lastReportDate;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
                 if (diffDays < 15) return { label: 'CALDO', color: 'bg-rose-100 text-rose-800 border-rose-200' };
                 if (diffDays <= 30) return { label: 'TIEPIDO', color: 'bg-amber-100 text-amber-800 border-amber-200' };
                 return { label: 'FREDDO', color: 'bg-blue-100 text-blue-800 border-blue-200' };
@@ -540,9 +526,7 @@
 
             const renderLogin = () => (
                 <div className="flex flex-col items-center justify-center h-full p-8 animate-fade-in bg-white rounded-[2.5rem]">
-                    <div className="bg-blue-50 p-6 rounded-full mb-6 text-blue-600">
-                        <Lock size={48} />
-                    </div>
+                    <div className="bg-blue-50 p-6 rounded-full mb-6 text-blue-600"><Lock size={48} /></div>
                     <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">WorkReport CRM</h1>
                     <p className="text-gray-500 text-center mb-8 text-sm">Inserisci la tua Chiave Segreta per accedere ai tuoi dati.</p>
                     <form onSubmit={handleLogin} className="w-full max-w-xs space-y-4">
@@ -565,15 +549,9 @@
                         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
                         <div className="flex gap-2">
                             <input type="file" ref={fileInputRef} className="hidden" onChange={handleImport} accept=".xlsx, .xls, .csv" />
-                            <button onClick={() => fileInputRef.current.click()} className="text-xs text-blue-600 p-2 bg-blue-50 rounded-lg flex items-center gap-1 font-bold transition-colors hover:bg-blue-100">
-                                <Upload size={14} /> Importa
-                            </button>
-                            <button onClick={exportToExcel} className="text-xs text-green-600 p-2 bg-green-50 rounded-lg flex items-center gap-1 font-bold transition-colors hover:bg-green-100">
-                                <Download size={14} /> Backup
-                            </button>
-                            <button onClick={handleLogout} className="text-xs text-red-500 p-2 bg-red-50 rounded-lg flex items-center gap-1 font-bold transition-colors hover:bg-red-100">
-                                <LogOut size={14} /> Esci
-                            </button>
+                            <button onClick={() => fileInputRef.current.click()} className="text-xs text-blue-600 p-2 bg-blue-50 rounded-lg flex items-center gap-1 font-bold transition-colors hover:bg-blue-100"><Upload size={14} /> Importa</button>
+                            <button onClick={exportToExcel} className="text-xs text-green-600 p-2 bg-green-50 rounded-lg flex items-center gap-1 font-bold transition-colors hover:bg-green-100"><Download size={14} /> Backup</button>
+                            <button onClick={handleLogout} className="text-xs text-red-500 p-2 bg-red-50 rounded-lg flex items-center gap-1 font-bold transition-colors hover:bg-red-100"><LogOut size={14} /> Esci</button>
                         </div>
                     </header>
                     <div className="grid grid-cols-2 gap-4">
@@ -581,7 +559,6 @@
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-purple-600"><Target size={16} /><span className="text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
                     </div>
                     <button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 flex justify-center items-center gap-2 active:scale-95 transition-all"><Plus size={20} /> Nuovo Report</button>
-                    
                     {reports.some(r => r.nextContactDate) && (<div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200"><h3 className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><Bell size={18} /> Promemoria Contatti</h3><ul className="space-y-2">{reports.filter(r => r.nextContactDate).sort((a,b) => new Date(a.nextContactDate) - new Date(b.nextContactDate)).slice(0, 3).map(r => (<li key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="text-sm cursor-pointer hover:underline text-yellow-700">{r.nextContactDate} - {r.client} ({r.category})</li>))}</ul></div>)}
                     {followups.length > 0 && (<div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2"><Target size={14} /> Ultime Offerte</h3><ul className="space-y-3">{followups.sort((a, b) => new Date(b.feedbackDate) - new Date(a.feedbackDate)).slice(0, 3).map(f => (<li key={f.id} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2"><span className="font-medium text-gray-800 truncate pr-2">{f.client}</span><div className="text-right"><div className="font-bold text-blue-600">€ {f.amount}</div><div className="text-[10px] text-gray-400">Risc: {f.feedbackDate}</div></div></li>))}</ul></div>)}
                 </div>
@@ -687,10 +664,10 @@
             };
 
             const renderCreateClient = () => (
-                <div className="animate-fade-in pb-32 bg-gray-50 min-h-full"><div className="sticky top-0 bg-white z-10 p-4 border-b border-gray-200 flex items-center justify-between shadow-sm"><div className="flex items-center gap-2"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><h2 className="text-lg font-bold text-gray-800">{clientForm.id ? 'Modifica Scheda' : 'Nuova Scheda'}</h2></div><button onClick={handleClientSubmit} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg shadow-blue-200 flex items-center gap-2 active:scale-[0.98] transition-transform"><Save size={16} /> Salva</button></div><div className="p-4 space-y-6 max-w-lg mx-auto"><SectionContainer title="Anagrafica" icon={Building2}><Input label="Ragione Sociale *" name="ragioneSociale" value={clientForm.ragioneSociale} onChange={handleClientChange} required /><Input label="Partita IVA" name="pIva" value={clientForm.pIva} onChange={handleClientChange} /><div className="grid grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm.telefono} onChange={handleClientChange} /><Input label="Email" name="email" value={clientForm.email} onChange={handleClientChange} /></div></SectionContainer><SectionContainer title="Sedi" icon={MapPin}><Input label="Sede Legale" name="sedeLegale" value={clientForm.sedeLegale} onChange={handleClientChange} /><Input label="Sede Operativa" name="sedeOperativa" value={clientForm.sedeOperativa} onChange={handleClientChange} /><Input label="Magazzino" name="magazzino" value={clientForm.magazzino} onChange={handleClientChange} /></SectionContainer><section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4"><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2"><CreditCard size={14}/> Amministrazione</h3><div className="space-y-3"><label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Metodo Pagamento</label><div className="grid grid-cols-3 gap-2"><SelectComponent label="Tipo Base" name="paymentMethod1" value={clientForm.paymentMethod1} onChange={handleClientChange} options={paymentOptions.method1} /><SelectComponent label="Scadenza" name="paymentMethod2" value={clientForm.paymentMethod2} onChange={handleClientChange} options={paymentOptions.method2} /><SelectComponent label="Struttura" name="paymentMethod3" value={clientForm.paymentMethod3} onChange={handleClientChange} options={paymentOptions.method3} /></div></div><div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100 mt-4"><Input label="Codice Univoco" name="sdiCode" value={clientForm.sdiCode} onChange={handleClientChange} /><Input label="PEC" name="pec" value={clientForm.pec} onChange={handleClientChange} /><Input label="Fido (€)" name="fido" value={clientForm.fido} onChange={handleClientChange} /><Input label="Data Fido" type="date" name="fidoDate" value={clientForm.fidoDate} onChange={handleClientChange} /><Input label="Abbigliamento" name="abbigliamento" value={clientForm.abbigliamento} onChange={handleClientChange} /><Input label="N. Operai" name="numeroOperai" value={clientForm.numeroOperai} onChange={handleClientChange} type="number" /></div></section><SectionContainer title="Note" icon={MessageSquare}><TextArea label="Note Interne" name="note" value={clientForm.note} onChange={handleClientChange} /><TextArea label="Comunicazioni" name="comunicazioni" value={clientForm.comunicazioni} onChange={handleClientChange} /></SectionContainer><SectionContainer title="Rubrica Contatti" icon={Users}>{[1, 2, 3, 4].map(num => (<div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4"><div className="font-bold text-blue-600 mb-3 text-sm">Contatto {num}</div><div className="space-y-3"><Input label="Nome e Cognome" name="nome" value={clientForm[`contact${num}`].nome} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Mansione" name="mansione" value={clientForm[`contact${num}`].mansione} onChange={(e) => handleClientChange(e, `contact${num}`)} /><div className="grid grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm[`contact${num}`].telefono} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Email" name="mail" value={clientForm[`contact${num}`].mail} onChange={(e) => handleClientChange(e, `contact${num}`)} /></div></div></div>))}</SectionContainer></div></div>
+                <div className="animate-fade-in pb-32 bg-gray-50 min-h-full"><div className="sticky top-0 bg-white z-10 p-4 border-b border-gray-200 flex items-center justify-between shadow-sm"><div className="flex items-center gap-2"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><h2 className="text-lg font-bold text-gray-800">{clientForm.id ? 'Modifica Scheda' : 'Nuova Scheda'}</h2></div><button onClick={handleClientSubmit} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg shadow-blue-200 flex items-center gap-2 active:scale-[0.98] transition-transform"><Save size={16} /> Salva</button></div><div className="p-4 space-y-6 max-w-lg mx-auto"><SectionContainer title="Anagrafica" icon={Building2}><Input label="Ragione Sociale *" name="ragioneSociale" value={clientForm.ragioneSociale} onChange={handleClientChange} required /><Input label="Partita IVA" name="pIva" value={clientForm.pIva} onChange={handleClientChange} /><div className="grid grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm.telefono} onChange={handleClientChange} /><Input label="Email" name="email" value={clientForm.email} onChange={handleClientChange} /></div></SectionContainer><SectionContainer title="Sedi" icon={MapPin}><Input label="Sede Legale" name="sedeLegale" value={clientForm.sedeLegale} onChange={handleClientChange} /><Input label="Sede Operativa" name="sedeOperativa" value={clientForm.sedeOperativa} onChange={handleClientChange} /><Input label="Magazzino" name="magazzino" value={clientForm.magazzino} onChange={handleClientChange} /></SectionContainer><section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4"><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2"><CreditCard size={14}/> Amministrazione</h3><div className="space-y-3"><label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Metodo Pagamento</label><div className="grid grid-cols-3 gap-2"><SelectComponent label="Tipo Base" name="paymentMethod1" value={clientForm.paymentMethod1} onChange={handleClientChange} options={paymentOptions.method1} /><SelectComponent label="Scadenza" name="paymentMethod2" value={clientForm.paymentMethod2} onChange={handleClientChange} options={paymentOptions.method2} /><SelectComponent label="Struttura" name="paymentMethod3" value={clientForm.paymentMethod3} onChange={handleClientChange} options={paymentOptions.method3} /></div></div><div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100 mt-4"><Input label="Codice Univoco" name="sdiCode" value={clientForm.sdiCode} onChange={handleClientChange} /><Input label="PEC" name="pec" value={clientForm.pec} onChange={handleClientChange} /><Input label="Fido (€)" name="fido" value={clientForm.fido} onChange={handleClientChange} /><Input label="Data Fido" type="date" name="fidoDate" value={clientForm.fidoDate} onChange={handleClientChange} /><Input label="Abbigliamento" name="abbigliamento" value={clientForm.abbigliamento} onChange={handleClientChange} /><Input label="N. Operai" name="numeroOperai" value={clientForm.numeroOperai} onChange={handleClientChange} type="number" /></div></section><SectionContainer title="Note" icon={MessageSquare}><TextArea label="Abbigliamento" name="abbigliamento" value={clientForm.abbigliamento} onChange={handleClientChange} /><TextArea label="Note Interne" name="note" value={clientForm.note} onChange={handleClientChange} /><TextArea label="Comunicazioni" name="comunicazioni" value={clientForm.comunicazioni} onChange={handleClientChange} /></SectionContainer><SectionContainer title="Rubrica Contatti" icon={Users}>{[1, 2, 3, 4].map(num => (<div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4"><div className="font-bold text-blue-600 mb-3 text-sm">Contatto {num}</div><div className="space-y-3"><Input label="Nome e Cognome" name="nome" value={clientForm[`contact${num}`].nome} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Mansione" name="mansione" value={clientForm[`contact${num}`].mansione} onChange={(e) => handleClientChange(e, `contact${num}`)} /><div className="grid grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm[`contact${num}`].telefono} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Email" name="mail" value={clientForm[`contact${num}`].mail} onChange={(e) => handleClientChange(e, `contact${num}`)} /></div></div></div>))}</SectionContainer></div></div>
             );
 
-            const renderClientDetail = () => { if (!selectedClient) return null; return (<div className="animate-fade-in pb-32 bg-white min-h-full"><div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => prepareEditClient(selectedClient)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button><button onClick={() => handleDeleteClient(selectedClient.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button></div></div><div className="p-6 space-y-8"><div><h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1><p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p><div className="mt-4 flex flex-wrap gap-2">{selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Phone size={14}/> Chiama</a>}{selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Mail size={14}/> Email</a>}</div></div><div className="space-y-4"><SectionTitle icon={<Building2 size={16}/>} title="Sedi" /><InfoRow label="Sede Legale" value={selectedClient.sedeLegale} /><InfoRow label="Sede Operativa" value={selectedClient.sedeOperativa} /><InfoRow label="Magazzino" value={selectedClient.magazzino} /></div><div className="space-y-4"><SectionTitle icon={<CreditCard size={16}/>} title="Dati Amministrativi" /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><InfoRow label="Codice Univoco" value={selectedClient.sdiCode} /><InfoRow label="PEC" value={selectedClient.pec} /><div className="col-span-1 sm:col-span-2"><InfoRow label="Metodo Pagamento" value={getFullPaymentMethod(selectedClient)} /></div><InfoRow label="Abbigliamento" value={selectedClient.abbigliamento} /><InfoRow label="Fido (€)" value={selectedClient.fido} /><InfoRow label="Data Fido" value={selectedClient.fidoDate || '-'} /><InfoRow label="N. Operai" value={selectedClient.numeroOperai} /></div></div><div className="space-y-4"><SectionTitle icon={<Users size={16}/>} title="Referenti" />{[1,2,3,4].map(num => { const c = selectedClient[`contact${num}`]; if (!c.nome && !c.mansione && !c.telefono && !c.mail) return null; return (<div key={num} className="bg-gray-50 p-3 rounded-lg border border-gray-100"><div className="font-bold text-gray-800">{c.nome || `Contatto ${num}`}</div><div className="text-xs text-blue-600 font-medium mb-1">{c.mansione || '-'}</div><div className="text-xs text-gray-500 space-y-0.5">{c.telefono && <div>Tel: <a href={`tel:${c.telefono}`} className="underline text-blue-500">{c.telefono}</a></div>}{c.mail && <div>Mail: <a href={`mailto:${c.mail}`} className="underline text-blue-500">{c.mail}</a></div>}</div></div>); })} {![1,2,3,4].some(num => selectedClient[`contact${num}`].nome) && (<p className="text-sm text-gray-400 italic">Nessun referente salvato.</p>)}</div><div className="space-y-4"><SectionTitle icon={<MessageSquare size={16}/>} title="Note & Comunicazioni" /><SectionDisplay title="Note Interne" content={selectedClient.note} small /><SectionDisplay title="Comunicazioni al Cliente" content={selectedClient.comunicazioni} small /></div><div className="text-xs text-center text-gray-300 pt-8">Ultimo aggiornamento: {selectedClient.updatedAt}</div></div></div>); };
+            const renderClientDetail = () => { if (!selectedClient) return null; return (<div className="animate-fade-in pb-32 bg-white min-h-full"><div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => prepareEditClient(selectedClient)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button><button onClick={() => handleDeleteClient(selectedClient.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button></div></div><div className="p-6 space-y-8"><div><h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1><p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p><div className="mt-4 flex flex-wrap gap-2">{selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Phone size={14}/> Chiama</a>}{selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Mail size={14}/> Email</a>}</div></div><div className="space-y-4"><SectionTitle icon={<Building2 size={16}/>} title="Sedi" /><InfoRow label="Sede Legale" value={selectedClient.sedeLegale} /><InfoRow label="Sede Operativa" value={selectedClient.sedeOperativa} /><InfoRow label="Magazzino" value={selectedClient.magazzino} /></div><div className="space-y-4"><SectionTitle icon={<CreditCard size={16}/>} title="Dati Amministrativi" /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><InfoRow label="Codice Univoco" value={selectedClient.sdiCode} /><InfoRow label="PEC" value={selectedClient.pec} /><div className="col-span-1 sm:col-span-2"><InfoRow label="Metodo Pagamento" value={getFullPaymentMethod(selectedClient)} /></div><InfoRow label="Fido (€)" value={selectedClient.fido} /><InfoRow label="Data Fido" value={selectedClient.fidoDate || '-'} /><InfoRow label="N. Operai" value={selectedClient.numeroOperai} /></div></div><div className="space-y-4"><SectionTitle icon={<Users size={16}/>} title="Referenti" />{[1,2,3,4].map(num => { const c = selectedClient[`contact${num}`]; if (!c.nome && !c.mansione && !c.telefono && !c.mail) return null; return (<div key={num} className="bg-gray-50 p-3 rounded-lg border border-gray-100"><div className="font-bold text-gray-800">{c.nome || `Contatto ${num}`}</div><div className="text-xs text-blue-600 font-medium mb-1">{c.mansione || '-'}</div><div className="text-xs text-gray-500 space-y-0.5">{c.telefono && <div>Tel: <a href={`tel:${c.telefono}`} className="underline text-blue-500">{c.telefono}</a></div>}{c.mail && <div>Mail: <a href={`mailto:${c.mail}`} className="underline text-blue-500">{c.mail}</a></div>}</div></div>); })} {![1,2,3,4].some(num => selectedClient[`contact${num}`].nome) && (<p className="text-sm text-gray-400 italic">Nessun referente salvato.</p>)}</div><div className="space-y-4"><SectionTitle icon={<MessageSquare size={16}/>} title="Note & Comunicazioni" /><SectionDisplay title="Abbigliamento" content={selectedClient.abbigliamento} small /><SectionDisplay title="Note Interne" content={selectedClient.note} small /><SectionDisplay title="Comunicazioni al Cliente" content={selectedClient.comunicazioni} small /></div><div className="text-xs text-center text-gray-300 pt-8">Ultimo aggiornamento: {selectedClient.updatedAt}</div></div></div>); };
 
             const renderList = () => (
                 <div className="animate-fade-in pb-32"><div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-gray-800">Storico Completo</h2><button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2"><Plus size={16} /> Nuovo</button></div><div className="space-y-3">{reports.length === 0 ? (<div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessun report salvato.</div>) : (reports.sort((a, b) => new Date(b.date) - new Date(a.date)).map(report => (<div key={report.id} onClick={() => { setSelectedReport(report); setView('detail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform"><div className="flex justify-between items-center"><h3 className="font-bold text-gray-800 truncate pr-4">{report.client}</h3><span className="font-bold text-blue-600 flex-shrink-0">{report.hours}h</span></div><div className="text-sm text-gray-500 flex justify-between items-center mt-1"><span className="truncate">{report.category}</span><span className="text-xs text-gray-400 flex-shrink-0">{new Date(report.date).toLocaleDateString('it-IT')}</span></div>{report.nextContactDate && (<div className="mt-2 text-xs font-semibold text-yellow-700 flex items-center gap-1 bg-yellow-50 p-1 rounded"><Bell size={12} className="text-yellow-500" /> Contatto: {new Date(report.nextContactDate).toLocaleDateString('it-IT')}</div>)}</div>)))}</div></div>
