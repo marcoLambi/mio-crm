@@ -15,7 +15,7 @@
     <!-- 3. Traduttore Codice (Babel) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- 4. Libreria per Export Excel (SheetJS) -->
+    <!-- 4. Libreria per Export/Import Excel (SheetJS) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
@@ -54,7 +54,7 @@
         // ==========================================================
 
         // Inizializzazione React
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useRef } = React;
 
         // --- ICONE ---
         const IconBase = ({ children, size = 24, className = "" }) => (
@@ -85,12 +85,12 @@
         const Check = (p) => <IconBase {...p}><path d="M20 6 9 17l-5-5"/></IconBase>;
         const Target = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></IconBase>;
         const Download = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
+        const Upload = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></IconBase>;
         const Lock = (p) => <IconBase {...p}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></IconBase>;
         const LogOut = (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></IconBase>;
         const AlertTriangle = (p) => <IconBase {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconBase>;
 
         // --- UTILITY FIREBASE CON USER KEY (Shared) ---
-        // Ora usiamo "secretKey" invece di "userId" per condividere i dati
         const getReportsCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/reports`);
         const getClientsCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/clients`);
         const getFollowupsCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/followups`);
@@ -159,7 +159,7 @@
             const [db, setDb] = useState(null);
             const [auth, setAuth] = useState(null);
             const [isAuthReady, setIsAuthReady] = useState(false);
-            const [isLoading, setIsLoading] = useState(false); // Iniziamo false, true solo dopo il login
+            const [isLoading, setIsLoading] = useState(false);
 
             // STATO PER LA CHIAVE CONDIVISA
             const [userKey, setUserKey] = useState(localStorage.getItem('crm_user_key') || '');
@@ -175,6 +175,8 @@
 
             const [message, setMessage] = useState({ text: '', type: '' });
             const [confirmAction, setConfirmAction] = useState(null);
+            
+            const fileInputRef = useRef(null);
 
             const initialReportState = {
                 id: null, title: '', client: '', date: new Date().toISOString().split('T')[0], hours: '',
@@ -203,7 +205,7 @@
             };
             const [clientForm, setClientForm] = useState(initialClientState);
 
-            // 1. INIT FIREBASE (Sempre anonimo per connettersi, ma usiamo userKey per i dati)
+            // 1. INIT FIREBASE
             useEffect(() => {
                 try {
                     const app = initializeApp(firebaseConfig);
@@ -221,12 +223,11 @@
                 } catch (e) { console.error("Init Error:", e); }
             }, []);
 
-            // 2. FETCH DATA (Solo se Loggato e Auth Ready)
+            // 2. FETCH DATA
             useEffect(() => {
                 if (!isAuthReady || !db || !userKey) return;
                 
                 setIsLoading(true);
-                // Normalizza la chiave per sicurezza (tutto minuscolo, senza spazi)
                 const safeKey = userKey.toLowerCase().replace(/\s/g, '');
 
                 const unsubscribeReports = onSnapshot(getReportsCollection(db, safeKey), (s) => setReports(s.docs.map(d => ({ ...d.data(), id: d.id }))));
@@ -237,7 +238,7 @@
                 return () => { unsubscribeReports(); unsubscribeClients(); unsubscribeFollowups(); };
             }, [isAuthReady, db, userKey]);
 
-            // --- SORTED CLIENTS (LISTA ORDINATA GLOBALMENTE) ---
+            // --- SORTED CLIENTS ---
             const sortedClients = useMemo(() => {
                 return [...clients].sort((a, b) => 
                     (a.ragioneSociale || "").toLowerCase().localeCompare((b.ragioneSociale || "").toLowerCase())
@@ -280,7 +281,7 @@
                     const wb = XLSX.utils.book_new();
                     const now = new Date().toISOString().slice(0, 10);
 
-                    // 1. Foglio Clienti (Ordinato come da UI e Alfabetico)
+                    // 1. Foglio Clienti
                     if (sortedClients.length > 0) {
                         const orderedClients = sortedClients.map(c => {
                             const row = {
@@ -304,8 +305,6 @@
                                 "Comunicazioni": c.comunicazioni,
                                 "Ultimo Aggiornamento": c.updatedAt
                             };
-
-                            // Aggiungo i contatti in ordine
                             [1, 2, 3, 4].forEach(i => {
                                 const contact = c[`contact${i}`] || {};
                                 row[`Ref. ${i} Nome`] = contact.nome || '';
@@ -313,15 +312,13 @@
                                 row[`Ref. ${i} Tel`] = contact.telefono || '';
                                 row[`Ref. ${i} Mail`] = contact.mail || '';
                             });
-
                             return row;
                         });
-                        
                         const wsClients = XLSX.utils.json_to_sheet(orderedClients);
                         XLSX.utils.book_append_sheet(wb, wsClients, "Clienti");
                     }
 
-                    // 2. Foglio Report (Ordinato)
+                    // 2. Foglio Report
                     if (reports.length > 0) {
                         const orderedReports = reports.map(r => ({
                             "Cliente": r.client,
@@ -345,13 +342,128 @@
                         XLSX.utils.book_append_sheet(wb, wsFollowups, "Offerte");
                     }
 
-                    // Download file
                     XLSX.writeFile(wb, `Backup_CRM_${now}.xlsx`);
                     showMessage("Database esportato con successo!", "success");
                 } catch (error) {
                     console.error("Errore Export:", error);
                     showMessage("Errore durante l'esportazione.", "error");
                 }
+            };
+
+            // --- IMPORT FROM EXCEL/CSV ---
+            const handleImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (evt) => {
+                    try {
+                        const bstr = evt.target.result;
+                        const wb = XLSX.read(bstr, { type: 'binary' });
+                        const safeKey = userKey.toLowerCase().replace(/\s/g, '');
+                        let importedClients = 0;
+                        let importedReports = 0;
+
+                        // Helper per importare clienti
+                        const processClientSheet = async (sheetName) => {
+                            const ws = wb.Sheets[sheetName];
+                            if (!ws) return;
+                            const data = XLSX.utils.sheet_to_json(ws);
+                            
+                            for (const row of data) {
+                                // Verifica duplicato per Ragione Sociale (case insensitive)
+                                const exists = clients.some(c => (c.ragioneSociale||'').toLowerCase() === (row["Ragione Sociale"]||'').toLowerCase());
+                                if (!exists && row["Ragione Sociale"]) {
+                                    const newClient = {
+                                        ...initialClientState,
+                                        id: String(Date.now() + Math.random()), // ID univoco
+                                        ragioneSociale: row["Ragione Sociale"] || '',
+                                        pIva: row["Partita IVA"] || '',
+                                        telefono: row["Telefono"] || '',
+                                        email: row["Email"] || '',
+                                        sedeLegale: row["Sede Legale"] || '',
+                                        sedeOperativa: row["Sede Operativa"] || '',
+                                        magazzino: row["Magazzino"] || '',
+                                        paymentMethod1: row["Pagamento (Tipo)"] || '',
+                                        paymentMethod2: row["Pagamento (Scadenza)"] || '',
+                                        paymentMethod3: row["Pagamento (Struttura)"] || '',
+                                        sdiCode: row["Codice Univoco (SDI)"] || '',
+                                        pec: row["PEC"] || '',
+                                        fido: row["Fido (€)"] || '',
+                                        fidoDate: row["Data Fido"] || '',
+                                        abbigliamento: row["Abbigliamento"] || '',
+                                        numeroOperai: row["N. Operai"] || '',
+                                        note: row["Note Interne"] || '',
+                                        comunicazioni: row["Comunicazioni"] || '',
+                                        updatedAt: new Date().toLocaleDateString('it-IT')
+                                    };
+
+                                    // Ricostruzione Referenti
+                                    [1, 2, 3, 4].forEach(i => {
+                                        newClient[`contact${i}`] = {
+                                            nome: row[`Ref. ${i} Nome`] || '',
+                                            mansione: row[`Ref. ${i} Mansione`] || '',
+                                            telefono: row[`Ref. ${i} Tel`] || '',
+                                            mail: row[`Ref. ${i} Mail`] || ''
+                                        };
+                                    });
+
+                                    await setDoc(getClientDoc(db, safeKey, newClient.id), newClient);
+                                    importedClients++;
+                                }
+                            }
+                        };
+
+                        // Helper per importare report
+                        const processReportSheet = async (sheetName) => {
+                            const ws = wb.Sheets[sheetName];
+                            if (!ws) return;
+                            const data = XLSX.utils.sheet_to_json(ws);
+                            
+                            for (const row of data) {
+                                if (row["Cliente"] && row["Data Inserimento"]) {
+                                    const newReport = {
+                                        id: String(Date.now() + Math.random()),
+                                        title: `${row["Categoria"]} - ${row["Data Inserimento"]}`,
+                                        client: row["Cliente"],
+                                        date: row["Data Inserimento"],
+                                        hours: row["Ore"] || '',
+                                        category: row["Categoria"] || 'ALTRO',
+                                        contactType: row["Tipo Contatto"] || 'ALTRO',
+                                        description: row["Descrizione"] || '',
+                                        futureNotes: row["Appunti Futuri"] || '',
+                                        nextContactDate: row["Data Prossimo Contatto"] || '',
+                                        nextContactTime: row["Orario Prossimo Contatto"] || '',
+                                        createdAt: new Date().toISOString()
+                                    };
+                                    await setDoc(getReportDoc(db, safeKey, newReport.id), newReport);
+                                    importedReports++;
+                                }
+                            }
+                        };
+
+                        // Rilevamento fogli o CSV singolo
+                        if (wb.SheetNames.includes("Clienti")) await processClientSheet("Clienti");
+                        if (wb.SheetNames.includes("Report")) await processReportSheet("Report");
+                        
+                        // Se è un CSV semplice o non ha i nomi standard, prova a indovinare dal contenuto del primo foglio
+                        if (!wb.SheetNames.includes("Clienti") && !wb.SheetNames.includes("Report")) {
+                            const firstSheetData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                            if (firstSheetData.length > 0) {
+                                if ("Ragione Sociale" in firstSheetData[0]) await processClientSheet(wb.SheetNames[0]);
+                                else if ("Cliente" in firstSheetData[0] && "Data Inserimento" in firstSheetData[0]) await processReportSheet(wb.SheetNames[0]);
+                            }
+                        }
+
+                        showMessage(`Importazione completata: ${importedClients} clienti, ${importedReports} report.`, "success");
+                    } catch (error) {
+                        console.error("Errore Import:", error);
+                        showMessage("Errore durante l'importazione del file.", "error");
+                    }
+                };
+                reader.readAsBinaryString(file);
+                // Reset input
+                e.target.value = null;
             };
 
             const addToGoogleCalendar = (report) => {
@@ -368,7 +480,6 @@
                 const dates = `${formatDate(startDateTime)}/${formatDate(endDateTime)}`;
 
                 const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
-                
                 window.open(url, '_blank');
             };
 
@@ -378,8 +489,6 @@
                 const isEditing = !!reportForm.id;
                 const autoTitle = reportForm.title || `${reportForm.category} - ${new Date(reportForm.date).toLocaleDateString('it-IT')}`;
                 const reportToSave = { ...reportForm, title: autoTitle, id: reportForm.id || String(Date.now()), createdAt: reportForm.createdAt || new Date().toISOString() };
-                
-                // Normalizza key
                 const safeKey = userKey.toLowerCase().replace(/\s/g, '');
                 try { await setDoc(getReportDoc(db, safeKey, reportToSave.id), reportToSave); showMessage(isEditing ? 'Modificato.' : 'Creato.', 'success'); if (isEditing) setSelectedReport(reportToSave); setReportForm(initialReportState); setView('list'); } catch (error) { console.error(error); }
             };
@@ -419,10 +528,8 @@
                 const sortedReports = clientReports.sort((a, b) => new Date(b.date) - new Date(a.date));
                 const lastReportDate = new Date(sortedReports[0].date);
                 const today = new Date();
-                
                 lastReportDate.setHours(0,0,0,0);
                 today.setHours(0,0,0,0);
-
                 const diffTime = today - lastReportDate;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -438,39 +545,18 @@
                     </div>
                     <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">WorkReport CRM</h1>
                     <p className="text-gray-500 text-center mb-8 text-sm">Inserisci la tua Chiave Segreta per accedere ai tuoi dati.</p>
-                    
                     <form onSubmit={handleLogin} className="w-full max-w-xs space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Chiave Segreta (Username)</label>
-                            <input 
-                                type="text" 
-                                value={loginInput} 
-                                onChange={(e) => setLoginInput(e.target.value)} 
-                                placeholder="es. miorossi123" 
-                                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-center font-bold text-gray-800 text-lg"
-                                autoFocus
-                            />
+                            <input type="text" value={loginInput} onChange={(e) => setLoginInput(e.target.value)} placeholder="es. miorossi123" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-center font-bold text-gray-800 text-lg" autoFocus />
                             <p className="text-[10px] text-gray-400 mt-2 text-center">Usa la stessa chiave su PC e Smartphone per sincronizzare i dati.</p>
                         </div>
-                        <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-all">
-                            Accedi
-                        </button>
+                        <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-all">Accedi</button>
                     </form>
                 </div>
             );
 
-            // --- RENDER VIEWS (Identiche a prima, ma avvolte dal controllo Login) ---
-            
-            if (!isLoggedIn) {
-                return (
-                    <div className="min-h-screen bg-gray-100 flex justify-center items-start pt-0 sm:pt-6 font-sans text-gray-900">
-                        <div className="w-full sm:max-w-md bg-white h-screen sm:h-[100dvh] sm:rounded-[2.5rem] sm:shadow-2xl overflow-hidden ring-8 ring-gray-900/5">
-                            {renderLogin()}
-                        </div>
-                    </div>
-                );
-            }
-
+            if (!isLoggedIn) return <div className="min-h-screen bg-gray-100 flex justify-center items-start pt-0 sm:pt-6 font-sans text-gray-900"><div className="w-full sm:max-w-md bg-white h-screen sm:h-[100dvh] sm:rounded-[2.5rem] sm:shadow-2xl overflow-hidden ring-8 ring-gray-900/5">{renderLogin()}</div></div>;
             if (isLoading) return <div className="min-h-screen bg-gray-100 flex items-center justify-center"><Loader2 size={32} className="animate-spin text-blue-600" /></div>;
 
             const renderDashboard = () => (
@@ -478,6 +564,10 @@
                     <header className="mb-6 flex justify-between items-center">
                         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
                         <div className="flex gap-2">
+                            <input type="file" ref={fileInputRef} className="hidden" onChange={handleImport} accept=".xlsx, .xls, .csv" />
+                            <button onClick={() => fileInputRef.current.click()} className="text-xs text-blue-600 p-2 bg-blue-50 rounded-lg flex items-center gap-1 font-bold transition-colors hover:bg-blue-100">
+                                <Upload size={14} /> Importa
+                            </button>
                             <button onClick={exportToExcel} className="text-xs text-green-600 p-2 bg-green-50 rounded-lg flex items-center gap-1 font-bold transition-colors hover:bg-green-100">
                                 <Download size={14} /> Backup
                             </button>
@@ -497,7 +587,6 @@
                 </div>
             );
 
-            // ... REINSERIAMO I RENDER ORIGINALI IDENTICI A PRIMA ...
             const renderCreateReport = () => (
                 <div className="animate-fade-in pb-32"><h2 className="text-xl font-bold text-gray-800 mb-6">{reportForm.id ? 'Modifica' : 'Nuovo'} Report</h2><form onSubmit={handleReportSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><SectionContainer title="Dati" icon={FileText}><div><label className="block text-sm font-bold text-gray-700 mb-1">Cliente *</label><select required name="client" value={reportForm.client} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option value="">Seleziona...</option>{sortedClients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}</select></div><div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="date" value={reportForm.date} onChange={handleReportChange} required /><Input label="Ore" type="number" step="0.5" name="hours" value={reportForm.hours} onChange={handleReportChange} required /></div><div><label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label><select name="category" value={reportForm.category} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option>MANTENIMENTO RAPPORTO</option><option>ORDINE</option><option>RICHIESTA DI OFFERTA</option><option>RISCONTRO OFFERTA</option><option>COMUNICAZIONE</option><option>INIZIO RAPPORTO FORNITURE</option><option>SOLLECITO INIZIO FORNITURA</option><option>APPUNTAMENTO</option><option>ALTRO</option></select></div><div><label className="block text-sm font-bold text-gray-700 mb-1">Tipo Contatto</label><select name="contactType" value={reportForm.contactType} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option>TELEFONICO</option><option>APPUNTAMENTO</option><option>VISITA</option><option>LINKEDIN</option><option>WHATSAPP</option><option>CANTIERE</option><option>ALTRO</option></select></div><TextArea label="Descrizione" name="description" value={reportForm.description} onChange={handleReportChange} /></SectionContainer><SectionContainer title="Follow-up" icon={AlarmCheck}><TextArea label="Appunti Futuri" name="futureNotes" value={reportForm.futureNotes} onChange={handleReportChange} /><div className="grid grid-cols-2 gap-4"><Input label="Prossimo Contatto" type="date" name="nextContactDate" value={reportForm.nextContactDate} onChange={handleReportChange} /><Input label="Orario" type="time" name="nextContactTime" value={reportForm.nextContactTime} onChange={handleReportChange} /></div>{reportForm.nextContactDate && (<button type="button" onClick={() => addToGoogleCalendar({...reportForm, id: reportForm.id || 'temp'})} className="mt-3 w-full flex justify-center items-center gap-2 px-3 py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 active:scale-[0.98] transition-all hover:bg-indigo-100"><Calendar size={18} /> Apri Calendario</button>)}</SectionContainer><div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl active:scale-[0.98]">Annulla</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] flex justify-center items-center gap-2"><Save size={18} /> Salva</button></div></form></div>
             );
@@ -513,7 +602,6 @@
             const renderDetail = () => { if (!selectedReport) return null; return (<div className="animate-fade-in h-full flex flex-col relative bg-white pb-32"><div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center no-print"><button onClick={() => setView('list')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => prepareEditReport(selectedReport)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button><button onClick={() => handleDeleteReport(selectedReport.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button><button onClick={() => window.print()} className="p-2 text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200"><Printer size={20} /></button></div></div><div className="p-6 print:p-0 space-y-6"><div className="border-b border-gray-100 pb-4"><span className="text-sm text-gray-500 uppercase tracking-wide">Rapporto di Intervento</span><h1 className="text-2xl font-bold text-gray-900 mt-1">{selectedReport.title}</h1><div className="text-sm text-gray-600 mt-2">Cliente: <span className="font-semibold text-blue-600">{selectedReport.client}</span></div></div><div className="grid grid-cols-2 gap-4"><InfoBox label="Ore Totali" value={`${selectedReport.hours} h`} color="text-green-600" icon={Clock} /><InfoBox label="Data Inserimento" value={new Date(selectedReport.date).toLocaleDateString('it-IT')} color="text-purple-600" icon={Calendar} /><InfoBox label="Categoria" value={selectedReport.category} icon={Briefcase} color="text-gray-700" /><InfoBox label="Tipo Contatto" value={selectedReport.contactType} icon={MessageSquare} color="text-gray-700" /><InfoBox label="Creato il" value={selectedReport.createdAt ? new Date(selectedReport.createdAt).toLocaleDateString('it-IT') : '-'} icon={Check} color="text-gray-700" /></div><SectionDisplay title="Descrizione Dettagliata" content={selectedReport.description} /><div className="bg-blue-50 p-4 rounded-xl border border-blue-200 space-y-3"><h3 className="text-sm font-bold text-blue-800 flex items-center gap-2"><AlarmCheck size={18}/> Prossima Pianificazione</h3><SectionDisplay title="Appunti Futuri" content={selectedReport.futureNotes} small />{(selectedReport.nextContactDate || selectedReport.nextContactTime) ? (<div className="pt-2 border-t border-blue-100"><InfoBox label="Prossimo Contatto" value={`${selectedReport.nextContactDate} ${selectedReport.nextContactTime ? `alle ${selectedReport.nextContactTime}` : ''}`} icon={Calendar} color="text-blue-800" />{selectedReport.nextContactDate && (<button onClick={() => addToGoogleCalendar(selectedReport)} className="mt-3 w-full flex justify-center items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md active:scale-[0.98] transition-transform"><Calendar size={18} /> Apri Calendario</button>)}</div>) : (<p className="text-sm text-blue-700 italic">Nessun contatto futuro pianificato.</p>)}</div></div></div>); };
 
             const renderClients = () => {
-                // Calcolo duplicati
                 const nameCounts = clients.reduce((acc, client) => {
                     const name = (client.ragioneSociale || '').trim().toLowerCase();
                     acc[name] = (acc[name] || 0) + 1;
@@ -540,10 +628,8 @@
                                     const normalizedName = (client.ragioneSociale || '').trim().toLowerCase();
                                     const isDuplicate = nameCounts[normalizedName] > 1;
 
-                                    // Check if incomplete (excluding contacts, notes, and communications)
                                     let isIncomplete = false;
                                     const ignoredKeys = ['id', 'updatedAt', 'contact1', 'contact2', 'contact3', 'contact4', 'note', 'comunicazioni'];
-                                    
                                     for (const key in client) {
                                         if (ignoredKeys.includes(key)) continue;
                                         if (!client[key] || (typeof client[key] === 'string' && client[key].trim() === '')) {
@@ -579,7 +665,6 @@
                                                 {client.email && <span className="flex items-center gap-2"><Mail size={12}/> {client.email}</span>}
                                             </div>
                                             
-                                            {/* Badge Anagrafica Incompleta */}
                                             {isIncomplete && (
                                                 <div className="mt-3 mb-1">
                                                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
