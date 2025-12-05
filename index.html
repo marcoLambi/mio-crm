@@ -174,6 +174,7 @@
             const [selectedReport, setSelectedReport] = useState(null);
             const [selectedClient, setSelectedClient] = useState(null);
             const [clientSearch, setClientSearch] = useState('');
+            const [statusFilter, setStatusFilter] = useState('ALL');
 
             const [message, setMessage] = useState({ text: '', type: '' });
             const [confirmAction, setConfirmAction] = useState(null);
@@ -592,11 +593,17 @@
                     return (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                 };
 
-                // Filtro di ricerca
+                // Filtro di ricerca e stato
                 const searchClean = normalizeForSearch(clientSearch);
-                const filteredClients = sortedClients.filter(client => 
-                    normalizeForSearch(client.ragioneSociale).includes(searchClean)
-                );
+                const filteredClients = sortedClients.filter(client => {
+                    const matchesSearch = normalizeForSearch(client.ragioneSociale).includes(searchClean);
+                    if (!matchesSearch) return false;
+                    
+                    if (statusFilter === 'ALL') return true;
+                    
+                    const status = getClientStatus(client.ragioneSociale);
+                    return status.label === statusFilter;
+                });
 
                 return (
                     <div className="animate-fade-in pb-32">
@@ -625,6 +632,34 @@
                                     <X size={18} />
                                 </button>
                             )}
+                        </div>
+
+                        {/* Filtri Stato */}
+                        <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                            <button 
+                                onClick={() => setStatusFilter('ALL')}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${statusFilter === 'ALL' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}
+                            >
+                                Tutti
+                            </button>
+                            <button 
+                                onClick={() => setStatusFilter('CALDO')}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${statusFilter === 'CALDO' ? 'bg-rose-100 text-rose-800 border-rose-200 ring-1 ring-rose-300' : 'bg-white text-gray-600 border-gray-200'}`}
+                            >
+                                Caldo
+                            </button>
+                            <button 
+                                onClick={() => setStatusFilter('TIEPIDO')}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${statusFilter === 'TIEPIDO' ? 'bg-amber-100 text-amber-800 border-amber-200 ring-1 ring-amber-300' : 'bg-white text-gray-600 border-gray-200'}`}
+                            >
+                                Tiepido
+                            </button>
+                            <button 
+                                onClick={() => setStatusFilter('FREDDO')}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${statusFilter === 'FREDDO' ? 'bg-blue-100 text-blue-800 border-blue-200 ring-1 ring-blue-300' : 'bg-white text-gray-600 border-gray-200'}`}
+                            >
+                                Freddo
+                            </button>
                         </div>
 
                         {filteredClients.length === 0 ? 
