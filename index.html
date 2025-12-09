@@ -91,7 +91,6 @@
         const AlertTriangle = (p) => <IconBase {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconBase>;
         const Search = (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></IconBase>;
         const Lightbulb = (p) => <IconBase {...p}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2 1.5-3.5a6 6 0 0 0-11 0c0 1.5.5 2.5 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></IconBase>;
-        // Nuova icona per Ordinamento
         const ArrowUpDown = (p) => <IconBase {...p}><path d="m21 16-4 4-4-4"/><path d="m17 20V4"/><path d="m3 8 4-4 4 4"/><path d="m7 4v16"/></IconBase>;
 
 
@@ -186,8 +185,6 @@
             const [statusFilter, setStatusFilter] = useState('ALL');
 
             // --- NUOVI STATI PER ORDINAMENTO ---
-            // 'desc' = Dal più recente al meno recente (default)
-            // 'asc' = Dal meno recente al più recente
             const [sortOrder, setSortOrder] = useState({
                 reports: 'desc',
                 followups: 'desc',
@@ -207,12 +204,12 @@
             const initialReportState = {
                 id: null, title: '', client: '', date: new Date().toISOString().split('T')[0], hours: '',
                 category: 'MANTENIMENTO RAPPORTO', contactType: 'TELEFONICO', description: '',
-                futureNotes: '', nextContactDate: '', nextContactTime: '', createdAt: null,
+                futureNotes: '', nextContactDate: '', nextContactTime: '', createdAt: null, completed: false 
             };
             const [reportForm, setReportForm] = useState(initialReportState);
 
             const initialFollowupState = {
-                id: null, client: '', offerNumber: '', amount: '', feedbackDate: '', notes: '', createdAt: null,
+                id: null, client: '', offerNumber: '', amount: '', feedbackDate: '', notes: '', createdAt: null, completed: false
             };
             const [followupForm, setFollowupForm] = useState(initialFollowupState);
 
@@ -610,6 +607,37 @@
             };
             const handleDeleteFollowup = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getFollowupDoc(db, safeKey, id)); showMessage('Eliminato.', 'success'); }); };
             const prepareEditFollowup = (item) => { setFollowupForm(item); setView('createFollowup'); };
+            
+            // --- GESTIONE COMPLETAMENTO OFFERTA ---
+            const handleCompleteFollowup = async (followup) => {
+                if (!db) return;
+                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
+                // Toggle completamento (se è true diventa false, se è false diventa true)
+                const newStatus = !followup.completed;
+                const updatedFollowup = { ...followup, completed: newStatus };
+                try {
+                    await setDoc(getFollowupDoc(db, safeKey, followup.id), updatedFollowup);
+                    showMessage(newStatus ? 'Offerta completata!' : 'Offerta ripristinata.', 'success');
+                } catch (e) {
+                    console.error(e);
+                    showMessage('Errore durante l\'aggiornamento.', 'error');
+                }
+            };
+
+            // --- GESTIONE COMPLETAMENTO REPORT ---
+            const handleCompleteReport = async (report) => {
+                if (!db) return;
+                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
+                const newStatus = !report.completed;
+                const updatedReport = { ...report, completed: newStatus };
+                try {
+                    await setDoc(getReportDoc(db, safeKey, report.id), updatedReport);
+                    showMessage(newStatus ? 'Contatto completato!' : 'Contatto ripristinato.', 'success');
+                } catch (e) {
+                    console.error(e);
+                    showMessage('Errore durante l\'aggiornamento.', 'error');
+                }
+            };
 
             const handleIdeaChange = (e) => { const { name, value } = e.target; setIdeaForm(prev => ({ ...prev, [name]: value })); };
             const handleIdeaSubmit = async (e) => {
@@ -718,27 +746,50 @@
                                 const dateA = new Date(a.feedbackDate);
                                 const dateB = new Date(b.feedbackDate);
                                 return sortOrder.followups === 'desc' ? dateB - dateA : dateA - dateB;
-                            }).map(item => (
-                                <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <h3 className="font-bold text-gray-800 text-lg">{item.client}</h3>
-                                            <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded">Offerta: {item.offerNumber}</span>
+                            }).map(item => {
+                                // Logica per data scaduta
+                                const today = new Date();
+                                today.setHours(0,0,0,0);
+                                const fDate = item.feedbackDate ? new Date(item.feedbackDate) : new Date();
+                                // Se la data è strettamente minore di oggi (ieri o prima) E non è completata
+                                const isExpired = item.feedbackDate && fDate < today && !item.completed;
+                                const cardStyle = isExpired ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-white border-gray-100 shadow-sm';
+
+                                return (
+                                    <div key={item.id} className={`${cardStyle} p-4 rounded-xl border relative transition-colors`}>
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <h3 className="font-bold text-gray-800 text-lg">{item.client}</h3>
+                                                {isExpired && (
+                                                    <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded uppercase tracking-wider block mt-1 w-fit">
+                                                        Scaduta
+                                                    </span>
+                                                )}
+                                                <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded mt-1 inline-block">Offerta: {item.offerNumber}</span>
+                                            </div>
+                                            <span className="font-bold text-blue-600 text-lg">€ {item.amount}</span>
                                         </div>
-                                        <span className="font-bold text-blue-600 text-lg">€ {item.amount}</span>
+                                        <div className="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded border border-gray-50 italic">{item.notes || "Nessuna nota."}</div>
+                                        <div className="flex justify-between items-end border-t border-gray-50 pt-3">
+                                            <div className="text-xs text-gray-400 flex items-center gap-1">
+                                                <Calendar size={12} /> Risc: <span className="text-gray-700 font-semibold">{new Date(item.feedbackDate).toLocaleDateString('it-IT')}</span>
+                                            </div>
+                                            <div className="flex gap-2 items-center">
+                                                {/* Pulsante Completa / Ripristina */}
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleCompleteFollowup(item); }} 
+                                                    className={`text-[10px] uppercase font-bold px-3 py-1.5 rounded-lg border transition-colors shadow-sm active:scale-95 ${item.completed ? 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200' : 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200'}`}
+                                                >
+                                                    {item.completed ? 'Ripristina' : 'Completa'}
+                                                </button>
+                                                
+                                                <button onClick={() => prepareEditFollowup(item)} className="p-1.5 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><Edit2 size={16} /></button>
+                                                <button onClick={() => handleDeleteFollowup(item.id)} className="p-1.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-100"><Trash2 size={16} /></button>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded border border-gray-50 italic">{item.notes || "Nessuna nota."}</div>
-                                    <div className="flex justify-between items-end border-t border-gray-50 pt-3">
-                                        <div className="text-xs text-gray-400 flex items-center gap-1">
-                                            <Calendar size={12} /> Risc: <span className="text-gray-700 font-semibold">{new Date(item.feedbackDate).toLocaleDateString('it-IT')}</span>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => prepareEditFollowup(item)} className="p-1.5 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><Edit2 size={16} /></button>
-                                            <button onClick={() => handleDeleteFollowup(item.id)} className="p-1.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-100"><Trash2 size={16} /></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </div>
@@ -999,8 +1050,6 @@
                 );
             };
 
-            const renderClientDetail = () => { if (!selectedClient) return null; return (<div className="animate-fade-in pb-32 bg-white min-h-full" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}><div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => prepareEditClient(selectedClient)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button><button onClick={() => handleDeleteClient(selectedClient.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button></div></div><div className="p-6 space-y-8"><div><h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1><p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p><div className="mt-4 flex flex-wrap gap-2">{selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Phone size={14}/> Chiama</a>}{selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Mail size={14}/> Email</a>}</div></div><div className="space-y-4"><SectionTitle icon={<Building2 size={16}/>} title="Sedi" /><InfoRow label="Sede Legale" value={selectedClient.sedeLegale} /><InfoRow label="Sede Operativa" value={selectedClient.sedeOperativa} /><InfoRow label="Magazzino" value={selectedClient.magazzino} /></div><div className="space-y-4"><SectionTitle icon={<CreditCard size={16}/>} title="Dati Amministrativi" /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><InfoRow label="Codice Univoco" value={selectedClient.sdiCode} /><InfoRow label="PEC" value={selectedClient.pec} /><div className="col-span-1 sm:col-span-2"><InfoRow label="Metodo Pagamento" value={getFullPaymentMethod(selectedClient)} /></div><InfoRow label="Abbigliamento" value={selectedClient.abbigliamento} /><InfoRow label="Fido (€)" value={selectedClient.fido} /><InfoRow label="Data Fido" value={selectedClient.fidoDate || '-'} /><InfoRow label="N. Operai" value={selectedClient.numeroOperai} /></div></div><div className="space-y-4"><SectionTitle icon={<Users size={16}/>} title="Referenti" />{[1,2,3,4].map(num => { const c = selectedClient[`contact${num}`]; if (!c.nome && !c.mansione && !c.telefono && !c.mail) return null; return (<div key={num} className="bg-gray-50 p-3 rounded-lg border border-gray-100"><div className="font-bold text-gray-800">{c.nome || `Contatto ${num}`}</div><div className="text-xs text-blue-600 font-medium mb-1">{c.mansione || '-'}</div><div className="text-xs text-gray-500 space-y-0.5">{c.telefono && <div>Tel: <a href={`tel:${c.telefono}`} className="underline text-blue-500">{c.telefono}</a></div>}{c.mail && <div>Mail: <a href={`mailto:${c.mail}`} className="underline text-blue-500">{c.mail}</a></div>}</div></div>); })} {![1,2,3,4].some(num => selectedClient[`contact${num}`].nome) && (<p className="text-sm text-gray-400 italic">Nessun referente salvato.</p>)}</div><div className="space-y-4"><SectionTitle icon={<MessageSquare size={16}/>} title="Note & Comunicazioni" /><SectionDisplay title="Abbigliamento" content={selectedClient.abbigliamento} small /><SectionDisplay title="Note Interne" content={selectedClient.note} small /><SectionDisplay title="Comunicazioni al Cliente" content={selectedClient.comunicazioni} small /></div><div className="text-xs text-center text-gray-300 pt-8">Ultimo aggiornamento: {selectedClient.updatedAt}</div></div></div>); };
-
             const renderList = () => (
                 <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
                     <div className="flex justify-between items-center mb-6">
@@ -1019,19 +1068,48 @@
                                 const dateA = new Date(a.date);
                                 const dateB = new Date(b.date);
                                 return sortOrder.reports === 'desc' ? dateB - dateA : dateA - dateB;
-                            }).map(report => (
-                                <div key={report.id} onClick={() => { setSelectedReport(report); setView('detail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
-                                    <div className="flex justify-between items-center">
-                                        <h3 className="font-bold text-gray-800 truncate pr-4">{report.client}</h3>
-                                        <span className="font-bold text-blue-600 flex-shrink-0">{report.hours}h</span>
+                            }).map(report => {
+                                // Logica per data scaduta report
+                                const today = new Date();
+                                today.setHours(0,0,0,0);
+                                const nextDate = report.nextContactDate ? new Date(report.nextContactDate) : null;
+                                const isExpired = nextDate && nextDate < today && !report.completed;
+                                const cardStyle = isExpired ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-white border-gray-100 shadow-sm';
+
+                                return (
+                                    <div key={report.id} onClick={() => { setSelectedReport(report); setView('detail'); }} className={`${cardStyle} p-4 rounded-xl border relative cursor-pointer active:scale-[0.99] transition-transform`}>
+                                        <div className="flex justify-between items-center">
+                                            <h3 className="font-bold text-gray-800 truncate pr-4">{report.client}</h3>
+                                            <span className="font-bold text-blue-600 flex-shrink-0">{report.hours}h</span>
+                                        </div>
+                                        <div className="text-sm text-gray-500 flex justify-between items-center mt-1">
+                                            <span className="truncate">{report.category}</span>
+                                            <span className="text-xs text-gray-400 flex-shrink-0">{new Date(report.date).toLocaleDateString('it-IT')}</span>
+                                        </div>
+                                        {report.nextContactDate && (
+                                            <div className="mt-2 flex justify-between items-center">
+                                                <div className="text-xs font-semibold text-yellow-700 flex items-center gap-1 bg-yellow-50 p-1 rounded">
+                                                    <Bell size={12} className="text-yellow-500" /> Contatto: {new Date(report.nextContactDate).toLocaleDateString('it-IT')}
+                                                </div>
+                                                {isExpired && (
+                                                    <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded uppercase tracking-wider ml-2">SCADUTO</span>
+                                                )}
+                                            </div>
+                                        )}
+                                        {/* Pulsante Completa/Ripristina anche qui se c'è un nextContactDate */}
+                                        {report.nextContactDate && (
+                                            <div className="mt-2 flex justify-end">
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleCompleteReport(report); }} 
+                                                    className={`text-[10px] uppercase font-bold px-3 py-1.5 rounded-lg border transition-colors shadow-sm active:scale-95 ${report.completed ? 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200' : 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200'}`}
+                                                >
+                                                    {report.completed ? 'Ripristina' : 'Completa'}
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="text-sm text-gray-500 flex justify-between items-center mt-1">
-                                        <span className="truncate">{report.category}</span>
-                                        <span className="text-xs text-gray-400 flex-shrink-0">{new Date(report.date).toLocaleDateString('it-IT')}</span>
-                                    </div>
-                                    {report.nextContactDate && (<div className="mt-2 text-xs font-semibold text-yellow-700 flex items-center gap-1 bg-yellow-50 p-1 rounded"><Bell size={12} className="text-yellow-500" /> Contatto: {new Date(report.nextContactDate).toLocaleDateString('it-IT')}</div>)}
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </div>
