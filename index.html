@@ -90,15 +90,22 @@
         const LogOut = (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></IconBase>;
         const AlertTriangle = (p) => <IconBase {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconBase>;
         const Search = (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></IconBase>;
+        const Lightbulb = (p) => <IconBase {...p}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2 1.5-3.5a6 6 0 0 0-11 0c0 1.5.5 2.5 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></IconBase>;
+        // Nuova icona per Ordinamento
+        const ArrowUpDown = (p) => <IconBase {...p}><path d="m21 16-4 4-4-4"/><path d="m17 20V4"/><path d="m3 8 4-4 4 4"/><path d="m7 4v16"/></IconBase>;
+
 
         // --- UTILITY FIREBASE CON USER KEY (Shared) ---
         const getReportsCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/reports`);
         const getClientsCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/clients`);
         const getFollowupsCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/followups`);
+        const getIdeasCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/ideas`);
 
         const getReportDoc = (db, secretKey, id) => doc(db, `artifacts/${appId}/users/${secretKey}/reports`, String(id));
         const getClientDoc = (db, secretKey, id) => doc(db, `artifacts/${appId}/users/${secretKey}/clients`, String(id));
         const getFollowupDoc = (db, secretKey, id) => doc(db, `artifacts/${appId}/users/${secretKey}/followups`, String(id));
+        const getIdeaDoc = (db, secretKey, id) => doc(db, `artifacts/${appId}/users/${secretKey}/ideas`, String(id));
+
 
         // --- COMPONENTI UI DI SUPPORTO ---
         const Input = ({ label, name, value, onChange, type = 'text', required = false, step = null, placeholder = '' }) => (
@@ -170,11 +177,22 @@
             const [reports, setReports] = useState([]);
             const [clients, setClients] = useState([]);
             const [followups, setFollowups] = useState([]);
+            const [ideas, setIdeas] = useState([]);
+
             const [view, setView] = useState('dashboard');
             const [selectedReport, setSelectedReport] = useState(null);
             const [selectedClient, setSelectedClient] = useState(null);
             const [clientSearch, setClientSearch] = useState('');
             const [statusFilter, setStatusFilter] = useState('ALL');
+
+            // --- NUOVI STATI PER ORDINAMENTO ---
+            // 'desc' = Dal più recente al meno recente (default)
+            // 'asc' = Dal meno recente al più recente
+            const [sortOrder, setSortOrder] = useState({
+                reports: 'desc',
+                followups: 'desc',
+                ideas: 'desc' 
+            });
 
             const [message, setMessage] = useState({ text: '', type: '' });
             const [confirmAction, setConfirmAction] = useState(null);
@@ -197,6 +215,12 @@
                 id: null, client: '', offerNumber: '', amount: '', feedbackDate: '', notes: '', createdAt: null,
             };
             const [followupForm, setFollowupForm] = useState(initialFollowupState);
+
+            const initialIdeaState = {
+                id: null, client: '', text: '', deadline: '', createdAt: null
+            };
+            const [ideaForm, setIdeaForm] = useState(initialIdeaState);
+
 
             const paymentOptions = {
                 method1: [{ label: "BB (Bonifico Bancario)", value: "BB" }, { label: "RI.BA (Ricevuta Bancaria)", value: "RI.BA" }],
@@ -241,9 +265,10 @@
                 const unsubscribeReports = onSnapshot(getReportsCollection(db, safeKey), (s) => setReports(s.docs.map(d => ({ ...d.data(), id: d.id }))));
                 const unsubscribeClients = onSnapshot(getClientsCollection(db, safeKey), (s) => setClients(s.docs.map(d => ({ ...d.data(), id: d.id }))));
                 const unsubscribeFollowups = onSnapshot(getFollowupsCollection(db, safeKey), (s) => setFollowups(s.docs.map(d => ({ ...d.data(), id: d.id }))));
+                const unsubscribeIdeas = onSnapshot(getIdeasCollection(db, safeKey), (s) => setIdeas(s.docs.map(d => ({ ...d.data(), id: d.id }))));
                 
                 setIsLoading(false);
-                return () => { unsubscribeReports(); unsubscribeClients(); unsubscribeFollowups(); };
+                return () => { unsubscribeReports(); unsubscribeClients(); unsubscribeFollowups(); unsubscribeIdeas(); };
             }, [isAuthReady, db, userKey]);
 
             // --- SWIPE LOGIC ---
@@ -263,11 +288,10 @@
                 
                 // Check if horizontal swipe (ignore vertical scroll)
                 if (Math.abs(distanceX) > Math.abs(distanceY)) {
-                    const mainTabs = ['dashboard', 'list', 'followups', 'clients'];
+                    const mainTabs = ['dashboard', 'list', 'followups', 'ideas', 'clients'];
                     const currentIndex = mainTabs.indexOf(view);
 
                     if (currentIndex !== -1) {
-                        // Logica per le tab principali
                         if (isLeftSwipe) {
                             const nextIndex = Math.min(currentIndex + 1, mainTabs.length - 1);
                             setView(mainTabs[nextIndex]);
@@ -277,11 +301,11 @@
                             setView(mainTabs[prevIndex]);
                         }
                     } else {
-                        // Logica "Back" per le viste di dettaglio (Swipe Right)
                         if (isRightSwipe) {
                             if (view === 'create' || view === 'detail') setView('list');
                             else if (view === 'createClient' || view === 'clientDetail') setView('clients');
                             else if (view === 'createFollowup') setView('followups');
+                            else if (view === 'createIdea') setView('ideas');
                         }
                     }
                 }
@@ -293,6 +317,11 @@
                     (a.ragioneSociale || "").toLowerCase().localeCompare((b.ragioneSociale || "").toLowerCase())
                 );
             }, [clients]);
+
+            // --- HELPER ORDINAMENTO ---
+            const toggleSort = (key) => {
+                setSortOrder(prev => ({...prev, [key]: prev[key] === 'desc' ? 'asc' : 'desc'}));
+            };
 
             const handleLogin = (e) => {
                 e.preventDefault();
@@ -311,6 +340,7 @@
                 setReports([]);
                 setClients([]);
                 setFollowups([]);
+                setIdeas([]);
             };
 
             const showMessage = (text, type = 'info') => { setMessage({ text, type }); setTimeout(() => setMessage({ text: '', type: '' }), 3000); };
@@ -321,7 +351,7 @@
 
             // --- EXPORT TO EXCEL ---
             const exportToExcel = () => {
-                if (!clients.length && !reports.length && !followups.length) {
+                if (!clients.length && !reports.length && !followups.length && !ideas.length) {
                     showMessage("Nessun dato da esportare.", "error");
                     return;
                 }
@@ -389,6 +419,12 @@
                     if (followups.length > 0) {
                         const wsFollowups = XLSX.utils.json_to_sheet(followups);
                         XLSX.utils.book_append_sheet(wb, wsFollowups, "Offerte");
+                    }
+                    
+                    // 4. Foglio Idee
+                    if (ideas.length > 0) {
+                        const wsIdeas = XLSX.utils.json_to_sheet(ideas);
+                        XLSX.utils.book_append_sheet(wb, wsIdeas, "Idee e Progetti");
                     }
 
                     XLSX.writeFile(wb, `Backup_CRM_${now}.xlsx`);
@@ -520,17 +556,32 @@
                 window.open(url, '_blank');
             };
             
-            // --- NUOVA FUNZIONE CALENDARIO PER OFFERTE ---
             const addFollowupToCalendar = (followup) => {
                 if (!followup.feedbackDate) return;
-                const startTime = '09:00'; // Orario default per riscontro offerte
+                const startTime = '09:00'; 
                 const startDateTime = new Date(`${followup.feedbackDate}T${startTime}`);
-                const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // Durata 1 ora
+                const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); 
 
                 const formatDate = (date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
 
                 const title = encodeURIComponent(`Riscontro Offerta: ${followup.client} - ${followup.offerNumber}`);
                 const details = encodeURIComponent(`Importo: € ${followup.amount}\nNote: ${followup.notes}`);
+                const dates = `${formatDate(startDateTime)}/${formatDate(endDateTime)}`;
+
+                const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
+                window.open(url, '_blank');
+            };
+
+            const addIdeaToCalendar = (idea) => {
+                if (!idea.deadline) return;
+                const startTime = '09:00';
+                const startDateTime = new Date(`${idea.deadline}T${startTime}`);
+                const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+
+                const formatDate = (date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
+
+                const title = encodeURIComponent(`Scadenza Idea: ${idea.client}`);
+                const details = encodeURIComponent(`Dettaglio: ${idea.text}`);
                 const dates = `${formatDate(startDateTime)}/${formatDate(endDateTime)}`;
 
                 const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
@@ -559,6 +610,18 @@
             };
             const handleDeleteFollowup = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getFollowupDoc(db, safeKey, id)); showMessage('Eliminato.', 'success'); }); };
             const prepareEditFollowup = (item) => { setFollowupForm(item); setView('createFollowup'); };
+
+            const handleIdeaChange = (e) => { const { name, value } = e.target; setIdeaForm(prev => ({ ...prev, [name]: value })); };
+            const handleIdeaSubmit = async (e) => {
+                e.preventDefault(); if (!db) return;
+                const isEditing = !!ideaForm.id;
+                const itemToSave = { ...ideaForm, id: ideaForm.id || String(Date.now()), createdAt: ideaForm.createdAt || new Date().toISOString() };
+                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
+                try { await setDoc(getIdeaDoc(db, safeKey, itemToSave.id), itemToSave); showMessage(isEditing ? 'Aggiornato.' : 'Creato.', 'success'); setIdeaForm(initialIdeaState); setView('ideas'); } catch (e) { console.error(e); }
+            };
+            const handleDeleteIdea = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getIdeaDoc(db, safeKey, id)); showMessage('Eliminato.', 'success'); }); };
+            const prepareEditIdea = (item) => { setIdeaForm(item); setView('createIdea'); };
+
 
             const handleClientChange = (e, section = null) => {
                 const { name, value } = e.target;
@@ -620,9 +683,10 @@
                             <button onClick={handleLogout} className="text-xs text-red-500 p-2 bg-red-50 rounded-lg flex items-center gap-1 font-bold transition-colors hover:bg-red-100"><LogOut size={14} /> Esci</button>
                         </div>
                     </header>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-blue-600"><Users size={16} /><span className="text-xs font-bold uppercase text-gray-400">Clienti</span></div><div className="text-3xl font-bold text-gray-800">{clients.length}</div></div>
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-purple-600"><Target size={16} /><span className="text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-blue-600"><Users size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Clienti</span></div><div className="text-3xl font-bold text-gray-800">{clients.length}</div></div>
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-purple-600"><Target size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-yellow-500"><Lightbulb size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Idee</span></div><div className="text-3xl font-bold text-gray-800">{ideas.length}</div></div>
                     </div>
                     <button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 flex justify-center items-center gap-2 active:scale-95 transition-all"><Plus size={20} /> Nuovo Report</button>
                     {reports.some(r => r.nextContactDate) && (<div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200"><h3 className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><Bell size={18} /> Promemoria Contatti</h3><ul className="space-y-2">{reports.filter(r => r.nextContactDate).sort((a,b) => new Date(a.nextContactDate) - new Date(b.nextContactDate)).slice(0, 3).map(r => (<li key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="text-sm cursor-pointer hover:underline text-yellow-700">{r.nextContactDate} - {r.client} ({r.category})</li>))}</ul></div>)}
@@ -637,14 +701,24 @@
             const renderFollowups = () => (
                 <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-gray-800">Offerte</h2>
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-xl font-bold text-gray-800">Offerte</h2>
+                            <button onClick={() => toggleSort('followups')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 shadow-sm active:scale-95 transition-transform">
+                                <ArrowUpDown size={14} />
+                                {sortOrder.followups === 'desc' ? 'Più recenti' : 'Meno recenti'}
+                            </button>
+                        </div>
                         <button onClick={() => { setFollowupForm(initialFollowupState); setView('createFollowup'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 flex items-center gap-2"><Plus size={16} /> Nuova</button>
                     </div>
                     <div className="space-y-3">
                         {followups.length === 0 ? (
                             <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessuna offerta registrata.</div>
                         ) : (
-                            followups.sort((a, b) => new Date(b.feedbackDate) - new Date(a.feedbackDate)).map(item => (
+                            [...followups].sort((a, b) => {
+                                const dateA = new Date(a.feedbackDate);
+                                const dateB = new Date(b.feedbackDate);
+                                return sortOrder.followups === 'desc' ? dateB - dateA : dateA - dateB;
+                            }).map(item => (
                                 <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative">
                                     <div className="flex justify-between items-start mb-2">
                                         <div>
@@ -659,7 +733,6 @@
                                             <Calendar size={12} /> Risc: <span className="text-gray-700 font-semibold">{new Date(item.feedbackDate).toLocaleDateString('it-IT')}</span>
                                         </div>
                                         <div className="flex gap-2">
-                                            {/* Pulsante Calendario rimosso da qui e spostato in modifica */}
                                             <button onClick={() => prepareEditFollowup(item)} className="p-1.5 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><Edit2 size={16} /></button>
                                             <button onClick={() => handleDeleteFollowup(item.id)} className="p-1.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-100"><Trash2 size={16} /></button>
                                         </div>
@@ -668,6 +741,81 @@
                             ))
                         )}
                     </div>
+                </div>
+            );
+
+            // --- VISTA LISTA IDEE ---
+            const renderIdeas = () => (
+                <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-xl font-bold text-gray-800">Idee</h2>
+                            <button onClick={() => toggleSort('ideas')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 shadow-sm active:scale-95 transition-transform">
+                                <ArrowUpDown size={14} />
+                                {sortOrder.ideas === 'desc' ? 'Più recenti' : 'Meno recenti'}
+                            </button>
+                        </div>
+                        <button onClick={() => { setIdeaForm(initialIdeaState); setView('createIdea'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 flex items-center gap-2"><Plus size={16} /> Nuova</button>
+                    </div>
+                    <div className="space-y-3">
+                        {ideas.length === 0 ? (
+                            <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessuna idea registrata.</div>
+                        ) : (
+                            [...ideas].sort((a, b) => {
+                                const dateA = new Date(a.deadline);
+                                const dateB = new Date(b.deadline);
+                                return sortOrder.ideas === 'desc' ? dateB - dateA : dateA - dateB;
+                            }).map(item => (
+                                <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <h3 className="font-bold text-gray-800 text-lg">{item.client}</h3>
+                                        </div>
+                                        {item.deadline && (
+                                            <span className={`text-xs font-bold px-2 py-1 rounded ${new Date(item.deadline) < new Date() ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                {new Date(item.deadline).toLocaleDateString('it-IT')}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-sm text-gray-700 mb-3 whitespace-pre-wrap">{item.text}</div>
+                                    <div className="flex justify-end gap-2 border-t border-gray-50 pt-3">
+                                        <button onClick={() => prepareEditIdea(item)} className="p-1.5 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><Edit2 size={16} /></button>
+                                        <button onClick={() => handleDeleteIdea(item.id)} className="p-1.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-100"><Trash2 size={16} /></button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            );
+
+            // --- VISTA CREA IDEA ---
+            const renderCreateIdea = () => (
+                <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">{ideaForm.id ? 'Modifica Idea' : 'Nuova Idea'}</h2>
+                    <form onSubmit={handleIdeaSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <SectionContainer title="Dettagli Progetto" icon={Lightbulb}>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Azienda / Cliente *</label>
+                                <select required name="client" value={ideaForm.client} onChange={handleIdeaChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow">
+                                    <option value="">Seleziona Cliente...</option>
+                                    {sortedClients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}
+                                </select>
+                            </div>
+                            <TextArea label="Descrizione Idea" name="text" value={ideaForm.text} onChange={handleIdeaChange} placeholder="Descrivi la tua idea o progetto..." />
+                            <Input label="Data Scadenza" type="date" name="deadline" value={ideaForm.deadline} onChange={handleIdeaChange} required />
+                            
+                            {ideaForm.deadline && (
+                                <button type="button" onClick={() => addIdeaToCalendar({...ideaForm})} className="mt-3 w-full flex justify-center items-center gap-2 px-3 py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 active:scale-[0.98] transition-all hover:bg-indigo-100">
+                                    <Calendar size={18} /> Aggiungi a Calendario
+                                </button>
+                            )}
+                        </SectionContainer>
+                        <div className="pt-2 flex gap-3">
+                            <button type="button" onClick={() => setView('ideas')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl active:scale-[0.98] transition-transform">Annulla</button>
+                            <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] transition-transform flex justify-center items-center gap-2"><Save size={18} /> Salva</button>
+                        </div>
+                    </form>
                 </div>
             );
 
@@ -688,7 +836,6 @@
                             <Input label="Data Riscontro Atteso" type="date" name="feedbackDate" value={followupForm.feedbackDate} onChange={handleFollowupChange} required />
                             <TextArea label="Note / Oggetto" name="notes" value={followupForm.notes} onChange={handleFollowupChange} placeholder="Dettagli sull'offerta..." />
                             
-                            {/* NUOVO POSIZIONAMENTO PULSANTE CALENDARIO */}
                             {followupForm.feedbackDate && (
                                 <button type="button" onClick={() => addFollowupToCalendar({...followupForm})} className="mt-3 w-full flex justify-center items-center gap-2 px-3 py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 active:scale-[0.98] transition-all hover:bg-indigo-100">
                                     <Calendar size={18} /> Aggiungi a Calendario
@@ -852,19 +999,58 @@
                 );
             };
 
-            const renderCreateClient = () => (
-                <div className="animate-fade-in pb-32 bg-gray-50 min-h-full"><div className="sticky top-0 bg-white z-10 p-4 border-b border-gray-200 flex items-center justify-between shadow-sm"><div className="flex items-center gap-2"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><h2 className="text-lg font-bold text-gray-800">{clientForm.id ? 'Modifica Scheda' : 'Nuova Scheda'}</h2></div><button onClick={handleClientSubmit} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg shadow-blue-200 flex items-center gap-2 active:scale-[0.98] transition-transform"><Save size={16} /> Salva</button></div><div className="p-4 space-y-6 max-w-lg mx-auto"><SectionContainer title="Anagrafica" icon={Building2}><Input label="Ragione Sociale *" name="ragioneSociale" value={clientForm.ragioneSociale} onChange={handleClientChange} required /><Input label="Partita IVA" name="pIva" value={clientForm.pIva} onChange={handleClientChange} /><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm.telefono} onChange={handleClientChange} /><Input label="Email" name="email" value={clientForm.email} onChange={handleClientChange} /></div></SectionContainer><SectionContainer title="Sedi" icon={MapPin}><Input label="Sede Legale" name="sedeLegale" value={clientForm.sedeLegale} onChange={handleClientChange} /><Input label="Sede Operativa" name="sedeOperativa" value={clientForm.sedeOperativa} onChange={handleClientChange} /><Input label="Magazzino" name="magazzino" value={clientForm.magazzino} onChange={handleClientChange} /></SectionContainer><section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4"><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2"><CreditCard size={14}/> Amministrazione</h3><div className="space-y-3"><label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Metodo Pagamento</label><div className="grid grid-cols-1 md:grid-cols-3 gap-2"><SelectComponent label="Tipo Base" name="paymentMethod1" value={clientForm.paymentMethod1} onChange={handleClientChange} options={paymentOptions.method1} /><SelectComponent label="Scadenza" name="paymentMethod2" value={clientForm.paymentMethod2} onChange={handleClientChange} options={paymentOptions.method2} /><SelectComponent label="Struttura" name="paymentMethod3" value={clientForm.paymentMethod3} onChange={handleClientChange} options={paymentOptions.method3} /></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-gray-100 mt-4"><Input label="Codice Univoco" name="sdiCode" value={clientForm.sdiCode} onChange={handleClientChange} /><Input label="PEC" name="pec" value={clientForm.pec} onChange={handleClientChange} /><Input label="Fido (€)" name="fido" value={clientForm.fido} onChange={handleClientChange} /><Input label="Data Fido" type="date" name="fidoDate" value={clientForm.fidoDate} onChange={handleClientChange} /><Input label="Abbigliamento" name="abbigliamento" value={clientForm.abbigliamento} onChange={handleClientChange} /><Input label="N. Operai" name="numeroOperai" value={clientForm.numeroOperai} onChange={handleClientChange} type="number" /></div></section><SectionContainer title="Note" icon={MessageSquare}><TextArea label="Abbigliamento" name="abbigliamento" value={clientForm.abbigliamento} onChange={handleClientChange} /><TextArea label="Note Interne" name="note" value={clientForm.note} onChange={handleClientChange} /><TextArea label="Comunicazioni" name="comunicazioni" value={clientForm.comunicazioni} onChange={handleClientChange} /></SectionContainer><SectionContainer title="Rubrica Contatti" icon={Users}>{[1, 2, 3, 4].map(num => (<div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4"><div className="font-bold text-blue-600 mb-3 text-sm">Contatto {num}</div><div className="space-y-3"><Input label="Nome e Cognome" name="nome" value={clientForm[`contact${num}`].nome} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Mansione" name="mansione" value={clientForm[`contact${num}`].mansione} onChange={(e) => handleClientChange(e, `contact${num}`)} /><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm[`contact${num}`].telefono} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Email" name="mail" value={clientForm[`contact${num}`].mail} onChange={(e) => handleClientChange(e, `contact${num}`)} /></div></div></div>))}</SectionContainer></div></div>
-            );
-
             const renderClientDetail = () => { if (!selectedClient) return null; return (<div className="animate-fade-in pb-32 bg-white min-h-full" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}><div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => prepareEditClient(selectedClient)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button><button onClick={() => handleDeleteClient(selectedClient.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button></div></div><div className="p-6 space-y-8"><div><h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1><p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p><div className="mt-4 flex flex-wrap gap-2">{selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Phone size={14}/> Chiama</a>}{selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Mail size={14}/> Email</a>}</div></div><div className="space-y-4"><SectionTitle icon={<Building2 size={16}/>} title="Sedi" /><InfoRow label="Sede Legale" value={selectedClient.sedeLegale} /><InfoRow label="Sede Operativa" value={selectedClient.sedeOperativa} /><InfoRow label="Magazzino" value={selectedClient.magazzino} /></div><div className="space-y-4"><SectionTitle icon={<CreditCard size={16}/>} title="Dati Amministrativi" /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><InfoRow label="Codice Univoco" value={selectedClient.sdiCode} /><InfoRow label="PEC" value={selectedClient.pec} /><div className="col-span-1 sm:col-span-2"><InfoRow label="Metodo Pagamento" value={getFullPaymentMethod(selectedClient)} /></div><InfoRow label="Abbigliamento" value={selectedClient.abbigliamento} /><InfoRow label="Fido (€)" value={selectedClient.fido} /><InfoRow label="Data Fido" value={selectedClient.fidoDate || '-'} /><InfoRow label="N. Operai" value={selectedClient.numeroOperai} /></div></div><div className="space-y-4"><SectionTitle icon={<Users size={16}/>} title="Referenti" />{[1,2,3,4].map(num => { const c = selectedClient[`contact${num}`]; if (!c.nome && !c.mansione && !c.telefono && !c.mail) return null; return (<div key={num} className="bg-gray-50 p-3 rounded-lg border border-gray-100"><div className="font-bold text-gray-800">{c.nome || `Contatto ${num}`}</div><div className="text-xs text-blue-600 font-medium mb-1">{c.mansione || '-'}</div><div className="text-xs text-gray-500 space-y-0.5">{c.telefono && <div>Tel: <a href={`tel:${c.telefono}`} className="underline text-blue-500">{c.telefono}</a></div>}{c.mail && <div>Mail: <a href={`mailto:${c.mail}`} className="underline text-blue-500">{c.mail}</a></div>}</div></div>); })} {![1,2,3,4].some(num => selectedClient[`contact${num}`].nome) && (<p className="text-sm text-gray-400 italic">Nessun referente salvato.</p>)}</div><div className="space-y-4"><SectionTitle icon={<MessageSquare size={16}/>} title="Note & Comunicazioni" /><SectionDisplay title="Abbigliamento" content={selectedClient.abbigliamento} small /><SectionDisplay title="Note Interne" content={selectedClient.note} small /><SectionDisplay title="Comunicazioni al Cliente" content={selectedClient.comunicazioni} small /></div><div className="text-xs text-center text-gray-300 pt-8">Ultimo aggiornamento: {selectedClient.updatedAt}</div></div></div>); };
 
             const renderList = () => (
-                <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}><div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-gray-800">Storico Completo</h2><button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2"><Plus size={16} /> Nuovo</button></div><div className="space-y-3">{reports.length === 0 ? (<div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessun report salvato.</div>) : (reports.sort((a, b) => new Date(b.date) - new Date(a.date)).map(report => (<div key={report.id} onClick={() => { setSelectedReport(report); setView('detail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform"><div className="flex justify-between items-center"><h3 className="font-bold text-gray-800 truncate pr-4">{report.client}</h3><span className="font-bold text-blue-600 flex-shrink-0">{report.hours}h</span></div><div className="text-sm text-gray-500 flex justify-between items-center mt-1"><span className="truncate">{report.category}</span><span className="text-xs text-gray-400 flex-shrink-0">{new Date(report.date).toLocaleDateString('it-IT')}</span></div>{report.nextContactDate && (<div className="mt-2 text-xs font-semibold text-yellow-700 flex items-center gap-1 bg-yellow-50 p-1 rounded"><Bell size={12} className="text-yellow-500" /> Contatto: {new Date(report.nextContactDate).toLocaleDateString('it-IT')}</div>)}</div>)))}</div></div>
+                <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-3">
+                            <h2 className="text-xl font-bold text-gray-800">Storico</h2>
+                            <button onClick={() => toggleSort('reports')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 shadow-sm active:scale-95 transition-transform">
+                                <ArrowUpDown size={14} />
+                                {sortOrder.reports === 'desc' ? 'Più recenti' : 'Meno recenti'}
+                            </button>
+                        </div>
+                        <button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2"><Plus size={16} /> Nuovo</button>
+                    </div>
+                    <div className="space-y-3">
+                        {reports.length === 0 ? (<div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessun report salvato.</div>) : (
+                            [...reports].sort((a, b) => {
+                                const dateA = new Date(a.date);
+                                const dateB = new Date(b.date);
+                                return sortOrder.reports === 'desc' ? dateB - dateA : dateA - dateB;
+                            }).map(report => (
+                                <div key={report.id} onClick={() => { setSelectedReport(report); setView('detail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="font-bold text-gray-800 truncate pr-4">{report.client}</h3>
+                                        <span className="font-bold text-blue-600 flex-shrink-0">{report.hours}h</span>
+                                    </div>
+                                    <div className="text-sm text-gray-500 flex justify-between items-center mt-1">
+                                        <span className="truncate">{report.category}</span>
+                                        <span className="text-xs text-gray-400 flex-shrink-0">{new Date(report.date).toLocaleDateString('it-IT')}</span>
+                                    </div>
+                                    {report.nextContactDate && (<div className="mt-2 text-xs font-semibold text-yellow-700 flex items-center gap-1 bg-yellow-50 p-1 rounded"><Bell size={12} className="text-yellow-500" /> Contatto: {new Date(report.nextContactDate).toLocaleDateString('it-IT')}</div>)}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
             );
 
             const NavItem = ({ icon: Icon, label, currentView, targetView, setView }) => {
-                const isActive = (['create', 'detail'].includes(currentView) && targetView === 'list' && ['create', 'detail', 'list'].includes(currentView)) || (['createClient', 'clientDetail'].includes(currentView) && targetView === 'clients' && ['createClient', 'clientDetail', 'clients'].includes(currentView)) || (['createFollowup'].includes(currentView) && targetView === 'followups' && ['createFollowup', 'followups'].includes(currentView)) || (currentView === targetView);
-                return (<button onClick={() => { if (['create', 'detail'].includes(currentView) && targetView === 'list') setView('list'); else if (['createClient', 'clientDetail'].includes(currentView) && targetView === 'clients') setView('clients'); else if (['createFollowup'].includes(currentView) && targetView === 'followups') setView('followups'); else if (currentView !== targetView) setView(targetView); }} className={`flex flex-col items-center p-2 rounded-xl transition-colors active:scale-95 ${isActive ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}><Icon size={24} className="mb-0.5" /><span className="text-xs font-medium">{label}</span></button>);
+                // Logica attiva per i pulsanti di navigazione
+                const isActive = (['create', 'detail'].includes(currentView) && targetView === 'list' && ['create', 'detail', 'list'].includes(currentView)) || 
+                                 (['createClient', 'clientDetail'].includes(currentView) && targetView === 'clients' && ['createClient', 'clientDetail', 'clients'].includes(currentView)) || 
+                                 (['createFollowup'].includes(currentView) && targetView === 'followups' && ['createFollowup', 'followups'].includes(currentView)) || 
+                                 (['createIdea'].includes(currentView) && targetView === 'ideas' && ['createIdea', 'ideas'].includes(currentView)) ||
+                                 (currentView === targetView);
+                return (<button onClick={() => { 
+                    if (['create', 'detail'].includes(currentView) && targetView === 'list') setView('list'); 
+                    else if (['createClient', 'clientDetail'].includes(currentView) && targetView === 'clients') setView('clients'); 
+                    else if (['createFollowup'].includes(currentView) && targetView === 'followups') setView('followups'); 
+                    else if (['createIdea'].includes(currentView) && targetView === 'ideas') setView('ideas'); // Reset per Idee
+                    else if (currentView !== targetView) setView(targetView); 
+                }} className={`flex flex-col items-center p-2 rounded-xl transition-colors active:scale-95 ${isActive ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}><Icon size={24} className="mb-0.5" /><span className="text-[10px] font-medium">{label}</span></button>);
             };
 
             const CustomMessageModal = () => {
@@ -877,8 +1063,28 @@
             return (
                 <div className="min-h-screen bg-gray-100 flex justify-center items-start pt-0 sm:pt-6 font-sans text-gray-900">
                     <div className="main-container w-full max-w-full md:max-w-7xl mx-auto bg-white h-screen sm:h-dvh sm:rounded-[2.5rem] sm:shadow-2xl overflow-hidden flex flex-col relative ring-8 ring-gray-900/5">
-                        <div className="flex-1 overflow-y-auto scrollbar-hide">{view === 'dashboard' && <div className="p-6">{renderDashboard()}</div>}{view === 'clients' && <div className="p-6">{renderClients()}</div>}{view === 'createClient' && renderCreateClient()}{view === 'clientDetail' && renderClientDetail()}{view === 'list' && <div className="p-6">{renderList()}</div>}{view === 'create' && <div className="p-6">{renderCreateReport()}</div>}{view === 'detail' && renderDetail()}{view === 'followups' && <div className="p-6">{renderFollowups()}</div>}{view === 'createFollowup' && <div className="p-6">{renderCreateFollowup()}</div>}</div>
-                        <nav className="bottom-nav fixed bottom-0 left-0 right-0 sm:static bg-white border-t border-gray-200 z-20 sm:p-0 sm:rounded-b-[2.5rem] p-3 shadow-top sm:shadow-none"><div className="flex justify-around"><NavItem icon={LayoutDashboard} label="Home" currentView={view} targetView="dashboard" setView={setView} /><NavItem icon={FileText} label="Report" currentView={view} targetView="list" setView={setView} /><NavItem icon={Target} label="Offerte" currentView={view} targetView="followups" setView={setView} /><NavItem icon={Users} label="Clienti" currentView={view} targetView="clients" setView={setView} /></div></nav>
+                        <div className="flex-1 overflow-y-auto scrollbar-hide">
+                            {view === 'dashboard' && <div className="p-6">{renderDashboard()}</div>}
+                            {view === 'clients' && <div className="p-6">{renderClients()}</div>}
+                            {view === 'createClient' && renderCreateClient()}
+                            {view === 'clientDetail' && renderClientDetail()}
+                            {view === 'list' && <div className="p-6">{renderList()}</div>}
+                            {view === 'create' && <div className="p-6">{renderCreateReport()}</div>}
+                            {view === 'detail' && renderDetail()}
+                            {view === 'followups' && <div className="p-6">{renderFollowups()}</div>}
+                            {view === 'createFollowup' && <div className="p-6">{renderCreateFollowup()}</div>}
+                            {view === 'ideas' && <div className="p-6">{renderIdeas()}</div>}
+                            {view === 'createIdea' && <div className="p-6">{renderCreateIdea()}</div>}
+                        </div>
+                        <nav className="bottom-nav fixed bottom-0 left-0 right-0 sm:static bg-white border-t border-gray-200 z-20 sm:p-0 sm:rounded-b-[2.5rem] p-3 shadow-top sm:shadow-none">
+                            <div className="flex justify-around">
+                                <NavItem icon={LayoutDashboard} label="Home" currentView={view} targetView="dashboard" setView={setView} />
+                                <NavItem icon={FileText} label="Report" currentView={view} targetView="list" setView={setView} />
+                                <NavItem icon={Target} label="Offerte" currentView={view} targetView="followups" setView={setView} />
+                                <NavItem icon={Lightbulb} label="Idee" currentView={view} targetView="ideas" setView={setView} />
+                                <NavItem icon={Users} label="Clienti" currentView={view} targetView="clients" setView={setView} />
+                            </div>
+                        </nav>
                         <CustomMessageModal />
                     </div>
                 </div>
