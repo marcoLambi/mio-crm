@@ -803,7 +803,7 @@
                             <ul className="space-y-2">
                                 {reports.filter(r => r.nextContactDate && !r.completed).sort((a,b) => new Date(a.nextContactDate) - new Date(b.nextContactDate)).slice(0, 5).map(r => (
                                     <li key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="text-sm cursor-pointer hover:underline text-yellow-700">
-                                        {r.nextContactDate} - {r.client} ({r.futureNotes || 'Nessuna nota'})
+                                        {r.nextContactDate} - {r.client} - {r.futureNotes || 'Nessuna nota'}
                                     </li>
                                 ))}
                             </ul>
