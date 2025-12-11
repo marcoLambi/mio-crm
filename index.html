@@ -347,6 +347,77 @@
             const getClientHours = (clientName) => reports.filter(r => r.client === clientName).reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
             const getFullPaymentMethod = (client) => [client.paymentMethod1, client.paymentMethod2, client.paymentMethod3].filter(Boolean).join(' - ') || 'Non Specificato';
 
+            // --- PULIZIA DOPPIONI ---
+            const handleCleanDuplicates = async () => {
+                showConfirm("Sei sicuro di voler eliminare tutti i duplicati? Questa azione è irreversibile.", async () => {
+                    if (!db || !userKey) return;
+                    const safeKey = userKey.toLowerCase().replace(/\s/g, '');
+                    
+                    // Clienti
+                    const clientMap = new Map();
+                    const clientsToDelete = [];
+                    clients.forEach(c => {
+                        const key = (c.ragioneSociale || '').toLowerCase().trim();
+                        if (key) {
+                            if (clientMap.has(key)) clientsToDelete.push(c.id);
+                            else clientMap.set(key, true);
+                        }
+                    });
+
+                    // Report (chiave: cliente|data|descrizione|ore)
+                    const reportMap = new Map();
+                    const reportsToDelete = [];
+                    reports.forEach(r => {
+                        const key = `${r.client}|${r.date}|${r.description}|${r.hours}`.toLowerCase();
+                        if (reportMap.has(key)) reportsToDelete.push(r.id);
+                        else reportMap.set(key, true);
+                    });
+
+                    // Offerte (numero offerta)
+                    const followupMap = new Map();
+                    const followupsToDelete = [];
+                    followups.forEach(f => {
+                        const key = (f.offerNumber || '').toLowerCase().trim();
+                        if (key) {
+                            if (followupMap.has(key)) followupsToDelete.push(f.id);
+                            else followupMap.set(key, true);
+                        }
+                    });
+
+                    // Idee (cliente|testo)
+                    const ideaMap = new Map();
+                    const ideasToDelete = [];
+                    ideas.forEach(i => {
+                        const key = `${i.client}|${i.text}`.toLowerCase();
+                        if (ideaMap.has(key)) ideasToDelete.push(i.id);
+                        else ideaMap.set(key, true);
+                    });
+
+                    // Esecuzione cancellazioni
+                    const totalToDelete = clientsToDelete.length + reportsToDelete.length + followupsToDelete.length + ideasToDelete.length;
+                    
+                    if (totalToDelete === 0) {
+                        showMessage('Nessun duplicato trovato.', 'info');
+                        return;
+                    }
+
+                    try {
+                        const deletePromises = [
+                            ...clientsToDelete.map(id => deleteDoc(getClientDoc(db, safeKey, id))),
+                            ...reportsToDelete.map(id => deleteDoc(getReportDoc(db, safeKey, id))),
+                            ...followupsToDelete.map(id => deleteDoc(getFollowupDoc(db, safeKey, id))),
+                            ...ideasToDelete.map(id => deleteDoc(getIdeaDoc(db, safeKey, id)))
+                        ];
+
+                        await Promise.all(deletePromises);
+                        showMessage(`Pulizia completata. Eliminati ${totalToDelete} elementi duplicati.`, 'success');
+                    } catch (e) {
+                        console.error(e);
+                        showMessage('Errore durante la pulizia.', 'error');
+                    }
+                });
+            };
+
             // --- EXPORT TO EXCEL ---
             const exportToExcel = () => {
                 if (!clients.length && !reports.length && !followups.length && !ideas.length) {
@@ -715,14 +786,8 @@
 
             const renderDashboard = () => (
                 <div className="space-y-6 animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-                    <header className="mb-6 flex justify-between items-center">
+                    <header className="mb-6">
                         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-                        <div className="flex gap-2">
-                            <input type="file" ref={fileInputRef} className="hidden" onChange={handleImport} accept=".xlsx, .xls, .csv" />
-                            <button onClick={() => fileInputRef.current.click()} className="text-xs text-blue-600 p-2 bg-blue-50 rounded-lg flex items-center gap-1 font-bold transition-colors hover:bg-blue-100"><Upload size={14} /> Importa</button>
-                            <button onClick={exportToExcel} className="text-xs text-green-600 p-2 bg-green-50 rounded-lg flex items-center gap-1 font-bold transition-colors hover:bg-green-100"><Download size={14} /> Backup</button>
-                            <button onClick={handleLogout} className="text-xs text-red-500 p-2 bg-red-50 rounded-lg flex items-center gap-1 font-bold transition-colors hover:bg-red-100"><LogOut size={14} /> Esci</button>
-                        </div>
                     </header>
                     <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-blue-600"><Users size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Clienti</span></div><div className="text-3xl font-bold text-gray-800">{clients.length}</div></div>
@@ -730,8 +795,53 @@
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-yellow-500"><Lightbulb size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Idee</span></div><div className="text-3xl font-bold text-gray-800">{ideas.length}</div></div>
                     </div>
                     <button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 flex justify-center items-center gap-2 active:scale-95 transition-all"><Plus size={20} /> Nuovo Report</button>
-                    {reports.some(r => r.nextContactDate) && (<div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200"><h3 className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><Bell size={18} /> Promemoria Contatti</h3><ul className="space-y-2">{reports.filter(r => r.nextContactDate).sort((a,b) => new Date(a.nextContactDate) - new Date(b.nextContactDate)).slice(0, 3).map(r => (<li key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="text-sm cursor-pointer hover:underline text-yellow-700">{r.nextContactDate} - {r.client} ({r.category})</li>))}</ul></div>)}
-                    {followups.length > 0 && (<div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2"><Target size={14} /> Ultime Offerte</h3><ul className="space-y-3">{followups.sort((a, b) => new Date(b.feedbackDate) - new Date(a.feedbackDate)).slice(0, 3).map(f => (<li key={f.id} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2"><span className="font-medium text-gray-800 truncate pr-2">{f.client}</span><div className="text-right"><div className="font-bold text-blue-600">€ {f.amount}</div><div className="text-[10px] text-gray-400">Risc: {f.feedbackDate}</div></div></li>))}</ul></div>)}
+                    
+                    {/* PROMEMORIA CONTATTI (YELLOW) */}
+                    {reports.some(r => r.nextContactDate && !r.completed) && (
+                        <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                            <h3 className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><Bell size={18} /> Promemoria Contatti</h3>
+                            <ul className="space-y-2">
+                                {reports.filter(r => r.nextContactDate && !r.completed).sort((a,b) => new Date(a.nextContactDate) - new Date(b.nextContactDate)).slice(0, 5).map(r => (
+                                    <li key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="text-sm cursor-pointer hover:underline text-yellow-700">
+                                        {r.nextContactDate} - {r.client} ({r.futureNotes || 'Nessuna nota'})
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* ULTIME OFFERTE (ORANGE STYLE) */}
+                    {followups.some(f => !f.completed) && (
+                        <div className="bg-orange-50 p-4 rounded-xl border border-orange-200">
+                            <h3 className="flex items-center gap-2 text-sm font-bold text-orange-800 mb-3"><Target size={18} /> Ultime Offerte</h3>
+                            <ul className="space-y-3">
+                                {followups.filter(f => !f.completed).sort((a, b) => new Date(a.feedbackDate) - new Date(b.feedbackDate)).slice(0, 5).map(f => (
+                                    <li key={f.id} onClick={() => { setFollowupForm(f); setView('createFollowup'); }} className="flex justify-between items-center text-sm border-b border-orange-200/50 pb-2 last:border-0 cursor-pointer">
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            <span className="font-bold text-orange-900 truncate">{f.client}</span>
+                                            <span className="text-xs text-orange-700/70 shrink-0">{f.offerNumber}</span>
+                                        </div>
+                                        <div className="text-right flex items-center gap-2 shrink-0 ml-2">
+                                            <span className="text-xs font-medium text-orange-800 bg-orange-100 px-2 py-1 rounded-md hidden sm:inline-block">
+                                                {new Date(f.feedbackDate).toLocaleDateString('it-IT')}
+                                            </span>
+                                            <div className="font-bold text-orange-700">€ {f.amount}</div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    
+                    {/* PULSANTI DI SERVIZIO SPOSTATI IN BASSO */}
+                    <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
+                         <input type="file" ref={fileInputRef} className="hidden" onChange={handleImport} accept=".xlsx, .xls, .csv" />
+                        <button onClick={() => fileInputRef.current.click()} className="text-xs text-blue-600 p-3 bg-blue-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-blue-100 active:scale-95"><Upload size={16} /> Importa</button>
+                        <button onClick={exportToExcel} className="text-xs text-green-600 p-3 bg-green-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-green-100 active:scale-95"><Download size={16} /> Backup</button>
+                        <button onClick={handleCleanDuplicates} className="text-xs text-purple-600 p-3 bg-purple-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-purple-100 active:scale-95"><Trash2 size={16} /> Pulisci</button>
+                        <button onClick={handleLogout} className="text-xs text-red-500 p-3 bg-red-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-red-100 active:scale-95"><LogOut size={16} /> Esci</button>
+                    </div>
+
                 </div>
             );
 
