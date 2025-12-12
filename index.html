@@ -92,6 +92,7 @@
         const Search = (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></IconBase>;
         const Lightbulb = (p) => <IconBase {...p}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2 1.5-3.5a6 6 0 0 0-11 0c0 1.5.5 2.5 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></IconBase>;
         const ArrowUpDown = (p) => <IconBase {...p}><path d="m21 16-4 4-4-4"/><path d="m17 20V4"/><path d="m3 8 4-4 4 4"/><path d="m7 4v16"/></IconBase>;
+        const ClipboardList = (p) => <IconBase {...p}><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></IconBase>;
 
 
         // --- UTILITY FIREBASE CON USER KEY (Shared) ---
@@ -106,18 +107,36 @@
         const getIdeaDoc = (db, secretKey, id) => doc(db, `artifacts/${appId}/users/${secretKey}/ideas`, String(id));
 
 
-        // --- COMPONENTI UI DI SUPPORTO ---
+        // --- COMPONENTI UI DI SUPPORTO (AGGIORNATI) ---
+        // Modifica: gestione del valore undefined/null per evitare errori "uncontrolled input"
         const Input = ({ label, name, value, onChange, type = 'text', required = false, step = null, placeholder = '' }) => (
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">{label}</label>
-                <input type={type} name={name} value={value} onChange={onChange} required={required} step={step} placeholder={placeholder} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
+                <input 
+                    type={type} 
+                    name={name} 
+                    value={value !== undefined && value !== null ? value : ''} 
+                    onChange={onChange} 
+                    required={required} 
+                    step={step} 
+                    placeholder={placeholder} 
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" 
+                />
             </div>
         );
 
+        // Modifica: gestione del valore undefined/null
         const TextArea = ({ label, name, value, onChange, placeholder = '' }) => (
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">{label}</label>
-                <textarea name={name} value={value} onChange={onChange} placeholder={placeholder} rows="3" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-shadow" />
+                <textarea 
+                    name={name} 
+                    value={value !== undefined && value !== null ? value : ''} 
+                    onChange={onChange} 
+                    placeholder={placeholder} 
+                    rows="3" 
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-shadow" 
+                />
             </div>
         );
 
@@ -138,7 +157,7 @@
         const InfoRow = ({ label, value }) => (
             <div className="flex justify-between items-start border-b border-gray-50 pb-2">
                 <span className="text-sm font-medium text-gray-500">{label}:</span>
-                <span className="text-sm font-semibold text-gray-800 text-right max-w-[60%] break-words">{value || '-'}</span>
+                <span className="text-sm font-semibold text-gray-800 text-right max-w-[60%] break-words whitespace-pre-wrap">{value || '-'}</span>
             </div>
         );
 
@@ -227,6 +246,13 @@
                 method2: [{ label: "30 giorni", value: "30" }, { label: "60 giorni", value: "60" }, { label: "90 giorni", value: "90" }],
                 method3: [{ label: "DF (Data Fattura)", value: "DF" }, { label: "DFFM (Data Fattura Fine Mese)", value: "DFFM" }, { label: "Anticipato", value: "Anticipato" }],
             };
+            
+            // LISTE PER INFO INIZIALI
+            const sectorsList = ['PUBBLICO', 'PRIVATO', 'INFRASTRUTTURE', 'EDILIZIA INDUSTRIALE', 'IMPIANTISTICA', 'ALTRO'];
+            const regionsList = ['Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche', 'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana', 'Trentino-Alto Adige', 'Umbria', 'Valle d\'Aosta', 'Veneto'];
+            const brandsList = ['HILTI', 'WURTH', 'MAKITA', 'BOSCH', 'BERNER'];
+            const suppliesList = ['URGENZE', 'SCORTE', 'PIANIFICAZIONE', 'ALTRO'];
+
             const initialClientState = {
                 id: null, ragioneSociale: '', pIva: '', email: '', pec: '', telefono: '', sdiCode: '',
                 sedeLegale: '', sedeOperativa: '', magazzino: '', abbigliamento: '', fido: '', fidoDate: '', numeroOperai: '',
@@ -234,6 +260,23 @@
                 note: '', comunicazioni: '', updatedAt: '',
                 contact1: { nome: '', mansione: '', telefono: '', mail: '' }, contact2: { nome: '', mansione: '', telefono: '', mail: '' },
                 contact3: { nome: '', mansione: '', telefono: '', mail: '' }, contact4: { nome: '', mansione: '', telefono: '', mail: '' },
+                
+                // NUOVI CAMPI INFO INIZIALI
+                sector: 'PUBBLICO', sectorOther: '',
+                geoAreas: [], // array
+                regions: [], // array
+                activeSites: '1', activeSitesNotes: '',
+                subContracting: 'NO',
+                decisionProcess: '',
+                brands: [], brandsOther: '',
+                products: '',
+                supplies: 'URGENZE', suppliesOther: '',
+                infoNotes: '',
+                preference: 'ACQUISTO',
+                suppliers: '',
+                payments: '',
+                conclusion: '',
+                rating: '3'
             };
             const [clientForm, setClientForm] = useState(initialClientState);
 
@@ -453,6 +496,8 @@
                                 "N. Operai": c.numeroOperai,
                                 "Note Interne": c.note,
                                 "Comunicazioni": c.comunicazioni,
+                                "Settore": c.sector === 'ALTRO' ? `Altro: ${c.sectorOther}` : c.sector,
+                                "Valutazione": c.rating,
                                 "Ultimo Aggiornamento": c.updatedAt
                             };
                             [1, 2, 3, 4].forEach(i => {
@@ -691,7 +736,12 @@
                 const safeKey = userKey.toLowerCase().replace(/\s/g, '');
                 try { await setDoc(getReportDoc(db, safeKey, reportToSave.id), reportToSave); showMessage(isEditing ? 'Modificato.' : 'Creato.', 'success'); if (isEditing) setSelectedReport(reportToSave); setReportForm(initialReportState); setView('list'); } catch (error) { console.error(error); }
             };
-            const prepareEditReport = (report) => { setSelectedReport(report); setReportForm(report); setView('create'); };
+            const prepareEditReport = (report) => { 
+                setSelectedReport(report); 
+                // Unione con stato iniziale per sicurezza sui nuovi campi
+                setReportForm({ ...initialReportState, ...report }); 
+                setView('create'); 
+            };
             const handleDeleteReport = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getReportDoc(db, safeKey, id)); if (selectedReport?.id === id) setView('list'); showMessage('Eliminato.', 'success'); }); };
 
             const handleFollowupChange = (e) => { const { name, value } = e.target; setFollowupForm(prev => ({ ...prev, [name]: value })); };
@@ -703,7 +753,10 @@
                 try { await setDoc(getFollowupDoc(db, safeKey, itemToSave.id), itemToSave); showMessage(isEditing ? 'Aggiornato.' : 'Creato.', 'success'); setFollowupForm(initialFollowupState); setView('followups'); } catch (e) { console.error(e); }
             };
             const handleDeleteFollowup = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getFollowupDoc(db, safeKey, id)); showMessage('Eliminato.', 'success'); }); };
-            const prepareEditFollowup = (item) => { setFollowupForm(item); setView('createFollowup'); };
+            const prepareEditFollowup = (item) => { 
+                setFollowupForm({ ...initialFollowupState, ...item }); 
+                setView('createFollowup'); 
+            };
             
             // --- GESTIONE COMPLETAMENTO OFFERTA ---
             const handleCompleteFollowup = async (followup) => {
@@ -745,7 +798,10 @@
                 try { await setDoc(getIdeaDoc(db, safeKey, itemToSave.id), itemToSave); showMessage(isEditing ? 'Aggiornato.' : 'Creato.', 'success'); setIdeaForm(initialIdeaState); setView('ideas'); } catch (e) { console.error(e); }
             };
             const handleDeleteIdea = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getIdeaDoc(db, safeKey, id)); showMessage('Eliminato.', 'success'); }); };
-            const prepareEditIdea = (item) => { setIdeaForm(item); setView('createIdea'); };
+            const prepareEditIdea = (item) => { 
+                setIdeaForm({ ...initialIdeaState, ...item }); 
+                setView('createIdea'); 
+            };
 
 
             const handleClientChange = (e, section = null) => {
@@ -753,6 +809,20 @@
                 if (section && clientForm[section]) setClientForm(prev => ({ ...prev, [section]: { ...prev[section], [name]: value } }));
                 else setClientForm(prev => ({ ...prev, [name]: value }));
             };
+            
+            // Helper per gestire le checkbox multiple (array)
+            const handleMultiSelectChange = (e, arrayName) => {
+                const { value, checked } = e.target;
+                setClientForm(prev => {
+                    const currentArray = prev[arrayName] || [];
+                    if (checked) {
+                        return { ...prev, [arrayName]: [...currentArray, value] };
+                    } else {
+                        return { ...prev, [arrayName]: currentArray.filter(item => item !== value) };
+                    }
+                });
+            };
+
             const handleClientSubmit = async (e) => {
                 if(e) e.preventDefault(); if (!db) return;
                 const isEditing = !!clientForm.id;
@@ -760,7 +830,12 @@
                 const safeKey = userKey.toLowerCase().replace(/\s/g, '');
                 try { await setDoc(getClientDoc(db, safeKey, itemToSave.id), itemToSave); showMessage(isEditing ? 'Modificato.' : 'Salvato.', 'success'); if (isEditing) setSelectedClient(itemToSave); setClientForm(initialClientState); setView('clients'); } catch (e) { console.error(e); }
             };
-            const prepareEditClient = (client) => { setSelectedClient(client); setClientForm(client); setView('createClient'); };
+            const prepareEditClient = (client) => { 
+                setSelectedClient(client); 
+                // Merge guarantees that new fields (like geoAreas, sector) have default values even for old records
+                setClientForm({ ...initialClientState, ...client }); 
+                setView('createClient'); 
+            };
             const handleDeleteClient = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getClientDoc(db, safeKey, id)); setView('clients'); showMessage('Eliminato.', 'success'); }); };
 
             const getClientStatus = (clientName) => {
@@ -1097,11 +1172,300 @@
 
             // --- VISTA CREA CLIENTE ---
             const renderCreateClient = () => (
-                <div className="animate-fade-in pb-32 bg-gray-50 min-h-full"><div className="sticky top-0 bg-white z-10 p-4 border-b border-gray-200 flex items-center justify-between shadow-sm"><div className="flex items-center gap-2"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><h2 className="text-lg font-bold text-gray-800">{clientForm.id ? 'Modifica Scheda' : 'Nuova Scheda'}</h2></div><button onClick={handleClientSubmit} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg shadow-blue-200 flex items-center gap-2 active:scale-[0.98] transition-transform"><Save size={16} /> Salva</button></div><div className="p-4 space-y-6 max-w-lg mx-auto"><SectionContainer title="Anagrafica" icon={Building2}><Input label="Ragione Sociale *" name="ragioneSociale" value={clientForm.ragioneSociale} onChange={handleClientChange} required /><Input label="Partita IVA" name="pIva" value={clientForm.pIva} onChange={handleClientChange} /><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm.telefono} onChange={handleClientChange} /><Input label="Email" name="email" value={clientForm.email} onChange={handleClientChange} /></div></SectionContainer><SectionContainer title="Sedi" icon={MapPin}><Input label="Sede Legale" name="sedeLegale" value={clientForm.sedeLegale} onChange={handleClientChange} /><Input label="Sede Operativa" name="sedeOperativa" value={clientForm.sedeOperativa} onChange={handleClientChange} /><Input label="Magazzino" name="magazzino" value={clientForm.magazzino} onChange={handleClientChange} /></SectionContainer><section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4"><h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2"><CreditCard size={14}/> Amministrazione</h3><div className="space-y-3"><label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Metodo Pagamento</label><div className="grid grid-cols-1 md:grid-cols-3 gap-2"><SelectComponent label="Tipo Base" name="paymentMethod1" value={clientForm.paymentMethod1} onChange={handleClientChange} options={paymentOptions.method1} /><SelectComponent label="Scadenza" name="paymentMethod2" value={clientForm.paymentMethod2} onChange={handleClientChange} options={paymentOptions.method2} /><SelectComponent label="Struttura" name="paymentMethod3" value={clientForm.paymentMethod3} onChange={handleClientChange} options={paymentOptions.method3} /></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-gray-100 mt-4"><Input label="Codice Univoco" name="sdiCode" value={clientForm.sdiCode} onChange={handleClientChange} /><Input label="PEC" name="pec" value={clientForm.pec} onChange={handleClientChange} /><Input label="Fido (€)" name="fido" value={clientForm.fido} onChange={handleClientChange} /><Input label="Data Fido" type="date" name="fidoDate" value={clientForm.fidoDate} onChange={handleClientChange} /><Input label="Abbigliamento" name="abbigliamento" value={clientForm.abbigliamento} onChange={handleClientChange} /><Input label="N. Operai" name="numeroOperai" value={clientForm.numeroOperai} onChange={handleClientChange} type="number" /></div></section><SectionContainer title="Note" icon={MessageSquare}><TextArea label="Abbigliamento" name="abbigliamento" value={clientForm.abbigliamento} onChange={handleClientChange} /><TextArea label="Note Interne" name="note" value={clientForm.note} onChange={handleClientChange} /><TextArea label="Comunicazioni" name="comunicazioni" value={clientForm.comunicazioni} onChange={handleClientChange} /></SectionContainer><SectionContainer title="Rubrica Contatti" icon={Users}>{[1, 2, 3, 4].map(num => (<div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4"><div className="font-bold text-blue-600 mb-3 text-sm">Contatto {num}</div><div className="space-y-3"><Input label="Nome e Cognome" name="nome" value={clientForm[`contact${num}`].nome} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Mansione" name="mansione" value={clientForm[`contact${num}`].mansione} onChange={(e) => handleClientChange(e, `contact${num}`)} /><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm[`contact${num}`].telefono} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Email" name="mail" value={clientForm[`contact${num}`].mail} onChange={(e) => handleClientChange(e, `contact${num}`)} /></div></div></div>))}</SectionContainer></div></div>
+                <div className="animate-fade-in pb-32 bg-gray-50 min-h-full">
+                    <div className="sticky top-0 bg-white z-10 p-4 border-b border-gray-200 flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button>
+                            <h2 className="text-lg font-bold text-gray-800">{clientForm.id ? 'Modifica Scheda' : 'Nuova Scheda'}</h2>
+                        </div>
+                        <button onClick={handleClientSubmit} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg shadow-blue-200 flex items-center gap-2 active:scale-[0.98] transition-transform"><Save size={16} /> Salva</button>
+                    </div>
+                    <div className="p-4 space-y-6 max-w-lg mx-auto">
+                        <SectionContainer title="Anagrafica" icon={Building2}>
+                            <Input label="Ragione Sociale *" name="ragioneSociale" value={clientForm.ragioneSociale} onChange={handleClientChange} required />
+                            <Input label="Partita IVA" name="pIva" value={clientForm.pIva} onChange={handleClientChange} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <Input label="Telefono" name="telefono" value={clientForm.telefono} onChange={handleClientChange} />
+                                <Input label="Email" name="email" value={clientForm.email} onChange={handleClientChange} />
+                            </div>
+                        </SectionContainer>
+
+                        {/* SEZIONE AMMINISTRAZIONE SPOSTATA IN ALTO */}
+                        <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2"><CreditCard size={14}/> Amministrazione</h3>
+                            <div className="space-y-3">
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Metodo Pagamento</label>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                    <SelectComponent label="Tipo Base" name="paymentMethod1" value={clientForm.paymentMethod1} onChange={handleClientChange} options={paymentOptions.method1} />
+                                    <SelectComponent label="Scadenza" name="paymentMethod2" value={clientForm.paymentMethod2} onChange={handleClientChange} options={paymentOptions.method2} />
+                                    <SelectComponent label="Struttura" name="paymentMethod3" value={clientForm.paymentMethod3} onChange={handleClientChange} options={paymentOptions.method3} />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-gray-100 mt-4">
+                                <Input label="Codice Univoco" name="sdiCode" value={clientForm.sdiCode} onChange={handleClientChange} />
+                                <Input label="PEC" name="pec" value={clientForm.pec} onChange={handleClientChange} />
+                                <Input label="Fido (€)" name="fido" value={clientForm.fido} onChange={handleClientChange} />
+                                <Input label="Data Fido" type="date" name="fidoDate" value={clientForm.fidoDate} onChange={handleClientChange} />
+                                <Input label="Abbigliamento" name="abbigliamento" value={clientForm.abbigliamento} onChange={handleClientChange} />
+                                <Input label="N. Operai" name="numeroOperai" value={clientForm.numeroOperai} onChange={handleClientChange} type="number" />
+                            </div>
+                        </section>
+
+                        <SectionContainer title="Sedi" icon={MapPin}>
+                            <Input label="Sede Legale" name="sedeLegale" value={clientForm.sedeLegale} onChange={handleClientChange} />
+                            <Input label="Sede Operativa" name="sedeOperativa" value={clientForm.sedeOperativa} onChange={handleClientChange} />
+                            <Input label="Magazzino" name="magazzino" value={clientForm.magazzino} onChange={handleClientChange} />
+                        </SectionContainer>
+
+                        <SectionContainer title="Note" icon={MessageSquare}>
+                            <TextArea label="Note Interne" name="note" value={clientForm.note} onChange={handleClientChange} />
+                            <TextArea label="Comunicazioni" name="comunicazioni" value={clientForm.comunicazioni} onChange={handleClientChange} />
+                        </SectionContainer>
+
+                        {/* NUOVA SEZIONE RACCOLTA INFO INIZIALI */}
+                        <SectionContainer title="Raccolta Info Iniziali" icon={ClipboardList}>
+                            {/* SETTORE */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Settore</label>
+                                <select name="sector" value={clientForm.sector} onChange={handleClientChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-2">
+                                    {sectorsList.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                                {clientForm.sector === 'ALTRO' && (
+                                    <input type="text" name="sectorOther" value={clientForm.sectorOther || ''} onChange={handleClientChange} placeholder="Specifica settore..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+                                )}
+                            </div>
+
+                            {/* AREE GEOGRAFICHE OPERATIVE */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Aree Geografiche Operative</label>
+                                <div className="flex gap-4">
+                                    {['ITALIA', 'ESTERO'].map(area => (
+                                        <label key={area} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded-lg border border-gray-200 cursor-pointer">
+                                            <input type="checkbox" value={area} checked={(clientForm.geoAreas || []).includes(area)} onChange={(e) => handleMultiSelectChange(e, 'geoAreas')} className="w-4 h-4 text-blue-600 rounded" />
+                                            {area}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* REGIONI */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Regioni Operative (Italia)</label>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                    {regionsList.map(reg => (
+                                        <label key={reg} className="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100">
+                                            <input type="checkbox" value={reg} checked={(clientForm.regions || []).includes(reg)} onChange={(e) => handleMultiSelectChange(e, 'regions')} className="w-3.5 h-3.5 text-blue-600 rounded" />
+                                            <span className="truncate">{reg}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* CANTIERI ATTIVI */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Cantieri Attivi</label>
+                                    <select name="activeSites" value={clientForm.activeSites} onChange={handleClientChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                                        {[...Array(50).keys()].map(i => <option key={i+1} value={i+1}>{i+1}</option>)}
+                                        <option value="OLTRE 50">OLTRE 50</option>
+                                    </select>
+                                </div>
+                                <Input label="Note Cantieri Attivi" name="activeSitesNotes" value={clientForm.activeSitesNotes} onChange={handleClientChange} />
+                            </div>
+
+                            {/* SUB-APPALTI E PROCESSI */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Sub-Appalti</label>
+                                    <select name="subContracting" value={clientForm.subContracting} onChange={handleClientChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                                        <option value="SI">SI</option>
+                                        <option value="NO">NO</option>
+                                    </select>
+                                </div>
+                                <Input label="Processi Decisionali" name="decisionProcess" value={clientForm.decisionProcess} onChange={handleClientChange} />
+                            </div>
+
+                            {/* BRAND */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Brand Più Utilizzati</label>
+                                <div className="flex flex-wrap gap-2 mb-2">
+                                    {brandsList.map(brand => (
+                                        <label key={brand} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded-lg border border-gray-200 cursor-pointer">
+                                            <input type="checkbox" value={brand} checked={(clientForm.brands || []).includes(brand)} onChange={(e) => handleMultiSelectChange(e, 'brands')} className="w-4 h-4 text-blue-600 rounded" />
+                                            {brand}
+                                        </label>
+                                    ))}
+                                </div>
+                                <Input label="Altri Brand (Editabile)" name="brandsOther" value={clientForm.brandsOther} onChange={handleClientChange} placeholder="Specifica altri brand..." />
+                            </div>
+
+                            <Input label="Prodotti Più Utilizzati" name="products" value={clientForm.products} onChange={handleClientChange} />
+
+                            {/* APPROVVIGIONAMENTI */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Approvvigionamenti da Magazzino</label>
+                                <select name="supplies" value={clientForm.supplies} onChange={handleClientChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-2">
+                                    {suppliesList.map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                                {clientForm.supplies === 'ALTRO' && (
+                                    <input type="text" name="suppliesOther" value={clientForm.suppliesOther || ''} onChange={handleClientChange} placeholder="Specifica..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+                                )}
+                            </div>
+
+                            <TextArea label="Note Generali" name="infoNotes" value={clientForm.infoNotes} onChange={handleClientChange} />
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Preferenza</label>
+                                <div className="flex gap-4">
+                                    {['ACQUISTO', 'NOLEGGIO'].map(pref => (
+                                        <label key={pref} className="flex items-center gap-2 cursor-pointer">
+                                            <input type="radio" name="preference" value={pref} checked={clientForm.preference === pref} onChange={handleClientChange} className="w-4 h-4 text-blue-600" />
+                                            <span className="text-sm text-gray-700 font-medium">{pref}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input label="Fornitori Abituali" name="suppliers" value={clientForm.suppliers} onChange={handleClientChange} />
+                                <Input label="Pagamenti Abituali" name="payments" value={clientForm.payments} onChange={handleClientChange} />
+                            </div>
+
+                            <Input label="Mia Conclusione" name="conclusion" value={clientForm.conclusion} onChange={handleClientChange} />
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Valutazione</label>
+                                <select name="rating" value={clientForm.rating} onChange={handleClientChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                                    {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} Stelle</option>)}
+                                </select>
+                            </div>
+
+                        </SectionContainer>
+
+                        <SectionContainer title="Rubrica Contatti" icon={Users}>
+                            {[1, 2, 3, 4].map(num => (<div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4"><div className="font-bold text-blue-600 mb-3 text-sm">Contatto {num}</div><div className="space-y-3"><Input label="Nome e Cognome" name="nome" value={clientForm[`contact${num}`].nome} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Mansione" name="mansione" value={clientForm[`contact${num}`].mansione} onChange={(e) => handleClientChange(e, `contact${num}`)} /><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm[`contact${num}`].telefono} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Email" name="mail" value={clientForm[`contact${num}`].mail} onChange={(e) => handleClientChange(e, `contact${num}`)} /></div></div></div>))}
+                        </SectionContainer>
+                    </div>
+                </div>
             );
 
             // --- VISTA DETTAGLIO CLIENTE ---
-            const renderClientDetail = () => { if (!selectedClient) return null; return (<div className="animate-fade-in pb-32 bg-white min-h-full" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}><div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => prepareEditClient(selectedClient)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button><button onClick={() => handleDeleteClient(selectedClient.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button></div></div><div className="p-6 space-y-8"><div><h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1><p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p><div className="mt-4 flex flex-wrap gap-2">{selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Phone size={14}/> Chiama</a>}{selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Mail size={14}/> Email</a>}</div></div><div className="space-y-4"><SectionTitle icon={<Building2 size={16}/>} title="Sedi" /><InfoRow label="Sede Legale" value={selectedClient.sedeLegale} /><InfoRow label="Sede Operativa" value={selectedClient.sedeOperativa} /><InfoRow label="Magazzino" value={selectedClient.magazzino} /></div><div className="space-y-4"><SectionTitle icon={<CreditCard size={16}/>} title="Dati Amministrativi" /><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><InfoRow label="Codice Univoco" value={selectedClient.sdiCode} /><InfoRow label="PEC" value={selectedClient.pec} /><div className="col-span-1 sm:col-span-2"><InfoRow label="Metodo Pagamento" value={getFullPaymentMethod(selectedClient)} /></div><InfoRow label="Abbigliamento" value={selectedClient.abbigliamento} /><InfoRow label="Fido (€)" value={selectedClient.fido} /><InfoRow label="Data Fido" value={selectedClient.fidoDate || '-'} /><InfoRow label="N. Operai" value={selectedClient.numeroOperai} /></div></div><div className="space-y-4"><SectionTitle icon={<Users size={16}/>} title="Referenti" />{[1,2,3,4].map(num => { const c = selectedClient[`contact${num}`]; if (!c.nome && !c.mansione && !c.telefono && !c.mail) return null; return (<div key={num} className="bg-gray-50 p-3 rounded-lg border border-gray-100"><div className="font-bold text-gray-800">{c.nome || `Contatto ${num}`}</div><div className="text-xs text-blue-600 font-medium mb-1">{c.mansione || '-'}</div><div className="text-xs text-gray-500 space-y-0.5">{c.telefono && <div>Tel: <a href={`tel:${c.telefono}`} className="underline text-blue-500">{c.telefono}</a></div>}{c.mail && <div>Mail: <a href={`mailto:${c.mail}`} className="underline text-blue-500">{c.mail}</a></div>}</div></div>); })} {![1,2,3,4].some(num => selectedClient[`contact${num}`].nome) && (<p className="text-sm text-gray-400 italic">Nessun referente salvato.</p>)}</div><div className="space-y-4"><SectionTitle icon={<MessageSquare size={16}/>} title="Note & Comunicazioni" /><SectionDisplay title="Abbigliamento" content={selectedClient.abbigliamento} small /><SectionDisplay title="Note Interne" content={selectedClient.note} small /><SectionDisplay title="Comunicazioni al Cliente" content={selectedClient.comunicazioni} small /></div><div className="text-xs text-center text-gray-300 pt-8">Ultimo aggiornamento: {selectedClient.updatedAt}</div></div></div>); };
+            const renderClientDetail = () => { 
+                if (!selectedClient) return null; 
+                return (
+                    <div className="animate-fade-in pb-32 bg-white min-h-full" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+                        <div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center">
+                            <button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button>
+                            <div className="flex gap-2">
+                                <button onClick={() => prepareEditClient(selectedClient)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button>
+                                <button onClick={() => handleDeleteClient(selectedClient.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button>
+                            </div>
+                        </div>
+                        <div className="p-6 space-y-8">
+                            <div>
+                                <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1>
+                                <p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p>
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                    {selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Phone size={14}/> Chiama</a>}
+                                    {selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Mail size={14}/> Email</a>}
+                                </div>
+                            </div>
+
+                            {/* SEZIONE DATI AMMINISTRATIVI SPOSTATA IN ALTO */}
+                            <div className="space-y-4">
+                                <SectionTitle icon={<CreditCard size={16}/>} title="Dati Amministrativi" />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <InfoRow label="Codice Univoco" value={selectedClient.sdiCode} />
+                                    <InfoRow label="PEC" value={selectedClient.pec} />
+                                    <div className="col-span-1 sm:col-span-2">
+                                        <InfoRow label="Metodo Pagamento" value={getFullPaymentMethod(selectedClient)} />
+                                    </div>
+                                    <InfoRow label="Fido (€)" value={selectedClient.fido} />
+                                    <InfoRow label="Data Fido" value={selectedClient.fidoDate || '-'} />
+                                    <InfoRow label="N. Operai" value={selectedClient.numeroOperai} />
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <SectionTitle icon={<Building2 size={16}/>} title="Sedi" />
+                                <InfoRow label="Sede Legale" value={selectedClient.sedeLegale} />
+                                <InfoRow label="Sede Operativa" value={selectedClient.sedeOperativa} />
+                                <InfoRow label="Magazzino" value={selectedClient.magazzino} />
+                            </div>
+                            
+                            <div className="space-y-4">
+                                <SectionTitle icon={<Users size={16}/>} title="Referenti" />
+                                {[1,2,3,4].map(num => { 
+                                    const c = selectedClient[`contact${num}`]; 
+                                    if (!c.nome && !c.mansione && !c.telefono && !c.mail) return null; 
+                                    return (
+                                        <div key={num} className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                            <div className="font-bold text-gray-800">{c.nome || `Contatto ${num}`}</div>
+                                            <div className="text-xs text-blue-600 font-medium mb-1">{c.mansione || '-'}</div>
+                                            <div className="text-xs text-gray-500 space-y-0.5">
+                                                {c.telefono && <div>Tel: <a href={`tel:${c.telefono}`} className="underline text-blue-500">{c.telefono}</a></div>}
+                                                {c.mail && <div>Mail: <a href={`mailto:${c.mail}`} className="underline text-blue-500">{c.mail}</a></div>}
+                                            </div>
+                                        </div>
+                                    ); 
+                                })} 
+                                {![1,2,3,4].some(num => selectedClient[`contact${num}`].nome) && (<p className="text-sm text-gray-400 italic">Nessun referente salvato.</p>)}
+                            </div>
+                            <div className="space-y-4">
+                                <SectionTitle icon={<MessageSquare size={16}/>} title="Note & Comunicazioni" />
+                                <SectionDisplay title="Abbigliamento" content={selectedClient.abbigliamento} small />
+                                <SectionDisplay title="Note Interne" content={selectedClient.note} small />
+                                <SectionDisplay title="Comunicazioni al Cliente" content={selectedClient.comunicazioni} small />
+                            </div>
+
+                            {/* NUOVA SEZIONE RACCOLTA INFO INIZIALI VIEW */}
+                            <div className="space-y-4">
+                                <SectionTitle icon={<ClipboardList size={16}/>} title="Raccolta Info Iniziali" />
+                                <div className="grid grid-cols-1 gap-4">
+                                    <InfoRow label="Settore" value={selectedClient.sector === 'ALTRO' ? selectedClient.sectorOther : selectedClient.sector} />
+                                    <InfoRow label="Aree Geografiche" value={(selectedClient.geoAreas || []).join(', ')} />
+                                    <div className="col-span-1">
+                                        <div className="text-sm font-medium text-gray-500 mb-1">Regioni:</div>
+                                        <div className="text-sm text-gray-800 bg-gray-50 p-2 rounded border border-gray-100 flex flex-wrap gap-1">
+                                            {(selectedClient.regions || []).length > 0 ? (selectedClient.regions || []).map(r => (
+                                                <span key={r} className="bg-white border border-gray-200 px-2 py-0.5 rounded text-xs">{r}</span>
+                                            )) : '-'}
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <InfoRow label="Cantieri Attivi" value={selectedClient.activeSites} />
+                                        <InfoRow label="Sub-Appalti" value={selectedClient.subContracting} />
+                                    </div>
+                                    <SectionDisplay title="Note Cantieri" content={selectedClient.activeSitesNotes} small />
+                                    <SectionDisplay title="Processi Decisionali" content={selectedClient.decisionProcess} small />
+                                    
+                                    <div className="col-span-1">
+                                        <div className="text-sm font-medium text-gray-500 mb-1">Brand Utilizzati:</div>
+                                        <div className="text-sm text-gray-800">
+                                            {(selectedClient.brands || []).join(', ')} 
+                                            {selectedClient.brandsOther && (selectedClient.brands?.length > 0 ? ', ' : '') + selectedClient.brandsOther}
+                                        </div>
+                                    </div>
+                                    
+                                    <InfoRow label="Prodotti Più Utilizzati" value={selectedClient.products} />
+                                    <InfoRow label="Approvvigionamenti" value={selectedClient.supplies === 'ALTRO' ? selectedClient.suppliesOther : selectedClient.supplies} />
+                                    <SectionDisplay title="Note Generali" content={selectedClient.infoNotes} small />
+                                    
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <InfoRow label="Preferenza" value={selectedClient.preference} />
+                                        <InfoRow label="Valutazione" value={`${selectedClient.rating} / 5`} />
+                                    </div>
+                                    <InfoRow label="Fornitori Abituali" value={selectedClient.suppliers} />
+                                    <InfoRow label="Pagamenti Abituali" value={selectedClient.payments} />
+                                    <SectionDisplay title="Conclusione" content={selectedClient.conclusion} small />
+                                </div>
+                            </div>
+
+                            <div className="text-xs text-center text-gray-300 pt-8">Ultimo aggiornamento: {selectedClient.updatedAt}</div>
+                        </div>
+                    </div>
+                ); 
+            };
 
             const renderDetail = () => { if (!selectedReport) return null; return (<div className="animate-fade-in h-full flex flex-col relative bg-white pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}><div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center no-print"><button onClick={() => setView('list')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => prepareEditReport(selectedReport)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button><button onClick={() => handleDeleteReport(selectedReport.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button><button onClick={() => window.print()} className="p-2 text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200"><Printer size={20} /></button></div></div><div className="p-6 print:p-0 space-y-6"><div className="border-b border-gray-100 pb-4"><span className="text-sm text-gray-500 uppercase tracking-wide">Rapporto di Intervento</span><h1 className="text-2xl font-bold text-gray-900 mt-1">{selectedReport.title}</h1><div className="text-sm text-gray-600 mt-2">Cliente: <span className="font-semibold text-blue-600">{selectedReport.client}</span></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><InfoBox label="Ore Totali" value={`${selectedReport.hours} h`} color="text-green-600" icon={Clock} /><InfoBox label="Data Inserimento" value={new Date(selectedReport.date).toLocaleDateString('it-IT')} color="text-purple-600" icon={Calendar} /><InfoBox label="Categoria" value={selectedReport.category} icon={Briefcase} color="text-gray-700" /><InfoBox label="Tipo Contatto" value={selectedReport.contactType} icon={MessageSquare} color="text-gray-700" /><InfoBox label="Creato il" value={selectedReport.createdAt ? new Date(selectedReport.createdAt).toLocaleDateString('it-IT') : '-'} icon={Check} color="text-gray-700" />
             
@@ -1202,7 +1566,10 @@
                                     const isDuplicate = nameCounts[normalizedName] > 1;
 
                                     let isIncomplete = false;
-                                    const ignoredKeys = ['id', 'updatedAt', 'contact1', 'contact2', 'contact3', 'contact4', 'note', 'comunicazioni'];
+                                    const ignoredKeys = ['id', 'updatedAt', 'contact1', 'contact2', 'contact3', 'contact4', 'note', 'comunicazioni',
+                                        // Ignore new fields for completeness check to keep old data valid
+                                        'sector', 'sectorOther', 'geoAreas', 'regions', 'activeSites', 'activeSitesNotes', 'subContracting', 'decisionProcess', 'brands', 'brandsOther', 'products', 'supplies', 'suppliesOther', 'infoNotes', 'preference', 'suppliers', 'payments', 'conclusion', 'rating'
+                                    ];
                                     for (const key in client) {
                                         if (ignoredKeys.includes(key)) continue;
                                         if (!client[key] || (typeof client[key] === 'string' && client[key].trim() === '')) {
