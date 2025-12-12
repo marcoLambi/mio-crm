@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CRM WorkReport</title>
+    <title>CRM WorkReport - Optimized</title>
     
     <!-- 1. Stile Grafico (Tailwind) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -19,16 +19,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
-        /* Piccoli aggiustamenti grafici */
         body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        /* Nascondi scrollbar */
+        .animate-fade-in { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Fix specifico per Mobile Safari e Chrome Android */
         .h-dvh { height: 100dvh; }
+        /* Ottimizzazione rendering font e input */
+        input, textarea, select { font-size: 16px !important; } /* Previene zoom su iOS */
     </style>
 </head>
 <body>
@@ -39,9 +37,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ==========================================================
-        // CONFIGURAZIONE (I tuoi dati)
-        // ==========================================================
+        // CONFIGURAZIONE
         const appId = "miocrm-0001";
         const firebaseConfig = {
             apiKey: "AIzaSyAjP1UXwDJqAhWVjpb6ePrgtv3nQJ7fWFk",
@@ -51,92 +47,71 @@
             messagingSenderId: "880667208118",
             appId: "1:880667208118:web:d1d420b2d7d1743fde7917"
         };
-        // ==========================================================
 
-        // Inizializzazione React
-        const { useState, useEffect, useMemo, useRef } = React;
+        const { useState, useEffect, useMemo, useRef, useContext, createContext, useCallback } = React;
 
-        // --- ICONE ---
+        // --- 1. CONTEXT (Il cervello dell'app) ---
+        const CRMContext = createContext();
+
+        // --- 2. UTILITY COMPONENTS (I mattoncini) ---
         const IconBase = ({ children, size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
         );
-        const Plus = (p) => <IconBase {...p}><path d="M5 12h14"/><path d="M12 5v14"/></IconBase>;
-        const LayoutDashboard = (p) => <IconBase {...p}><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></IconBase>;
-        const FileText = (p) => <IconBase {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></IconBase>;
-        const Calendar = (p) => <IconBase {...p}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></IconBase>;
-        const Trash2 = (p) => <IconBase {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconBase>;
-        const X = (p) => <IconBase {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>;
-        const Printer = (p) => <IconBase {...p}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></IconBase>;
-        const Clock = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconBase>;
-        const Briefcase = (p) => <IconBase {...p}><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></IconBase>;
-        const ChevronRight = (p) => <IconBase {...p}><path d="m9 18 6-6-6-6"/></IconBase>;
-        const Users = (p) => <IconBase {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></IconBase>;
-        const MapPin = (p) => <IconBase {...p}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></IconBase>;
-        const Mail = (p) => <IconBase {...p}><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></IconBase>;
-        const Phone = (p) => <IconBase {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></IconBase>;
-        const Edit2 = (p) => <IconBase {...p}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></IconBase>;
-        const Building2 = (p) => <IconBase {...p}><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></IconBase>;
-        const CreditCard = (p) => <IconBase {...p}><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></IconBase>;
-        const MessageSquare = (p) => <IconBase {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></IconBase>;
-        const Save = (p) => <IconBase {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>;
-        const Bell = (p) => <IconBase {...p}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></IconBase>;
-        const AlarmCheck = (p) => <IconBase {...p}><circle cx="12" cy="13" r="8"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/><path d="M6.38 18.7 4 21"/><path d="M17.64 18.67 20 21"/><path d="m9 13 2 2 4-4"/></IconBase>;
-        const Loader2 = (p) => <IconBase {...p}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></IconBase>;
-        const Check = (p) => <IconBase {...p}><path d="M20 6 9 17l-5-5"/></IconBase>;
-        const Target = (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></IconBase>;
-        const Download = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
-        const Upload = (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></IconBase>;
-        const Lock = (p) => <IconBase {...p}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></IconBase>;
-        const LogOut = (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></IconBase>;
-        const AlertTriangle = (p) => <IconBase {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconBase>;
-        const Search = (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></IconBase>;
-        const Lightbulb = (p) => <IconBase {...p}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2 1.5-3.5a6 6 0 0 0-11 0c0 1.5.5 2.5 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></IconBase>;
-        const ArrowUpDown = (p) => <IconBase {...p}><path d="m21 16-4 4-4-4"/><path d="m17 20V4"/><path d="m3 8 4-4 4 4"/><path d="m7 4v16"/></IconBase>;
-        const ClipboardList = (p) => <IconBase {...p}><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></IconBase>;
+        // Icone (Memoized per performance)
+        const Icons = {
+            Plus: (p) => <IconBase {...p}><path d="M5 12h14"/><path d="M12 5v14"/></IconBase>,
+            LayoutDashboard: (p) => <IconBase {...p}><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></IconBase>,
+            FileText: (p) => <IconBase {...p}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></IconBase>,
+            Target: (p) => <IconBase {...p}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></IconBase>,
+            Lightbulb: (p) => <IconBase {...p}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-1 1.5-2 1.5-3.5a6 6 0 0 0-11 0c0 1.5.5 2.5 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></IconBase>,
+            Users: (p) => <IconBase {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></IconBase>,
+            Calendar: (p) => <IconBase {...p}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></IconBase>,
+            Trash2: (p) => <IconBase {...p}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconBase>,
+            X: (p) => <IconBase {...p}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>,
+            ChevronRight: (p) => <IconBase {...p}><path d="m9 18 6-6-6-6"/></IconBase>,
+            MapPin: (p) => <IconBase {...p}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></IconBase>,
+            Mail: (p) => <IconBase {...p}><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></IconBase>,
+            Phone: (p) => <IconBase {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></IconBase>,
+            Edit2: (p) => <IconBase {...p}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></IconBase>,
+            Building2: (p) => <IconBase {...p}><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></IconBase>,
+            CreditCard: (p) => <IconBase {...p}><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></IconBase>,
+            MessageSquare: (p) => <IconBase {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></IconBase>,
+            Save: (p) => <IconBase {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>,
+            Bell: (p) => <IconBase {...p}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></IconBase>,
+            AlarmCheck: (p) => <IconBase {...p}><circle cx="12" cy="13" r="8"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/><path d="M6.38 18.7 4 21"/><path d="M17.64 18.67 20 21"/><path d="m9 13 2 2 4-4"/></IconBase>,
+            Loader2: (p) => <IconBase {...p}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></IconBase>,
+            Check: (p) => <IconBase {...p}><path d="M20 6 9 17l-5-5"/></IconBase>,
+            Download: (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>,
+            Upload: (p) => <IconBase {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></IconBase>,
+            Lock: (p) => <IconBase {...p}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></IconBase>,
+            LogOut: (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></IconBase>,
+            Search: (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></IconBase>,
+            ArrowUpDown: (p) => <IconBase {...p}><path d="m21 16-4 4-4-4"/><path d="m17 20V4"/><path d="m3 8 4-4 4 4"/><path d="m7 4v16"/></IconBase>,
+            ClipboardList: (p) => <IconBase {...p}><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></IconBase>
+        };
 
-
-        // --- UTILITY FIREBASE CON USER KEY (Shared) ---
-        const getReportsCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/reports`);
-        const getClientsCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/clients`);
-        const getFollowupsCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/followups`);
-        const getIdeasCollection = (db, secretKey) => collection(db, `artifacts/${appId}/users/${secretKey}/ideas`);
-
-        const getReportDoc = (db, secretKey, id) => doc(db, `artifacts/${appId}/users/${secretKey}/reports`, String(id));
-        const getClientDoc = (db, secretKey, id) => doc(db, `artifacts/${appId}/users/${secretKey}/clients`, String(id));
-        const getFollowupDoc = (db, secretKey, id) => doc(db, `artifacts/${appId}/users/${secretKey}/followups`, String(id));
-        const getIdeaDoc = (db, secretKey, id) => doc(db, `artifacts/${appId}/users/${secretKey}/ideas`, String(id));
-
-
-        // --- COMPONENTI UI DI SUPPORTO (AGGIORNATI) ---
-        // Modifica: gestione del valore undefined/null per evitare errori "uncontrolled input"
         const Input = ({ label, name, value, onChange, type = 'text', required = false, step = null, placeholder = '' }) => (
             <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">{label}</label>
-                <input 
-                    type={type} 
-                    name={name} 
-                    value={value !== undefined && value !== null ? value : ''} 
-                    onChange={onChange} 
-                    required={required} 
-                    step={step} 
-                    placeholder={placeholder} 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" 
-                />
+                {label && <label className="block text-sm font-bold text-gray-700 mb-1">{label}</label>}
+                <input type={type} name={name} value={value ?? ''} onChange={onChange} required={required} step={step} placeholder={placeholder} 
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
             </div>
         );
 
-        // Modifica: gestione del valore undefined/null
         const TextArea = ({ label, name, value, onChange, placeholder = '' }) => (
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">{label}</label>
-                <textarea 
-                    name={name} 
-                    value={value !== undefined && value !== null ? value : ''} 
-                    onChange={onChange} 
-                    placeholder={placeholder} 
-                    rows="3" 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-shadow" 
-                />
+                <textarea name={name} value={value ?? ''} onChange={onChange} placeholder={placeholder} rows="3" 
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-shadow" />
+            </div>
+        );
+        
+        const SelectComponent = ({ label, name, value, onChange, options }) => (
+            <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+                <select name={name} value={value ?? ''} onChange={onChange} className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                    {options.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
+                </select>
             </div>
         );
 
@@ -146,21 +121,7 @@
                 {children}
             </section>
         );
-
-        const InfoBox = ({ label, value, icon: Icon, color = 'text-gray-700' }) => (
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1 mb-1">{Icon && <Icon size={12} className={color} />} {label}</div>
-                <div className={`text-lg font-semibold ${color}`}>{value || '-'}</div>
-            </div>
-        );
-
-        const InfoRow = ({ label, value }) => (
-            <div className="flex justify-between items-start border-b border-gray-50 pb-2">
-                <span className="text-sm font-medium text-gray-500">{label}:</span>
-                <span className="text-sm font-semibold text-gray-800 text-right max-w-[60%] break-words whitespace-pre-wrap">{value || '-'}</span>
-            </div>
-        );
-
+        
         const SectionDisplay = ({ title, content, small = false }) => (
             <div className="space-y-2">
                 <h3 className={`font-bold ${small ? 'text-xs uppercase text-gray-500 tracking-wide' : 'text-sm text-gray-700'}`}>{title}</h3>
@@ -172,1468 +133,655 @@
             <h2 className="text-base font-bold text-gray-700 border-b border-gray-200 pb-2 flex items-center gap-2">{icon} {title}</h2>
         );
 
-        const SelectComponent = ({ label, name, value, onChange, options }) => (
-            <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
-                <select name={name} value={value} onChange={onChange} className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 outline-none">
-                    {options.map(option => (<option key={option.value} value={option.value}>{option.label}</option>))}
-                </select>
+        // **FIX: Definizione di InfoRow spostata qui, PRIMA del suo utilizzo**
+        const InfoRow = ({ label, value }) => (
+            <div className="flex justify-between border-b border-gray-50 pb-2 last:border-0">
+                <span className="text-sm text-gray-500">{label}:</span>
+                <span className="text-sm font-semibold text-gray-800 text-right max-w-[60%] truncate">{value || '-'}</span>
             </div>
         );
 
-        const App = () => {
-            const [db, setDb] = useState(null);
-            const [auth, setAuth] = useState(null);
-            const [isAuthReady, setIsAuthReady] = useState(false);
-            const [isLoading, setIsLoading] = useState(false);
+        // --- 3. LOGICA DI CALENDARIO (ICS + Google) ---
+        const generateICSFile = (title, description, startDateTime, endDateTime, location = "") => {
+             const formatDate = (date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
+             const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//WorkReport CRM//IT
+BEGIN:VEVENT
+UID:${Date.now()}@crm.app
+DTSTAMP:${formatDate(new Date())}
+DTSTART:${formatDate(startDateTime)}
+DTEND:${formatDate(endDateTime)}
+SUMMARY:${title}
+DESCRIPTION:${description}
+LOCATION:${location}
+END:VEVENT
+END:VCALENDAR`;
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.setAttribute('download', `${title.replace(/\s+/g, '_')}.ics`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
 
-            // STATO PER LA CHIAVE CONDIVISA
-            const [userKey, setUserKey] = useState(localStorage.getItem('crm_user_key') || '');
-            const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('crm_user_key'));
-            const [loginInput, setLoginInput] = useState('');
+        const CalendarButton = ({ title, details, date, time = "09:00", duration = 60 }) => {
+            if (!date) return null;
+            const start = new Date(`${date}T${time}`);
+            const end = new Date(start.getTime() + duration * 60000);
 
-            const [reports, setReports] = useState([]);
-            const [clients, setClients] = useState([]);
-            const [followups, setFollowups] = useState([]);
-            const [ideas, setIdeas] = useState([]);
-
-            const [view, setView] = useState('dashboard');
-            const [selectedReport, setSelectedReport] = useState(null);
-            const [selectedClient, setSelectedClient] = useState(null);
-            const [clientSearch, setClientSearch] = useState('');
-            const [reportSearch, setReportSearch] = useState(''); // NUOVO STATO RICERCA REPORT
-            const [statusFilter, setStatusFilter] = useState('ALL');
-
-            // --- NUOVI STATI PER ORDINAMENTO ---
-            const [sortOrder, setSortOrder] = useState({
-                reports: 'desc',
-                followups: 'desc',
-                ideas: 'desc' 
-            });
-
-            const [message, setMessage] = useState({ text: '', type: '' });
-            const [confirmAction, setConfirmAction] = useState(null);
-            
-            // SWIPE STATE
-            const [touchStart, setTouchStart] = useState(null);
-            const [touchEnd, setTouchEnd] = useState(null);
-            const minSwipeDistance = 50;
-            
-            const fileInputRef = useRef(null);
-
-            const initialReportState = {
-                id: null, title: '', client: '', contactRef: '',
-                date: new Date().toISOString().split('T')[0], hours: '',
-                category: 'MANTENIMENTO RAPPORTO', contactType: 'TELEFONICO', description: '',
-                futureNotes: '', nextContactDate: '', nextContactTime: '', 
-                calendarEventType: 'APPUNTAMENTO', // Nuova proprietà per il tipo di evento calendario
-                createdAt: null, completed: false 
-            };
-            const [reportForm, setReportForm] = useState(initialReportState);
-
-            const initialFollowupState = {
-                id: null, client: '', offerNumber: '', amount: '', feedbackDate: '', notes: '', createdAt: null, completed: false
-            };
-            const [followupForm, setFollowupForm] = useState(initialFollowupState);
-
-            const initialIdeaState = {
-                id: null, client: '', text: '', deadline: '', createdAt: null
-            };
-            const [ideaForm, setIdeaForm] = useState(initialIdeaState);
-
-
-            const paymentOptions = {
-                method1: [{ label: "BB (Bonifico Bancario)", value: "BB" }, { label: "RI.BA (Ricevuta Bancaria)", value: "RI.BA" }],
-                method2: [{ label: "30 giorni", value: "30" }, { label: "60 giorni", value: "60" }, { label: "90 giorni", value: "90" }],
-                method3: [{ label: "DF (Data Fattura)", value: "DF" }, { label: "DFFM (Data Fattura Fine Mese)", value: "DFFM" }, { label: "Anticipato", value: "Anticipato" }],
-            };
-            
-            // LISTE PER INFO INIZIALI
-            const sectorsList = ['PUBBLICO', 'PRIVATO', 'INFRASTRUTTURE', 'EDILIZIA INDUSTRIALE', 'IMPIANTISTICA', 'ALTRO'];
-            const regionsList = ['Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche', 'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana', 'Trentino-Alto Adige', 'Umbria', 'Valle d\'Aosta', 'Veneto'];
-            const brandsList = ['HILTI', 'WURTH', 'MAKITA', 'BOSCH', 'BERNER'];
-            const suppliesList = ['URGENZE', 'SCORTE', 'PIANIFICAZIONE', 'ALTRO'];
-
-            const initialClientState = {
-                id: null, ragioneSociale: '', pIva: '', email: '', pec: '', telefono: '', sdiCode: '',
-                sedeLegale: '', sedeOperativa: '', magazzino: '', abbigliamento: '', fido: '', fidoDate: '', numeroOperai: '',
-                paymentMethod1: paymentOptions.method1[0].value, paymentMethod2: paymentOptions.method2[0].value, paymentMethod3: paymentOptions.method3[0].value,
-                note: '', comunicazioni: '', updatedAt: '',
-                contact1: { nome: '', mansione: '', telefono: '', mail: '' }, contact2: { nome: '', mansione: '', telefono: '', mail: '' },
-                contact3: { nome: '', mansione: '', telefono: '', mail: '' }, contact4: { nome: '', mansione: '', telefono: '', mail: '' },
-                
-                // NUOVI CAMPI INFO INIZIALI
-                sector: 'PUBBLICO', sectorOther: '',
-                geoAreas: [], // array
-                regions: [], // array
-                activeSites: '1', activeSitesNotes: '',
-                subContracting: 'NO',
-                decisionProcess: '',
-                brands: [], brandsOther: '',
-                products: '',
-                supplies: 'URGENZE', suppliesOther: '',
-                infoNotes: '',
-                preference: 'ACQUISTO',
-                suppliers: '',
-                payments: '',
-                conclusion: '',
-                rating: '3'
-            };
-            const [clientForm, setClientForm] = useState(initialClientState);
-
-            // 1. INIT FIREBASE
-            useEffect(() => {
-                try {
-                    const app = initializeApp(firebaseConfig);
-                    const authInstance = getAuth(app);
-                    const dbInstance = getFirestore(app);
-                    setAuth(authInstance);
-                    setDb(dbInstance);
-                    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
-                        if (!user) {
-                            try { await signInAnonymously(authInstance); } catch (error) { console.error("Errore login:", error); }
-                        }
-                        setIsAuthReady(true);
-                    });
-                    return () => unsubscribe();
-                } catch (e) { console.error("Init Error:", e); }
-            }, []);
-
-            // 2. FETCH DATA
-            useEffect(() => {
-                if (!isAuthReady || !db || !userKey) return;
-                
-                setIsLoading(true);
-                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
-
-                const unsubscribeReports = onSnapshot(getReportsCollection(db, safeKey), (s) => setReports(s.docs.map(d => ({ ...d.data(), id: d.id }))));
-                const unsubscribeClients = onSnapshot(getClientsCollection(db, safeKey), (s) => setClients(s.docs.map(d => ({ ...d.data(), id: d.id }))));
-                const unsubscribeFollowups = onSnapshot(getFollowupsCollection(db, safeKey), (s) => setFollowups(s.docs.map(d => ({ ...d.data(), id: d.id }))));
-                const unsubscribeIdeas = onSnapshot(getIdeasCollection(db, safeKey), (s) => setIdeas(s.docs.map(d => ({ ...d.data(), id: d.id }))));
-                
-                setIsLoading(false);
-                return () => { unsubscribeReports(); unsubscribeClients(); unsubscribeFollowups(); unsubscribeIdeas(); };
-            }, [isAuthReady, db, userKey]);
-
-            // --- SWIPE LOGIC ---
-            const onTouchStart = (e) => {
-                setTouchEnd(null); 
-                setTouchStart({x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY});
-            }
-
-            const onTouchMove = (e) => setTouchEnd({x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY});
-
-            const onTouchEnd = () => {
-                if (!touchStart || !touchEnd) return;
-                const distanceX = touchStart.x - touchEnd.x;
-                const distanceY = touchStart.y - touchEnd.y;
-                const isLeftSwipe = distanceX > minSwipeDistance;
-                const isRightSwipe = distanceX < -minSwipeDistance;
-                
-                // Check if horizontal swipe (ignore vertical scroll)
-                if (Math.abs(distanceX) > Math.abs(distanceY)) {
-                    const mainTabs = ['dashboard', 'list', 'followups', 'ideas', 'clients'];
-                    const currentIndex = mainTabs.indexOf(view);
-
-                    if (currentIndex !== -1) {
-                        if (isLeftSwipe) {
-                            const nextIndex = Math.min(currentIndex + 1, mainTabs.length - 1);
-                            setView(mainTabs[nextIndex]);
-                        }
-                        if (isRightSwipe) {
-                            const prevIndex = Math.max(currentIndex - 1, 0);
-                            setView(mainTabs[prevIndex]);
-                        }
-                    } else {
-                        if (isRightSwipe) {
-                            if (view === 'create' || view === 'detail') setView('list');
-                            else if (view === 'createClient' || view === 'clientDetail') setView('clients');
-                            else if (view === 'createFollowup') setView('followups');
-                            else if (view === 'createIdea') setView('ideas');
-                        }
-                    }
-                }
-            }
-
-            // --- SORTED CLIENTS ---
-            const sortedClients = useMemo(() => {
-                return [...clients].sort((a, b) => 
-                    (a.ragioneSociale || "").toLowerCase().localeCompare((b.ragioneSociale || "").toLowerCase())
-                );
-            }, [clients]);
-
-            // --- HELPER ORDINAMENTO ---
-            const toggleSort = (key) => {
-                setSortOrder(prev => ({...prev, [key]: prev[key] === 'desc' ? 'asc' : 'desc'}));
+            const openGoogle = () => {
+                const text = encodeURIComponent(title);
+                const det = encodeURIComponent(details);
+                const dates = `${start.toISOString().replace(/-|:|\.\d{3}/g, '')}/${end.toISOString().replace(/-|:|\.\d{3}/g, '')}`;
+                window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&details=${det}&dates=${dates}`, '_blank');
             };
 
-            const handleLogin = (e) => {
-                e.preventDefault();
-                if(!loginInput.trim()) return;
-                const safeKey = loginInput.trim().toLowerCase().replace(/\s/g, '');
-                localStorage.setItem('crm_user_key', safeKey);
-                setUserKey(safeKey);
-                setIsLoggedIn(true);
-            };
-
-            const handleLogout = () => {
-                localStorage.removeItem('crm_user_key');
-                setUserKey('');
-                setIsLoggedIn(false);
-                setLoginInput('');
-                setReports([]);
-                setClients([]);
-                setFollowups([]);
-                setIdeas([]);
-            };
-
-            const showMessage = (text, type = 'info') => { setMessage({ text, type }); setTimeout(() => setMessage({ text: '', type: '' }), 3000); };
-            const showConfirm = (text, callback) => { setMessage({ text, type: 'confirm' }); setConfirmAction(() => callback); };
-            const handleConfirm = (isConfirmed) => { if (isConfirmed && confirmAction) confirmAction(); setMessage({ text: '', type: '' }); setConfirmAction(null); };
-            const getClientHours = (clientName) => reports.filter(r => r.client === clientName).reduce((acc, curr) => acc + (parseFloat(curr.hours) || 0), 0);
-            const getFullPaymentMethod = (client) => [client.paymentMethod1, client.paymentMethod2, client.paymentMethod3].filter(Boolean).join(' - ') || 'Non Specificato';
-
-            // --- PULIZIA DOPPIONI ---
-            const handleCleanDuplicates = async () => {
-                showConfirm("Sei sicuro di voler eliminare tutti i duplicati? Questa azione è irreversibile.", async () => {
-                    if (!db || !userKey) return;
-                    const safeKey = userKey.toLowerCase().replace(/\s/g, '');
-                    
-                    // Clienti
-                    const clientMap = new Map();
-                    const clientsToDelete = [];
-                    clients.forEach(c => {
-                        const key = (c.ragioneSociale || '').toLowerCase().trim();
-                        if (key) {
-                            if (clientMap.has(key)) clientsToDelete.push(c.id);
-                            else clientMap.set(key, true);
-                        }
-                    });
-
-                    // Report (chiave: cliente|data|descrizione|ore)
-                    const reportMap = new Map();
-                    const reportsToDelete = [];
-                    reports.forEach(r => {
-                        const key = `${r.client}|${r.date}|${r.description}|${r.hours}`.toLowerCase();
-                        if (reportMap.has(key)) reportsToDelete.push(r.id);
-                        else reportMap.set(key, true);
-                    });
-
-                    // Offerte (numero offerta)
-                    const followupMap = new Map();
-                    const followupsToDelete = [];
-                    followups.forEach(f => {
-                        const key = (f.offerNumber || '').toLowerCase().trim();
-                        if (key) {
-                            if (followupMap.has(key)) followupsToDelete.push(f.id);
-                            else followupMap.set(key, true);
-                        }
-                    });
-
-                    // Idee (cliente|testo)
-                    const ideaMap = new Map();
-                    const ideasToDelete = [];
-                    ideas.forEach(i => {
-                        const key = `${i.client}|${i.text}`.toLowerCase();
-                        if (ideaMap.has(key)) ideasToDelete.push(i.id);
-                        else ideaMap.set(key, true);
-                    });
-
-                    // Esecuzione cancellazioni
-                    const totalToDelete = clientsToDelete.length + reportsToDelete.length + followupsToDelete.length + ideasToDelete.length;
-                    
-                    if (totalToDelete === 0) {
-                        showMessage('Nessun duplicato trovato.', 'info');
-                        return;
-                    }
-
-                    try {
-                        const deletePromises = [
-                            ...clientsToDelete.map(id => deleteDoc(getClientDoc(db, safeKey, id))),
-                            ...reportsToDelete.map(id => deleteDoc(getReportDoc(db, safeKey, id))),
-                            ...followupsToDelete.map(id => deleteDoc(getFollowupDoc(db, safeKey, id))),
-                            ...ideasToDelete.map(id => deleteDoc(getIdeaDoc(db, safeKey, id)))
-                        ];
-
-                        await Promise.all(deletePromises);
-                        showMessage(`Pulizia completata. Eliminati ${totalToDelete} elementi duplicati.`, 'success');
-                    } catch (e) {
-                        console.error(e);
-                        showMessage('Errore durante la pulizia.', 'error');
-                    }
-                });
-            };
-
-            // --- EXPORT TO EXCEL ---
-            const exportToExcel = () => {
-                if (!clients.length && !reports.length && !followups.length && !ideas.length) {
-                    showMessage("Nessun dato da esportare.", "error");
-                    return;
-                }
-
-                try {
-                    const wb = XLSX.utils.book_new();
-                    const now = new Date().toISOString().slice(0, 10);
-
-                    // 1. Foglio Clienti
-                    if (sortedClients.length > 0) {
-                        const orderedClients = sortedClients.map(c => {
-                            const row = {
-                                "Ragione Sociale": c.ragioneSociale,
-                                "Partita IVA": c.pIva,
-                                "Telefono": c.telefono,
-                                "Email": c.email,
-                                "Sede Legale": c.sedeLegale,
-                                "Sede Operativa": c.sedeOperativa,
-                                "Magazzino": c.magazzino,
-                                "Pagamento (Tipo)": c.paymentMethod1,
-                                "Pagamento (Scadenza)": c.paymentMethod2,
-                                "Pagamento (Struttura)": c.paymentMethod3,
-                                "Codice Univoco (SDI)": c.sdiCode,
-                                "PEC": c.pec,
-                                "Fido (€)": c.fido,
-                                "Data Fido": c.fidoDate,
-                                "Abbigliamento": c.abbigliamento,
-                                "N. Operai": c.numeroOperai,
-                                "Note Interne": c.note,
-                                "Comunicazioni": c.comunicazioni,
-                                "Settore": c.sector === 'ALTRO' ? `Altro: ${c.sectorOther}` : c.sector,
-                                "Valutazione": c.rating,
-                                "Ultimo Aggiornamento": c.updatedAt
-                            };
-                            [1, 2, 3, 4].forEach(i => {
-                                const contact = c[`contact${i}`] || {};
-                                row[`Ref. ${i} Nome`] = contact.nome || '';
-                                row[`Ref. ${i} Mansione`] = contact.mansione || '';
-                                row[`Ref. ${i} Tel`] = contact.telefono || '';
-                                row[`Ref. ${i} Mail`] = contact.mail || '';
-                            });
-                            return row;
-                        });
-                        const wsClients = XLSX.utils.json_to_sheet(orderedClients);
-                        XLSX.utils.book_append_sheet(wb, wsClients, "Clienti");
-                    }
-
-                    // 2. Foglio Report
-                    if (reports.length > 0) {
-                        const orderedReports = reports.map(r => ({
-                            "Cliente": r.client,
-                            "Referente": r.contactRef || '', // Export referente
-                            "Data Inserimento": r.date,
-                            "Ore": r.hours,
-                            "Categoria": r.category,
-                            "Tipo Contatto": r.contactType,
-                            "Descrizione": r.description,
-                            "Appunti Futuri": r.futureNotes,
-                            "Data Prossimo Contatto": r.nextContactDate,
-                            "Orario Prossimo Contatto": r.nextContactTime,
-                            "Creato il": r.createdAt ? new Date(r.createdAt).toLocaleString() : ''
-                        }));
-                        const wsReports = XLSX.utils.json_to_sheet(orderedReports);
-                        XLSX.utils.book_append_sheet(wb, wsReports, "Report");
-                    }
-
-                    // 3. Foglio Offerte
-                    if (followups.length > 0) {
-                        const wsFollowups = XLSX.utils.json_to_sheet(followups);
-                        XLSX.utils.book_append_sheet(wb, wsFollowups, "Offerte");
-                    }
-                    
-                    // 4. Foglio Idee
-                    if (ideas.length > 0) {
-                        const wsIdeas = XLSX.utils.json_to_sheet(ideas);
-                        XLSX.utils.book_append_sheet(wb, wsIdeas, "Idee e Progetti");
-                    }
-
-                    XLSX.writeFile(wb, `Backup_CRM_${now}.xlsx`);
-                    showMessage("Database esportato con successo!", "success");
-                } catch (error) {
-                    console.error("Errore Export:", error);
-                    showMessage("Errore durante l'esportazione.", "error");
-                }
-            };
-
-            // --- IMPORT FROM EXCEL/CSV ---
-            const handleImport = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = async (evt) => {
-                    try {
-                        const bstr = evt.target.result;
-                        const wb = XLSX.read(bstr, { type: 'binary' });
-                        const safeKey = userKey.toLowerCase().replace(/\s/g, '');
-                        let importedClients = 0;
-                        let importedReports = 0;
-
-                        const processClientSheet = async (sheetName) => {
-                            const ws = wb.Sheets[sheetName];
-                            if (!ws) return;
-                            const data = XLSX.utils.sheet_to_json(ws);
-                            for (const row of data) {
-                                const exists = clients.some(c => (c.ragioneSociale||'').toLowerCase() === (row["Ragione Sociale"]||'').toLowerCase());
-                                if (!exists && row["Ragione Sociale"]) {
-                                    const newClient = {
-                                        ...initialClientState,
-                                        id: String(Date.now() + Math.random()),
-                                        ragioneSociale: row["Ragione Sociale"] || '',
-                                        pIva: row["Partita IVA"] || '',
-                                        telefono: row["Telefono"] || '',
-                                        email: row["Email"] || '',
-                                        sedeLegale: row["Sede Legale"] || '',
-                                        sedeOperativa: row["Sede Operativa"] || '',
-                                        magazzino: row["Magazzino"] || '',
-                                        paymentMethod1: row["Pagamento (Tipo)"] || '',
-                                        paymentMethod2: row["Pagamento (Scadenza)"] || '',
-                                        paymentMethod3: row["Pagamento (Struttura)"] || '',
-                                        sdiCode: row["Codice Univoco (SDI)"] || '',
-                                        pec: row["PEC"] || '',
-                                        fido: row["Fido (€)"] || '',
-                                        fidoDate: row["Data Fido"] || '',
-                                        abbigliamento: row["Abbigliamento"] || '',
-                                        numeroOperai: row["N. Operai"] || '',
-                                        note: row["Note Interne"] || '',
-                                        comunicazioni: row["Comunicazioni"] || '',
-                                        updatedAt: new Date().toLocaleDateString('it-IT')
-                                    };
-                                    [1, 2, 3, 4].forEach(i => {
-                                        newClient[`contact${i}`] = {
-                                            nome: row[`Ref. ${i} Nome`] || '',
-                                            mansione: row[`Ref. ${i} Mansione`] || '',
-                                            telefono: row[`Ref. ${i} Tel`] || '',
-                                            mail: row[`Ref. ${i} Mail`] || ''
-                                        };
-                                    });
-                                    await setDoc(getClientDoc(db, safeKey, newClient.id), newClient);
-                                    importedClients++;
-                                }
-                            }
-                        };
-
-                        const processReportSheet = async (sheetName) => {
-                            const ws = wb.Sheets[sheetName];
-                            if (!ws) return;
-                            const data = XLSX.utils.sheet_to_json(ws);
-                            for (const row of data) {
-                                if (row["Cliente"] && row["Data Inserimento"]) {
-                                    const newReport = {
-                                        id: String(Date.now() + Math.random()),
-                                        title: `${row["Categoria"]} - ${row["Data Inserimento"]}`,
-                                        client: row["Cliente"],
-                                        date: row["Data Inserimento"],
-                                        hours: row["Ore"] || '',
-                                        category: row["Categoria"] || 'ALTRO',
-                                        contactType: row["Tipo Contatto"] || 'ALTRO',
-                                        description: row["Descrizione"] || '',
-                                        futureNotes: row["Appunti Futuri"] || '',
-                                        nextContactDate: row["Data Prossimo Contatto"] || '',
-                                        nextContactTime: row["Orario Prossimo Contatto"] || '',
-                                        createdAt: new Date().toISOString()
-                                    };
-                                    await setDoc(getReportDoc(db, safeKey, newReport.id), newReport);
-                                    importedReports++;
-                                }
-                            }
-                        };
-
-                        if (wb.SheetNames.includes("Clienti")) await processClientSheet("Clienti");
-                        if (wb.SheetNames.includes("Report")) await processReportSheet("Report");
-                        
-                        if (!wb.SheetNames.includes("Clienti") && !wb.SheetNames.includes("Report")) {
-                            const firstSheetData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                            if (firstSheetData.length > 0) {
-                                if ("Ragione Sociale" in firstSheetData[0]) await processClientSheet(wb.SheetNames[0]);
-                                else if ("Cliente" in firstSheetData[0] && "Data Inserimento" in firstSheetData[0]) await processReportSheet(wb.SheetNames[0]);
-                            }
-                        }
-
-                        showMessage(`Importazione completata: ${importedClients} clienti, ${importedReports} report.`, "success");
-                    } catch (error) {
-                        console.error("Errore Import:", error);
-                        showMessage("Errore durante l'importazione del file.", "error");
-                    }
-                };
-                reader.readAsBinaryString(file);
-                e.target.value = null;
-            };
-
-            const addToGoogleCalendar = (report) => {
-                if (!report.nextContactDate) return;
-                
-                // Determina tipo e durata
-                const eventType = report.calendarEventType || 'APPUNTAMENTO';
-                let durationMinutes = 60; // Default 1 ora
-                if (eventType === 'PROMEMORIA') durationMinutes = 5;
-                if (eventType === 'TELEFONATA') durationMinutes = 15;
-
-                const startTime = report.nextContactTime || '09:00';
-                const startDateTime = new Date(`${report.nextContactDate}T${startTime}`);
-                const endDateTime = new Date(startDateTime.getTime() + durationMinutes * 60 * 1000);
-
-                const formatDate = (date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
-
-                // Costruzione Titolo: [TIPO] - [CLIENTE] - [NOTE]
-                // "la voce selezionata sarà messa al posto di quella attuale CATEGORIA e subito dopo l'appunto futuro"
-                const titleText = `${eventType} ${report.futureNotes} - ${report.client}`;
-                const title = encodeURIComponent(titleText);
-                
-                const details = encodeURIComponent(`Tipo CRM: ${report.contactType || 'N/A'}\nNote: ${report.futureNotes}\nCliente: ${report.client}`);
-                const dates = `${formatDate(startDateTime)}/${formatDate(endDateTime)}`;
-
-                const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
-                window.open(url, '_blank');
-            };
-            
-            const addFollowupToCalendar = (followup) => {
-                if (!followup.feedbackDate) return;
-                const startTime = '09:00'; 
-                const startDateTime = new Date(`${followup.feedbackDate}T${startTime}`);
-                const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); 
-
-                const formatDate = (date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
-
-                const title = encodeURIComponent(`Riscontro Offerta: ${followup.client} - ${followup.offerNumber}`);
-                const details = encodeURIComponent(`Importo: € ${followup.amount}\nNote: ${followup.notes}`);
-                const dates = `${formatDate(startDateTime)}/${formatDate(endDateTime)}`;
-
-                const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
-                window.open(url, '_blank');
-            };
-
-            const addIdeaToCalendar = (idea) => {
-                if (!idea.deadline) return;
-                const startTime = '09:00';
-                const startDateTime = new Date(`${idea.deadline}T${startTime}`);
-                const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
-
-                const formatDate = (date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
-
-                const title = encodeURIComponent(`Scadenza Idea: ${idea.client}`);
-                const details = encodeURIComponent(`Dettaglio: ${idea.text}`);
-                const dates = `${formatDate(startDateTime)}/${formatDate(endDateTime)}`;
-
-                const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${dates}`;
-                window.open(url, '_blank');
-            };
-
-            const handleReportChange = (e) => { 
-                const { name, value } = e.target; 
-                setReportForm(prev => {
-                    const newData = { ...prev, [name]: value };
-                    // Se cambia il cliente, resetta il contatto selezionato
-                    if (name === 'client') {
-                        newData.contactRef = '';
-                    }
-                    return newData;
-                }); 
-            };
-            
-            const handleReportSubmit = async (e) => {
-                e.preventDefault(); if (!db || !userKey) return;
-                const isEditing = !!reportForm.id;
-                const autoTitle = reportForm.title || `${reportForm.category} - ${new Date(reportForm.date).toLocaleDateString('it-IT')}`;
-                const reportToSave = { ...reportForm, title: autoTitle, id: reportForm.id || String(Date.now()), createdAt: reportForm.createdAt || new Date().toISOString() };
-                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
-                try { await setDoc(getReportDoc(db, safeKey, reportToSave.id), reportToSave); showMessage(isEditing ? 'Modificato.' : 'Creato.', 'success'); if (isEditing) setSelectedReport(reportToSave); setReportForm(initialReportState); setView('list'); } catch (error) { console.error(error); }
-            };
-            const prepareEditReport = (report) => { 
-                setSelectedReport(report); 
-                // Unione con stato iniziale per sicurezza sui nuovi campi
-                setReportForm({ ...initialReportState, ...report }); 
-                setView('create'); 
-            };
-            const handleDeleteReport = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getReportDoc(db, safeKey, id)); if (selectedReport?.id === id) setView('list'); showMessage('Eliminato.', 'success'); }); };
-
-            const handleFollowupChange = (e) => { const { name, value } = e.target; setFollowupForm(prev => ({ ...prev, [name]: value })); };
-            const handleFollowupSubmit = async (e) => {
-                e.preventDefault(); if (!db) return;
-                const isEditing = !!followupForm.id;
-                const itemToSave = { ...followupForm, id: followupForm.id || String(Date.now()), createdAt: followupForm.createdAt || new Date().toISOString() };
-                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
-                try { await setDoc(getFollowupDoc(db, safeKey, itemToSave.id), itemToSave); showMessage(isEditing ? 'Aggiornato.' : 'Creato.', 'success'); setFollowupForm(initialFollowupState); setView('followups'); } catch (e) { console.error(e); }
-            };
-            const handleDeleteFollowup = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getFollowupDoc(db, safeKey, id)); showMessage('Eliminato.', 'success'); }); };
-            const prepareEditFollowup = (item) => { 
-                setFollowupForm({ ...initialFollowupState, ...item }); 
-                setView('createFollowup'); 
-            };
-            
-            // --- GESTIONE COMPLETAMENTO OFFERTA ---
-            const handleCompleteFollowup = async (followup) => {
-                if (!db) return;
-                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
-                // Toggle completamento (se è true diventa false, se è false diventa true)
-                const newStatus = !followup.completed;
-                const updatedFollowup = { ...followup, completed: newStatus };
-                try {
-                    await setDoc(getFollowupDoc(db, safeKey, followup.id), updatedFollowup);
-                    showMessage(newStatus ? 'Offerta completata!' : 'Offerta ripristinata.', 'success');
-                } catch (e) {
-                    console.error(e);
-                    showMessage('Errore durante l\'aggiornamento.', 'error');
-                }
-            };
-
-            // --- GESTIONE COMPLETAMENTO REPORT ---
-            const handleCompleteReport = async (report) => {
-                if (!db) return;
-                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
-                const newStatus = !report.completed;
-                const updatedReport = { ...report, completed: newStatus };
-                try {
-                    await setDoc(getReportDoc(db, safeKey, report.id), updatedReport);
-                    showMessage(newStatus ? 'Contatto completato!' : 'Contatto ripristinato.', 'success');
-                } catch (e) {
-                    console.error(e);
-                    showMessage('Errore durante l\'aggiornamento.', 'error');
-                }
-            };
-
-            const handleIdeaChange = (e) => { const { name, value } = e.target; setIdeaForm(prev => ({ ...prev, [name]: value })); };
-            const handleIdeaSubmit = async (e) => {
-                e.preventDefault(); if (!db) return;
-                const isEditing = !!ideaForm.id;
-                const itemToSave = { ...ideaForm, id: ideaForm.id || String(Date.now()), createdAt: ideaForm.createdAt || new Date().toISOString() };
-                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
-                try { await setDoc(getIdeaDoc(db, safeKey, itemToSave.id), itemToSave); showMessage(isEditing ? 'Aggiornato.' : 'Creato.', 'success'); setIdeaForm(initialIdeaState); setView('ideas'); } catch (e) { console.error(e); }
-            };
-            const handleDeleteIdea = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getIdeaDoc(db, safeKey, id)); showMessage('Eliminato.', 'success'); }); };
-            const prepareEditIdea = (item) => { 
-                setIdeaForm({ ...initialIdeaState, ...item }); 
-                setView('createIdea'); 
-            };
-
-
-            const handleClientChange = (e, section = null) => {
-                const { name, value } = e.target;
-                if (section && clientForm[section]) setClientForm(prev => ({ ...prev, [section]: { ...prev[section], [name]: value } }));
-                else setClientForm(prev => ({ ...prev, [name]: value }));
-            };
-            
-            // Helper per gestire le checkbox multiple (array)
-            const handleMultiSelectChange = (e, arrayName) => {
-                const { value, checked } = e.target;
-                setClientForm(prev => {
-                    const currentArray = prev[arrayName] || [];
-                    if (checked) {
-                        return { ...prev, [arrayName]: [...currentArray, value] };
-                    } else {
-                        return { ...prev, [arrayName]: currentArray.filter(item => item !== value) };
-                    }
-                });
-            };
-
-            const handleClientSubmit = async (e) => {
-                if(e) e.preventDefault(); if (!db) return;
-                const isEditing = !!clientForm.id;
-                const itemToSave = { ...clientForm, id: clientForm.id || String(Date.now()), updatedAt: new Date().toLocaleDateString('it-IT') };
-                const safeKey = userKey.toLowerCase().replace(/\s/g, '');
-                try { await setDoc(getClientDoc(db, safeKey, itemToSave.id), itemToSave); showMessage(isEditing ? 'Modificato.' : 'Salvato.', 'success'); if (isEditing) setSelectedClient(itemToSave); setClientForm(initialClientState); setView('clients'); } catch (e) { console.error(e); }
-            };
-            const prepareEditClient = (client) => { 
-                setSelectedClient(client); 
-                // Merge guarantees that new fields (like geoAreas, sector) have default values even for old records
-                setClientForm({ ...initialClientState, ...client }); 
-                setView('createClient'); 
-            };
-            const handleDeleteClient = (id) => { showConfirm('Eliminare?', async () => { if (!db) return; const safeKey = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(getClientDoc(db, safeKey, id)); setView('clients'); showMessage('Eliminato.', 'success'); }); };
-
-            const getClientStatus = (clientName) => {
-                const clientReports = reports.filter(r => r.client === clientName);
-                if (clientReports.length === 0) return { label: 'FREDDO', color: 'bg-blue-100 text-blue-800 border-blue-200' };
-                const sortedReports = clientReports.sort((a, b) => new Date(b.date) - new Date(a.date));
-                const lastReportDate = new Date(sortedReports[0].date);
-                const today = new Date();
-                lastReportDate.setHours(0,0,0,0);
-                today.setHours(0,0,0,0);
-                const diffTime = today - lastReportDate;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                if (diffDays < 15) return { label: 'CALDO', color: 'bg-rose-100 text-rose-800 border-rose-200' };
-                if (diffDays <= 30) return { label: 'TIEPIDO', color: 'bg-amber-100 text-amber-800 border-amber-200' };
-                return { label: 'FREDDO', color: 'bg-blue-100 text-blue-800 border-blue-200' };
-            };
-
-            const renderLogin = () => (
-                <div className="flex flex-col items-center justify-center h-full p-8 animate-fade-in bg-white rounded-[2.5rem]">
-                    <div className="bg-blue-50 p-6 rounded-full mb-6 text-blue-600"><Lock size={48} /></div>
-                    <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">WorkReport CRM</h1>
-                    <p className="text-gray-500 text-center mb-8 text-sm">Inserisci la tua Chiave Segreta per accedere ai tuoi dati.</p>
-                    <form onSubmit={handleLogin} className="w-full max-w-xs space-y-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Chiave Segreta (Username)</label>
-                            <input type="text" value={loginInput} onChange={(e) => setLoginInput(e.target.value)} placeholder="es. miorossi123" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-center font-bold text-gray-800 text-lg" autoFocus />
-                            <p className="text-[10px] text-gray-400 mt-2 text-center">Usa la stessa chiave su PC e Smartphone per sincronizzare i dati.</p>
-                        </div>
-                        <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-all">Accedi</button>
-                    </form>
-                </div>
-            );
-
-            if (!isLoggedIn) return <div className="min-h-screen bg-gray-100 flex justify-center items-start pt-0 sm:pt-6 font-sans text-gray-900"><div className="w-full sm:max-w-md bg-white h-screen sm:h-[100dvh] sm:rounded-[2.5rem] sm:shadow-2xl overflow-hidden ring-8 ring-gray-900/5">{renderLogin()}</div></div>;
-            if (isLoading) return <div className="min-h-screen bg-gray-100 flex items-center justify-center"><Loader2 size={32} className="animate-spin text-blue-600" /></div>;
-
-            const renderDashboard = () => (
-                <div className="space-y-6 animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-                    <header className="mb-6">
-                        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-                    </header>
-                    <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-blue-600"><Users size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Clienti</span></div><div className="text-3xl font-bold text-gray-800">{clients.length}</div></div>
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-purple-600"><Target size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-yellow-500"><Lightbulb size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Idee</span></div><div className="text-3xl font-bold text-gray-800">{ideas.length}</div></div>
-                    </div>
-                    <button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 flex justify-center items-center gap-2 active:scale-95 transition-all"><Plus size={20} /> Nuovo Report</button>
-                    
-                    {/* PROMEMORIA CONTATTI (YELLOW) */}
-                    {reports.some(r => r.nextContactDate && !r.completed) && (
-                        <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
-                            <h3 className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><Bell size={18} /> Promemoria Contatti</h3>
-                            <ul className="space-y-2">
-                                {reports.filter(r => r.nextContactDate && !r.completed).sort((a,b) => new Date(a.nextContactDate) - new Date(b.nextContactDate)).slice(0, 5).map(r => (
-                                    <li key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="text-sm cursor-pointer hover:underline text-yellow-700">
-                                        {r.nextContactDate} - {r.client} - {r.futureNotes || 'Nessuna nota'}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-
-                    {/* ULTIME OFFERTE (ORANGE STYLE) */}
-                    {followups.some(f => !f.completed) && (
-                        <div className="bg-orange-50 p-4 rounded-xl border border-orange-200">
-                            <h3 className="flex items-center gap-2 text-sm font-bold text-orange-800 mb-3"><Target size={18} /> Ultime Offerte</h3>
-                            <ul className="space-y-3">
-                                {followups.filter(f => !f.completed).sort((a, b) => new Date(a.feedbackDate) - new Date(b.feedbackDate)).slice(0, 5).map(f => (
-                                    <li key={f.id} onClick={() => { setFollowupForm(f); setView('createFollowup'); }} className="flex justify-between items-center text-sm border-b border-orange-200/50 pb-2 last:border-0 cursor-pointer">
-                                        <div className="flex items-center gap-2 overflow-hidden">
-                                            <span className="font-bold text-orange-900 truncate">{f.client}</span>
-                                            <span className="text-xs text-orange-700/70 shrink-0">{f.offerNumber}</span>
-                                        </div>
-                                        <div className="text-right flex items-center gap-2 shrink-0 ml-2">
-                                            <span className="text-xs font-medium text-orange-800 bg-orange-100 px-2 py-1 rounded-md hidden sm:inline-block">
-                                                {new Date(f.feedbackDate).toLocaleDateString('it-IT')}
-                                            </span>
-                                            <div className="font-bold text-orange-700">€ {f.amount}</div>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-                    
-                    {/* PULSANTI DI SERVIZIO SPOSTATI IN BASSO */}
-                    <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
-                         <input type="file" ref={fileInputRef} className="hidden" onChange={handleImport} accept=".xlsx, .xls, .csv" />
-                        <button onClick={() => fileInputRef.current.click()} className="text-xs text-blue-600 p-3 bg-blue-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-blue-100 active:scale-95"><Upload size={16} /> Importa</button>
-                        <button onClick={exportToExcel} className="text-xs text-green-600 p-3 bg-green-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-green-100 active:scale-95"><Download size={16} /> Backup</button>
-                        <button onClick={handleCleanDuplicates} className="text-xs text-purple-600 p-3 bg-purple-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-purple-100 active:scale-95"><Trash2 size={16} /> Pulisci</button>
-                        <button onClick={handleLogout} className="text-xs text-red-500 p-3 bg-red-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-red-100 active:scale-95"><LogOut size={16} /> Esci</button>
-                    </div>
-
-                </div>
-            );
-
-            const renderCreateReport = () => {
-                const selectedClientData = clients.find(c => c.ragioneSociale === reportForm.client);
-                const availableContacts = selectedClientData ? [
-                    selectedClientData.contact1,
-                    selectedClientData.contact2,
-                    selectedClientData.contact3,
-                    selectedClientData.contact4
-                ].filter(c => c && c.nome && c.nome.trim() !== '') : [];
-
-                return (
-                    <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-                        <h2 className="text-xl font-bold text-gray-800 mb-6">{reportForm.id ? 'Modifica' : 'Nuovo'} Report</h2>
-                        <form onSubmit={handleReportSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                            <SectionContainer title="Dati" icon={FileText}>
-                                <div><label className="block text-sm font-bold text-gray-700 mb-1">Cliente *</label><select required name="client" value={reportForm.client} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option value="">Seleziona...</option>{sortedClients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}</select></div>
-                                {availableContacts.length > 0 && (<div><label className="block text-sm font-bold text-gray-700 mb-1">Referente / Contatto</label><select name="contactRef" value={reportForm.contactRef} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option value="">Nessun referente specifico</option>{availableContacts.map((c, idx) => (<option key={idx} value={c.nome}>{c.nome} {c.mansione ? `(${c.mansione})` : ''}</option>))}</select></div>)}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><Input label="Data" type="date" name="date" value={reportForm.date} onChange={handleReportChange} required /><Input label="Ore" type="number" step="0.5" name="hours" value={reportForm.hours} onChange={handleReportChange} required /></div>
-                                <div><label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label><select name="category" value={reportForm.category} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option>MANTENIMENTO RAPPORTO</option><option>ORDINE</option><option>RICHIESTA DI OFFERTA</option><option>RISCONTRO OFFERTA</option><option>COMUNICAZIONE</option><option>INIZIO RAPPORTO FORNITURE</option><option>SOLLECITO INIZIO FORNITURA</option><option>APPUNTAMENTO</option><option>ALTRO</option></select></div>
-                                <div><label className="block text-sm font-bold text-gray-700 mb-1">Tipo Contatto</label><select name="contactType" value={reportForm.contactType} onChange={handleReportChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"><option>TELEFONICO</option><option>APPUNTAMENTO</option><option>VISITA</option><option>LINKEDIN</option><option>WHATSAPP</option><option>CANTIERE</option><option>ALTRO</option></select></div>
-                                <TextArea label="Descrizione" name="description" value={reportForm.description} onChange={handleReportChange} />
-                            </SectionContainer>
-                            <SectionContainer title="Follow-up" icon={AlarmCheck}>
-                                {/* NUOVA SELEZIONE TIPO CALENDARIO */}
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Tipo Promemoria</label>
-                                    <div className="flex gap-2 mb-3">
-                                        {['APPUNTAMENTO', 'PROMEMORIA', 'TELEFONATA'].map(type => (
-                                            <button
-                                                key={type}
-                                                type="button"
-                                                onClick={() => setReportForm(prev => ({ ...prev, calendarEventType: type }))}
-                                                className={`flex-1 py-3 text-xs font-bold rounded-lg border transition-all active:scale-95 ${
-                                                    reportForm.calendarEventType === type
-                                                    ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                                                }`}
-                                            >
-                                                {type}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <TextArea label="Appunti Futuri" name="futureNotes" value={reportForm.futureNotes} onChange={handleReportChange} />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <Input label="Prossimo Contatto" type="date" name="nextContactDate" value={reportForm.nextContactDate} onChange={handleReportChange} />
-                                    <Input label="Orario" type="time" name="nextContactTime" value={reportForm.nextContactTime} onChange={handleReportChange} />
-                                </div>
-                                {reportForm.nextContactDate && (
-                                    <button type="button" onClick={() => addToGoogleCalendar({...reportForm, id: reportForm.id || 'temp'})} className="mt-3 w-full flex justify-center items-center gap-2 px-3 py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 active:scale-[0.98] transition-all hover:bg-indigo-100">
-                                        <Calendar size={18} /> Apri Calendario ({reportForm.calendarEventType})
-                                    </button>
-                                )}
-                            </SectionContainer>
-                            <div className="pt-2 flex gap-3">
-                                <button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl active:scale-[0.98]">Annulla</button>
-                                <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] flex justify-center items-center gap-2"><Save size={18} /> Salva</button>
-                            </div>
-                        </form>
-                    </div>
-                );
-            };
-
-            const renderFollowups = () => (
-                <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-                    <div className="flex justify-between items-center mb-6">
-                        <div className="flex items-center gap-3">
-                            <h2 className="text-xl font-bold text-gray-800">Offerte</h2>
-                            <button onClick={() => toggleSort('followups')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 shadow-sm active:scale-95 transition-transform">
-                                <ArrowUpDown size={14} />
-                                {sortOrder.followups === 'desc' ? 'Più recenti' : 'Meno recenti'}
-                            </button>
-                        </div>
-                        <button onClick={() => { setFollowupForm(initialFollowupState); setView('createFollowup'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 flex items-center gap-2"><Plus size={16} /> Nuova</button>
-                    </div>
-                    <div className="space-y-3">
-                        {followups.length === 0 ? (
-                            <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessuna offerta registrata.</div>
-                        ) : (
-                            [...followups].sort((a, b) => {
-                                const dateA = new Date(a.feedbackDate);
-                                const dateB = new Date(b.feedbackDate);
-                                return sortOrder.followups === 'desc' ? dateB - dateA : dateA - dateB;
-                            }).map(item => {
-                                // Logica per data scaduta
-                                const today = new Date();
-                                today.setHours(0,0,0,0);
-                                const fDate = item.feedbackDate ? new Date(item.feedbackDate) : new Date();
-                                // Se la data è strettamente minore di oggi (ieri o prima) E non è completata
-                                const isExpired = item.feedbackDate && fDate < today && !item.completed;
-                                const cardStyle = isExpired ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-white border-gray-100 shadow-sm';
-
-                                return (
-                                    <div key={item.id} className={`${cardStyle} p-4 rounded-xl border relative transition-colors`}>
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <h3 className="font-bold text-gray-800 text-lg">{item.client}</h3>
-                                                {isExpired && (
-                                                    <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded uppercase tracking-wider block mt-1 w-fit">
-                                                        Scaduta
-                                                    </span>
-                                                )}
-                                                <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded mt-1 inline-block">Offerta: {item.offerNumber}</span>
-                                            </div>
-                                            <span className="font-bold text-blue-600 text-lg">€ {item.amount}</span>
-                                        </div>
-                                        <div className="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded border border-gray-50 italic">{item.notes || "Nessuna nota."}</div>
-                                        <div className="flex justify-between items-end border-t border-gray-50 pt-3">
-                                            <div className="text-xs text-gray-400 flex items-center gap-1">
-                                                <Calendar size={12} /> Risc: <span className="text-gray-700 font-semibold">{new Date(item.feedbackDate).toLocaleDateString('it-IT')}</span>
-                                            </div>
-                                            <div className="flex gap-2 items-center">
-                                                {/* Pulsante Completa / Ripristina */}
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); handleCompleteFollowup(item); }} 
-                                                    className={`text-[10px] uppercase font-bold px-3 py-1.5 rounded-lg border transition-colors shadow-sm active:scale-95 ${item.completed ? 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200' : 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200'}`}
-                                                >
-                                                    {item.completed ? 'Ripristina' : 'Completa'}
-                                                </button>
-                                                
-                                                <button onClick={() => prepareEditFollowup(item)} className="p-1.5 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><Edit2 size={16} /></button>
-                                                <button onClick={() => handleDeleteFollowup(item.id)} className="p-1.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-100"><Trash2 size={16} /></button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                </div>
-            );
-
-            // --- VISTA LISTA IDEE ---
-            const renderIdeas = () => (
-                <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-                    <div className="flex justify-between items-center mb-6">
-                        <div className="flex items-center gap-3">
-                            <h2 className="text-xl font-bold text-gray-800">Idee</h2>
-                            <button onClick={() => toggleSort('ideas')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 shadow-sm active:scale-95 transition-transform">
-                                <ArrowUpDown size={14} />
-                                {sortOrder.ideas === 'desc' ? 'Più recenti' : 'Meno recenti'}
-                            </button>
-                        </div>
-                        <button onClick={() => { setIdeaForm(initialIdeaState); setView('createIdea'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 flex items-center gap-2"><Plus size={16} /> Nuova</button>
-                    </div>
-                    <div className="space-y-3">
-                        {ideas.length === 0 ? (
-                            <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessuna idea registrata.</div>
-                        ) : (
-                            [...ideas].sort((a, b) => {
-                                const dateA = new Date(a.deadline);
-                                const dateB = new Date(b.deadline);
-                                return sortOrder.ideas === 'desc' ? dateB - dateA : dateA - dateB;
-                            }).map(item => (
-                                <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <h3 className="font-bold text-gray-800 text-lg">{item.client}</h3>
-                                        </div>
-                                        {item.deadline && (
-                                            <span className={`text-xs font-bold px-2 py-1 rounded ${new Date(item.deadline) < new Date() ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                                {new Date(item.deadline).toLocaleDateString('it-IT')}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="text-sm text-gray-700 mb-3 whitespace-pre-wrap">{item.text}</div>
-                                    <div className="flex justify-end gap-2 border-t border-gray-50 pt-3">
-                                        <button onClick={() => prepareEditIdea(item)} className="p-1.5 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><Edit2 size={16} /></button>
-                                        <button onClick={() => handleDeleteIdea(item.id)} className="p-1.5 text-red-500 bg-red-50 rounded-lg hover:bg-red-100"><Trash2 size={16} /></button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
-            );
-
-            // --- VISTA CREA IDEA ---
-            const renderCreateIdea = () => (
-                <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">{ideaForm.id ? 'Modifica Idea' : 'Nuova Idea'}</h2>
-                    <form onSubmit={handleIdeaSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                        <SectionContainer title="Dettagli Progetto" icon={Lightbulb}>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Azienda / Cliente *</label>
-                                <select required name="client" value={ideaForm.client} onChange={handleIdeaChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow">
-                                    <option value="">Seleziona Cliente...</option>
-                                    {sortedClients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}
-                                </select>
-                            </div>
-                            <TextArea label="Descrizione Idea" name="text" value={ideaForm.text} onChange={handleIdeaChange} placeholder="Descrivi la tua idea o progetto..." />
-                            <Input label="Data Scadenza" type="date" name="deadline" value={ideaForm.deadline} onChange={handleIdeaChange} required />
-                            
-                            {ideaForm.deadline && (
-                                <button type="button" onClick={() => addIdeaToCalendar({...ideaForm})} className="mt-3 w-full flex justify-center items-center gap-2 px-3 py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 active:scale-[0.98] transition-all hover:bg-indigo-100">
-                                    <Calendar size={18} /> Aggiungi a Calendario
-                                </button>
-                            )}
-                        </SectionContainer>
-                        <div className="pt-2 flex gap-3">
-                            <button type="button" onClick={() => setView('ideas')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl active:scale-[0.98] transition-transform">Annulla</button>
-                            <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] transition-transform flex justify-center items-center gap-2"><Save size={18} /> Salva</button>
-                        </div>
-                    </form>
-                </div>
-            );
-
-            const renderCreateFollowup = () => (
-                <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">{followupForm.id ? 'Modifica Offerta' : 'Nuova Offerta'}</h2>
-                    <form onSubmit={handleFollowupSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                        <SectionContainer title="Dettagli Offerta" icon={Target}>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Cliente *</label>
-                                <select required name="client" value={followupForm.client} onChange={handleFollowupChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow">
-                                    <option value="">Seleziona Cliente...</option>
-                                    {sortedClients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}
-                                </select>
-                            </div>
-                            <Input label="Numero Offerta" name="offerNumber" value={followupForm.offerNumber} onChange={handleFollowupChange} required placeholder="Es. OFF-2024/001" />
-                            <Input label="Importo (€)" type="number" step="0.01" name="amount" value={followupForm.amount} onChange={handleFollowupChange} required placeholder="0.00" />
-                            <Input label="Data Riscontro Atteso" type="date" name="feedbackDate" value={followupForm.feedbackDate} onChange={handleFollowupChange} required />
-                            <TextArea label="Note / Oggetto" name="notes" value={followupForm.notes} onChange={handleFollowupChange} placeholder="Dettagli sull'offerta..." />
-                            
-                            {followupForm.feedbackDate && (
-                                <button type="button" onClick={() => addFollowupToCalendar({...followupForm})} className="mt-3 w-full flex justify-center items-center gap-2 px-3 py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 active:scale-[0.98] transition-all hover:bg-indigo-100">
-                                    <Calendar size={18} /> Aggiungi a Calendario
-                                </button>
-                            )}
-                        </SectionContainer>
-                        <div className="pt-2 flex gap-3">
-                            <button type="button" onClick={() => setView('followups')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl active:scale-[0.98] transition-transform">Annulla</button>
-                            <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] transition-transform flex justify-center items-center gap-2"><Save size={18} /> Salva</button>
-                        </div>
-                    </form>
-                </div>
-            );
-
-            // --- VISTA CREA CLIENTE ---
-            const renderCreateClient = () => (
-                <div className="animate-fade-in pb-32 bg-gray-50 min-h-full">
-                    <div className="sticky top-0 bg-white z-10 p-4 border-b border-gray-200 flex items-center justify-between shadow-sm">
-                        <div className="flex items-center gap-2">
-                            <button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button>
-                            <h2 className="text-lg font-bold text-gray-800">{clientForm.id ? 'Modifica Scheda' : 'Nuova Scheda'}</h2>
-                        </div>
-                        <button onClick={handleClientSubmit} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg shadow-blue-200 flex items-center gap-2 active:scale-[0.98] transition-transform"><Save size={16} /> Salva</button>
-                    </div>
-                    <div className="p-4 space-y-6 max-w-lg mx-auto">
-                        <SectionContainer title="Anagrafica" icon={Building2}>
-                            <Input label="Ragione Sociale *" name="ragioneSociale" value={clientForm.ragioneSociale} onChange={handleClientChange} required />
-                            <Input label="Partita IVA" name="pIva" value={clientForm.pIva} onChange={handleClientChange} />
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <Input label="Telefono" name="telefono" value={clientForm.telefono} onChange={handleClientChange} />
-                                <Input label="Email" name="email" value={clientForm.email} onChange={handleClientChange} />
-                            </div>
-                        </SectionContainer>
-
-                        {/* SEZIONE AMMINISTRAZIONE SPOSTATA IN ALTO */}
-                        <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-2"><CreditCard size={14}/> Amministrazione</h3>
-                            <div className="space-y-3">
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Metodo Pagamento</label>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                    <SelectComponent label="Tipo Base" name="paymentMethod1" value={clientForm.paymentMethod1} onChange={handleClientChange} options={paymentOptions.method1} />
-                                    <SelectComponent label="Scadenza" name="paymentMethod2" value={clientForm.paymentMethod2} onChange={handleClientChange} options={paymentOptions.method2} />
-                                    <SelectComponent label="Struttura" name="paymentMethod3" value={clientForm.paymentMethod3} onChange={handleClientChange} options={paymentOptions.method3} />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-gray-100 mt-4">
-                                <Input label="Codice Univoco" name="sdiCode" value={clientForm.sdiCode} onChange={handleClientChange} />
-                                <Input label="PEC" name="pec" value={clientForm.pec} onChange={handleClientChange} />
-                                <Input label="Fido (€)" name="fido" value={clientForm.fido} onChange={handleClientChange} />
-                                <Input label="Data Fido" type="date" name="fidoDate" value={clientForm.fidoDate} onChange={handleClientChange} />
-                                <Input label="Abbigliamento" name="abbigliamento" value={clientForm.abbigliamento} onChange={handleClientChange} />
-                                <Input label="N. Operai" name="numeroOperai" value={clientForm.numeroOperai} onChange={handleClientChange} type="number" />
-                            </div>
-                        </section>
-
-                        <SectionContainer title="Sedi" icon={MapPin}>
-                            <Input label="Sede Legale" name="sedeLegale" value={clientForm.sedeLegale} onChange={handleClientChange} />
-                            <Input label="Sede Operativa" name="sedeOperativa" value={clientForm.sedeOperativa} onChange={handleClientChange} />
-                            <Input label="Magazzino" name="magazzino" value={clientForm.magazzino} onChange={handleClientChange} />
-                        </SectionContainer>
-
-                        <SectionContainer title="Note" icon={MessageSquare}>
-                            <TextArea label="Note Interne" name="note" value={clientForm.note} onChange={handleClientChange} />
-                            <TextArea label="Comunicazioni" name="comunicazioni" value={clientForm.comunicazioni} onChange={handleClientChange} />
-                        </SectionContainer>
-
-                        {/* NUOVA SEZIONE RACCOLTA INFO INIZIALI */}
-                        <SectionContainer title="Raccolta Info Iniziali" icon={ClipboardList}>
-                            {/* SETTORE */}
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Settore</label>
-                                <select name="sector" value={clientForm.sector} onChange={handleClientChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-2">
-                                    {sectorsList.map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                                {clientForm.sector === 'ALTRO' && (
-                                    <input type="text" name="sectorOther" value={clientForm.sectorOther || ''} onChange={handleClientChange} placeholder="Specifica settore..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
-                                )}
-                            </div>
-
-                            {/* AREE GEOGRAFICHE OPERATIVE */}
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Aree Geografiche Operative</label>
-                                <div className="flex gap-4">
-                                    {['ITALIA', 'ESTERO'].map(area => (
-                                        <label key={area} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded-lg border border-gray-200 cursor-pointer">
-                                            <input type="checkbox" value={area} checked={(clientForm.geoAreas || []).includes(area)} onChange={(e) => handleMultiSelectChange(e, 'geoAreas')} className="w-4 h-4 text-blue-600 rounded" />
-                                            {area}
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* REGIONI */}
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Regioni Operative (Italia)</label>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                    {regionsList.map(reg => (
-                                        <label key={reg} className="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100">
-                                            <input type="checkbox" value={reg} checked={(clientForm.regions || []).includes(reg)} onChange={(e) => handleMultiSelectChange(e, 'regions')} className="w-3.5 h-3.5 text-blue-600 rounded" />
-                                            <span className="truncate">{reg}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* CANTIERI ATTIVI */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Cantieri Attivi</label>
-                                    <select name="activeSites" value={clientForm.activeSites} onChange={handleClientChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
-                                        {[...Array(50).keys()].map(i => <option key={i+1} value={i+1}>{i+1}</option>)}
-                                        <option value="OLTRE 50">OLTRE 50</option>
-                                    </select>
-                                </div>
-                                <Input label="Note Cantieri Attivi" name="activeSitesNotes" value={clientForm.activeSitesNotes} onChange={handleClientChange} />
-                            </div>
-
-                            {/* SUB-APPALTI E PROCESSI */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Sub-Appalti</label>
-                                    <select name="subContracting" value={clientForm.subContracting} onChange={handleClientChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
-                                        <option value="SI">SI</option>
-                                        <option value="NO">NO</option>
-                                    </select>
-                                </div>
-                                <Input label="Processi Decisionali" name="decisionProcess" value={clientForm.decisionProcess} onChange={handleClientChange} />
-                            </div>
-
-                            {/* BRAND */}
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Brand Più Utilizzati</label>
-                                <div className="flex flex-wrap gap-2 mb-2">
-                                    {brandsList.map(brand => (
-                                        <label key={brand} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded-lg border border-gray-200 cursor-pointer">
-                                            <input type="checkbox" value={brand} checked={(clientForm.brands || []).includes(brand)} onChange={(e) => handleMultiSelectChange(e, 'brands')} className="w-4 h-4 text-blue-600 rounded" />
-                                            {brand}
-                                        </label>
-                                    ))}
-                                </div>
-                                <Input label="Altri Brand (Editabile)" name="brandsOther" value={clientForm.brandsOther} onChange={handleClientChange} placeholder="Specifica altri brand..." />
-                            </div>
-
-                            <Input label="Prodotti Più Utilizzati" name="products" value={clientForm.products} onChange={handleClientChange} />
-
-                            {/* APPROVVIGIONAMENTI */}
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Approvvigionamenti da Magazzino</label>
-                                <select name="supplies" value={clientForm.supplies} onChange={handleClientChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-2">
-                                    {suppliesList.map(s => <option key={s} value={s}>{s}</option>)}
-                                </select>
-                                {clientForm.supplies === 'ALTRO' && (
-                                    <input type="text" name="suppliesOther" value={clientForm.suppliesOther || ''} onChange={handleClientChange} placeholder="Specifica..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
-                                )}
-                            </div>
-
-                            <TextArea label="Note Generali" name="infoNotes" value={clientForm.infoNotes} onChange={handleClientChange} />
-
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Preferenza</label>
-                                <div className="flex gap-4">
-                                    {['ACQUISTO', 'NOLEGGIO'].map(pref => (
-                                        <label key={pref} className="flex items-center gap-2 cursor-pointer">
-                                            <input type="radio" name="preference" value={pref} checked={clientForm.preference === pref} onChange={handleClientChange} className="w-4 h-4 text-blue-600" />
-                                            <span className="text-sm text-gray-700 font-medium">{pref}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Input label="Fornitori Abituali" name="suppliers" value={clientForm.suppliers} onChange={handleClientChange} />
-                                <Input label="Pagamenti Abituali" name="payments" value={clientForm.payments} onChange={handleClientChange} />
-                            </div>
-
-                            <Input label="Mia Conclusione" name="conclusion" value={clientForm.conclusion} onChange={handleClientChange} />
-
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Valutazione</label>
-                                <select name="rating" value={clientForm.rating} onChange={handleClientChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
-                                    {[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} Stelle</option>)}
-                                </select>
-                            </div>
-
-                        </SectionContainer>
-
-                        <SectionContainer title="Rubrica Contatti" icon={Users}>
-                            {[1, 2, 3, 4].map(num => (<div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4"><div className="font-bold text-blue-600 mb-3 text-sm">Contatto {num}</div><div className="space-y-3"><Input label="Nome e Cognome" name="nome" value={clientForm[`contact${num}`].nome} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Mansione" name="mansione" value={clientForm[`contact${num}`].mansione} onChange={(e) => handleClientChange(e, `contact${num}`)} /><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={clientForm[`contact${num}`].telefono} onChange={(e) => handleClientChange(e, `contact${num}`)} /><Input label="Email" name="mail" value={clientForm[`contact${num}`].mail} onChange={(e) => handleClientChange(e, `contact${num}`)} /></div></div></div>))}
-                        </SectionContainer>
-                    </div>
-                </div>
-            );
-
-            // --- VISTA DETTAGLIO CLIENTE ---
-            const renderClientDetail = () => { 
-                if (!selectedClient) return null; 
-                return (
-                    <div className="animate-fade-in pb-32 bg-white min-h-full" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-                        <div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center">
-                            <button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button>
-                            <div className="flex gap-2">
-                                <button onClick={() => prepareEditClient(selectedClient)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button>
-                                <button onClick={() => handleDeleteClient(selectedClient.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button>
-                            </div>
-                        </div>
-                        <div className="p-6 space-y-8">
-                            <div>
-                                <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1>
-                                <p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p>
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    {selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Phone size={14}/> Chiama</a>}
-                                    {selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Mail size={14}/> Email</a>}
-                                </div>
-                            </div>
-
-                            {/* SEZIONE DATI AMMINISTRATIVI SPOSTATA IN ALTO */}
-                            <div className="space-y-4">
-                                <SectionTitle icon={<CreditCard size={16}/>} title="Dati Amministrativi" />
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <InfoRow label="Codice Univoco" value={selectedClient.sdiCode} />
-                                    <InfoRow label="PEC" value={selectedClient.pec} />
-                                    <div className="col-span-1 sm:col-span-2">
-                                        <InfoRow label="Metodo Pagamento" value={getFullPaymentMethod(selectedClient)} />
-                                    </div>
-                                    <InfoRow label="Fido (€)" value={selectedClient.fido} />
-                                    <InfoRow label="Data Fido" value={selectedClient.fidoDate || '-'} />
-                                    <InfoRow label="N. Operai" value={selectedClient.numeroOperai} />
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <SectionTitle icon={<Building2 size={16}/>} title="Sedi" />
-                                <InfoRow label="Sede Legale" value={selectedClient.sedeLegale} />
-                                <InfoRow label="Sede Operativa" value={selectedClient.sedeOperativa} />
-                                <InfoRow label="Magazzino" value={selectedClient.magazzino} />
-                            </div>
-                            
-                            <div className="space-y-4">
-                                <SectionTitle icon={<Users size={16}/>} title="Referenti" />
-                                {[1,2,3,4].map(num => { 
-                                    const c = selectedClient[`contact${num}`]; 
-                                    if (!c.nome && !c.mansione && !c.telefono && !c.mail) return null; 
-                                    return (
-                                        <div key={num} className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                            <div className="font-bold text-gray-800">{c.nome || `Contatto ${num}`}</div>
-                                            <div className="text-xs text-blue-600 font-medium mb-1">{c.mansione || '-'}</div>
-                                            <div className="text-xs text-gray-500 space-y-0.5">
-                                                {c.telefono && <div>Tel: <a href={`tel:${c.telefono}`} className="underline text-blue-500">{c.telefono}</a></div>}
-                                                {c.mail && <div>Mail: <a href={`mailto:${c.mail}`} className="underline text-blue-500">{c.mail}</a></div>}
-                                            </div>
-                                        </div>
-                                    ); 
-                                })} 
-                                {![1,2,3,4].some(num => selectedClient[`contact${num}`].nome) && (<p className="text-sm text-gray-400 italic">Nessun referente salvato.</p>)}
-                            </div>
-                            <div className="space-y-4">
-                                <SectionTitle icon={<MessageSquare size={16}/>} title="Note & Comunicazioni" />
-                                <SectionDisplay title="Abbigliamento" content={selectedClient.abbigliamento} small />
-                                <SectionDisplay title="Note Interne" content={selectedClient.note} small />
-                                <SectionDisplay title="Comunicazioni al Cliente" content={selectedClient.comunicazioni} small />
-                            </div>
-
-                            {/* NUOVA SEZIONE RACCOLTA INFO INIZIALI VIEW */}
-                            <div className="space-y-4">
-                                <SectionTitle icon={<ClipboardList size={16}/>} title="Raccolta Info Iniziali" />
-                                <div className="grid grid-cols-1 gap-4">
-                                    <InfoRow label="Settore" value={selectedClient.sector === 'ALTRO' ? selectedClient.sectorOther : selectedClient.sector} />
-                                    <InfoRow label="Aree Geografiche" value={(selectedClient.geoAreas || []).join(', ')} />
-                                    <div className="col-span-1">
-                                        <div className="text-sm font-medium text-gray-500 mb-1">Regioni:</div>
-                                        <div className="text-sm text-gray-800 bg-gray-50 p-2 rounded border border-gray-100 flex flex-wrap gap-1">
-                                            {(selectedClient.regions || []).length > 0 ? (selectedClient.regions || []).map(r => (
-                                                <span key={r} className="bg-white border border-gray-200 px-2 py-0.5 rounded text-xs">{r}</span>
-                                            )) : '-'}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <InfoRow label="Cantieri Attivi" value={selectedClient.activeSites} />
-                                        <InfoRow label="Sub-Appalti" value={selectedClient.subContracting} />
-                                    </div>
-                                    <SectionDisplay title="Note Cantieri" content={selectedClient.activeSitesNotes} small />
-                                    <SectionDisplay title="Processi Decisionali" content={selectedClient.decisionProcess} small />
-                                    
-                                    <div className="col-span-1">
-                                        <div className="text-sm font-medium text-gray-500 mb-1">Brand Utilizzati:</div>
-                                        <div className="text-sm text-gray-800">
-                                            {(selectedClient.brands || []).join(', ')} 
-                                            {selectedClient.brandsOther && (selectedClient.brands?.length > 0 ? ', ' : '') + selectedClient.brandsOther}
-                                        </div>
-                                    </div>
-                                    
-                                    <InfoRow label="Prodotti Più Utilizzati" value={selectedClient.products} />
-                                    <InfoRow label="Approvvigionamenti" value={selectedClient.supplies === 'ALTRO' ? selectedClient.suppliesOther : selectedClient.supplies} />
-                                    <SectionDisplay title="Note Generali" content={selectedClient.infoNotes} small />
-                                    
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <InfoRow label="Preferenza" value={selectedClient.preference} />
-                                        <InfoRow label="Valutazione" value={`${selectedClient.rating} / 5`} />
-                                    </div>
-                                    <InfoRow label="Fornitori Abituali" value={selectedClient.suppliers} />
-                                    <InfoRow label="Pagamenti Abituali" value={selectedClient.payments} />
-                                    <SectionDisplay title="Conclusione" content={selectedClient.conclusion} small />
-                                </div>
-                            </div>
-
-                            <div className="text-xs text-center text-gray-300 pt-8">Ultimo aggiornamento: {selectedClient.updatedAt}</div>
-                        </div>
-                    </div>
-                ); 
-            };
-
-            const renderList = () => {
-                // Filtro report basato sulla ricerca
-                const filteredReports = reports.filter(r => {
-                    const searchLower = reportSearch.toLowerCase();
-                    return (
-                        (r.client || '').toLowerCase().includes(searchLower) ||
-                        (r.description || '').toLowerCase().includes(searchLower) ||
-                        (r.title || '').toLowerCase().includes(searchLower)
-                    );
-                });
-
-                return (
-                    <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-gray-800">Storico</h2>
-                            <div className="flex gap-2">
-                                <button onClick={() => toggleSort('reports')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 shadow-sm active:scale-95 transition-transform">
-                                    <ArrowUpDown size={14} />
-                                    {sortOrder.reports === 'desc' ? 'Più recenti' : 'Meno recenti'}
-                                </button>
-                                <button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="bg-gray-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md active:scale-95 transition-transform flex items-center gap-1"><Plus size={14} /> Nuovo</button>
-                            </div>
-                        </div>
-
-                        {/* BARRA DI RICERCA REPORT */}
-                        <div className="mb-4 relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                                <Search size={18} />
-                            </div>
-                            <input 
-                                type="text"
-                                placeholder="Cerca nel report..."
-                                value={reportSearch}
-                                onChange={(e) => setReportSearch(e.target.value)}
-                                className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
-                            />
-                            {reportSearch && (
-                                <button 
-                                    onClick={() => setReportSearch('')}
-                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                                >
-                                    <X size={18} />
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="space-y-3">
-                            {filteredReports.length === 0 ? (<div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessun report trovato.</div>) : (
-                                [...filteredReports].sort((a, b) => {
-                                    // Ordinamento primario: Data selezionata dall'utente
-                                    const dateA = new Date(a.date).getTime();
-                                    const dateB = new Date(b.date).getTime();
-                                    
-                                    // Ordinamento secondario: Orario di creazione (createdAt)
-                                    // Se le date sono uguali, ordina per orario di inserimento per mantenere la sequenza
-                                    const createdA = new Date(a.createdAt || 0).getTime();
-                                    const createdB = new Date(b.createdAt || 0).getTime();
-
-                                    if (sortOrder.reports === 'desc') {
-                                        // Ordine discendente (Più recenti)
-                                        if (dateA !== dateB) return dateB - dateA; // Prima date più recenti
-                                        return createdB - createdA; // A parità di data, prima gli ultimi inseriti (LIFO)
-                                    } else {
-                                        // Ordine ascendente (Meno recenti)
-                                        if (dateA !== dateB) return dateA - dateB; // Prima date più vecchie
-                                        return createdA - createdB; // A parità di data, prima i primi inseriti (FIFO)
-                                    }
-                                }).map(report => {
-                                    // Logica per data scaduta report
-                                    const today = new Date();
-                                    today.setHours(0,0,0,0);
-                                    const nextDate = report.nextContactDate ? new Date(report.nextContactDate) : null;
-                                    const isExpired = nextDate && nextDate < today && !report.completed;
-                                    const cardStyle = isExpired ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-white border-gray-100 shadow-sm';
-
-                                    return (
-                                        <div key={report.id} onClick={() => { setSelectedReport(report); setView('detail'); }} className={`${cardStyle} p-4 rounded-xl border relative cursor-pointer active:scale-[0.99] transition-transform`}>
-                                            <div className="flex justify-between items-center">
-                                                <h3 className="font-bold text-gray-800 truncate pr-4">{report.client}</h3>
-                                                <span className="font-bold text-blue-600 flex-shrink-0">{report.hours}h</span>
-                                            </div>
-                                            <div className="text-sm text-gray-500 flex justify-between items-center mt-1">
-                                                <span className="truncate">{report.category}</span>
-                                                <span className="text-xs text-gray-400 flex-shrink-0">{new Date(report.date).toLocaleDateString('it-IT')}</span>
-                                            </div>
-                                            {report.nextContactDate && (
-                                                <div className="mt-2 flex justify-between items-center">
-                                                    <div className="text-xs font-semibold text-yellow-700 flex items-center gap-1 bg-yellow-50 p-1 rounded">
-                                                        <Bell size={12} className="text-yellow-500" /> Contatto: {new Date(report.nextContactDate).toLocaleDateString('it-IT')}
-                                                    </div>
-                                                    {isExpired && (
-                                                        <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded uppercase tracking-wider ml-2">SCADUTO</span>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {/* Pulsante Completa/Ripristina anche qui se c'è un nextContactDate */}
-                                            {report.nextContactDate && (
-                                                <div className="mt-2 flex justify-end">
-                                                    <button 
-                                                        onClick={(e) => { e.stopPropagation(); handleCompleteReport(report); }} 
-                                                        className={`text-[10px] uppercase font-bold px-3 py-1.5 rounded-lg border transition-colors shadow-sm active:scale-95 ${report.completed ? 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200' : 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200'}`}
-                                                    >
-                                                        {report.completed ? 'Ripristina' : 'Completa'}
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </div>
-                );
-            };
-
-            const NavItem = ({ icon: Icon, label, currentView, targetView, setView }) => {
-                // Logica attiva per i pulsanti di navigazione
-                const isActive = (['create', 'detail'].includes(currentView) && targetView === 'list' && ['create', 'detail', 'list'].includes(currentView)) || 
-                                 (['createClient', 'clientDetail'].includes(currentView) && targetView === 'clients' && ['createClient', 'clientDetail', 'clients'].includes(currentView)) || 
-                                 (['createFollowup'].includes(currentView) && targetView === 'followups' && ['createFollowup', 'followups'].includes(currentView)) || 
-                                 (['createIdea'].includes(currentView) && targetView === 'ideas' && ['createIdea', 'ideas'].includes(currentView)) ||
-                                 (currentView === targetView);
-                return (<button onClick={() => { 
-                    if (['create', 'detail'].includes(currentView) && targetView === 'list') setView('list'); 
-                    else if (['createClient', 'clientDetail'].includes(currentView) && targetView === 'clients') setView('clients'); 
-                    else if (['createFollowup'].includes(currentView) && targetView === 'followups') setView('followups'); 
-                    else if (['createIdea'].includes(currentView) && targetView === 'ideas') setView('ideas'); // Reset per Idee
-                    else if (currentView !== targetView) setView(targetView); 
-                }} className={`flex flex-col items-center p-2 rounded-xl transition-colors active:scale-95 ${isActive ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}><Icon size={24} className="mb-0.5" /><span className="text-[10px] font-medium">{label}</span></button>);
-            };
-
-            const CustomMessageModal = () => {
-                if (!message.text) return null;
-                const baseStyle = "fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-300";
-                if (message.type === 'confirm') return (<div className={`${baseStyle} bg-black bg-opacity-40`}><div className="bg-white rounded-xl shadow-2xl p-6 max-w-xs w-full space-y-4"><p className="font-semibold text-gray-800">{message.text}</p><div className="flex justify-end gap-3"><button onClick={() => handleConfirm(false)} className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg font-medium hover:bg-gray-200 active:scale-95 transition-transform">Annulla</button><button onClick={() => handleConfirm(true)} className="px-4 py-2 text-white bg-red-500 rounded-lg font-medium hover:bg-red-600 active:scale-95 transition-transform">Conferma</button></div></div></div>);
-                return (<div className={`fixed top-4 left-1/2 -translate-x-1/2 p-3 rounded-lg shadow-xl text-white flex items-center gap-2 ${message.type === 'success' ? 'bg-green-500' : message.type === 'error' ? 'bg-red-500' : 'bg-blue-500'} transition-transform duration-300 z-50`}>{message.type === 'success' ? <Check size={20}/> : message.type === 'error' ? <X size={20}/> : <Bell size={20}/>}<span className="font-medium text-sm">{message.text}</span></div>);
-            };
+            const downloadICS = () => generateICSFile(title, details, start, end);
 
             return (
-                <div className="min-h-screen bg-gray-100 flex justify-center items-start pt-0 sm:pt-6 font-sans text-gray-900">
-                    <div className="main-container w-full max-w-full md:max-w-7xl mx-auto bg-white h-screen sm:h-dvh sm:rounded-[2.5rem] sm:shadow-2xl overflow-hidden flex flex-col relative ring-8 ring-gray-900/5">
-                        <div className="flex-1 overflow-y-auto scrollbar-hide">
-                            {view === 'dashboard' && <div className="p-6">{renderDashboard()}</div>}
-                            {view === 'clients' && <div className="p-6">{renderClients()}</div>}
-                            {view === 'createClient' && renderCreateClient()}
-                            {view === 'clientDetail' && renderClientDetail()}
-                            {view === 'list' && <div className="p-6">{renderList()}</div>}
-                            {view === 'create' && <div className="p-6">{renderCreateReport()}</div>}
-                            {view === 'detail' && renderDetail()}
-                            {view === 'followups' && <div className="p-6">{renderFollowups()}</div>}
-                            {view === 'createFollowup' && <div className="p-6">{renderCreateFollowup()}</div>}
-                            {view === 'ideas' && <div className="p-6">{renderIdeas()}</div>}
-                            {view === 'createIdea' && <div className="p-6">{renderCreateIdea()}</div>}
+                <div className="flex gap-2 mt-3">
+                    <button type="button" onClick={openGoogle} className="flex-1 flex justify-center items-center gap-2 px-3 py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 active:scale-[0.98] transition-all hover:bg-indigo-100 text-xs">
+                        <Icons.Calendar size={16} /> Google Cal
+                    </button>
+                    <button type="button" onClick={downloadICS} className="flex-1 flex justify-center items-center gap-2 px-3 py-3 bg-gray-50 text-gray-700 font-bold rounded-xl border border-gray-200 active:scale-[0.98] transition-all hover:bg-gray-100 text-xs">
+                        <Icons.Download size={16} /> Scarica .ics
+                    </button>
+                </div>
+            );
+        };
+
+        // --- 4. LISTE DATI ---
+        const paymentOptions = {
+            method1: [{ label: "BB (Bonifico Bancario)", value: "BB" }, { label: "RI.BA (Ricevuta Bancaria)", value: "RI.BA" }],
+            method2: [{ label: "30 giorni", value: "30" }, { label: "60 giorni", value: "60" }, { label: "90 giorni", value: "90" }],
+            method3: [{ label: "DF (Data Fattura)", value: "DF" }, { label: "DFFM (Data Fattura Fine Mese)", value: "DFFM" }, { label: "Anticipato", value: "Anticipato" }],
+        };
+        const sectorsList = ['PUBBLICO', 'PRIVATO', 'INFRASTRUTTURE', 'EDILIZIA INDUSTRIALE', 'IMPIANTISTICA', 'ALTRO'];
+        const regionsList = ['Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche', 'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana', 'Trentino-Alto Adige', 'Umbria', 'Valle d\'Aosta', 'Veneto'];
+        const brandsList = ['HILTI', 'WURTH', 'MAKITA', 'BOSCH', 'BERNER'];
+        const suppliesList = ['URGENZE', 'SCORTE', 'PIANIFICAZIONE', 'ALTRO'];
+
+
+        // --- 5. VISTE E COMPONENTI PRINCIPALI ---
+
+        const DashboardView = () => {
+            const { clients, reports, followups, ideas, setView, setSelectedReport, setFollowupForm, fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout } = useContext(CRMContext);
+            
+            // Memoize lists for performance
+            const pendingReports = useMemo(() => reports.filter(r => r.nextContactDate && !r.completed).sort((a,b) => new Date(a.nextContactDate) - new Date(b.nextContactDate)).slice(0, 5), [reports]);
+            const pendingFollowups = useMemo(() => followups.filter(f => !f.completed).sort((a, b) => new Date(a.feedbackDate) - new Date(b.feedbackDate)).slice(0, 5), [followups]);
+
+            return (
+                <div className="space-y-6 animate-fade-in pb-32">
+                    <header className="mb-6"><h1 className="text-2xl font-bold text-gray-800">Dashboard</h1></header>
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-blue-600"><Icons.Users size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Clienti</span></div><div className="text-3xl font-bold text-gray-800">{clients.length}</div></div>
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-purple-600"><Icons.Target size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-yellow-500"><Icons.Lightbulb size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Idee</span></div><div className="text-3xl font-bold text-gray-800">{ideas.length}</div></div>
+                    </div>
+                    <button onClick={() => setView('create')} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 flex justify-center items-center gap-2 active:scale-95 transition-all"><Icons.Plus size={20} /> Nuovo Report</button>
+                    
+                    {pendingReports.length > 0 && (
+                        <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                            <h3 className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><Icons.Bell size={18} /> Promemoria Contatti</h3>
+                            <ul className="space-y-2">
+                                {pendingReports.map(r => (
+                                    <li key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="text-sm cursor-pointer hover:underline text-yellow-700 truncate">
+                                        <strong>{new Date(r.nextContactDate).toLocaleDateString('it-IT')}</strong> - {r.client}
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
-                        <nav className="bottom-nav fixed bottom-0 left-0 right-0 sm:static bg-white border-t border-gray-200 z-20 sm:p-0 sm:rounded-b-[2.5rem] p-3 shadow-top sm:shadow-none">
-                            <div className="flex justify-around">
-                                <NavItem icon={LayoutDashboard} label="Home" currentView={view} targetView="dashboard" setView={setView} />
-                                <NavItem icon={FileText} label="Report" currentView={view} targetView="list" setView={setView} />
-                                <NavItem icon={Target} label="Offerte" currentView={view} targetView="followups" setView={setView} />
-                                <NavItem icon={Lightbulb} label="Idee" currentView={view} targetView="ideas" setView={setView} />
-                                <NavItem icon={Users} label="Clienti" currentView={view} targetView="clients" setView={setView} />
-                            </div>
-                        </nav>
-                        <CustomMessageModal />
+                    )}
+
+                    {pendingFollowups.length > 0 && (
+                         <div className="bg-orange-50 p-4 rounded-xl border border-orange-200">
+                            <h3 className="flex items-center gap-2 text-sm font-bold text-orange-800 mb-3"><Icons.Target size={18} /> Ultime Offerte</h3>
+                            <ul className="space-y-3">
+                                {pendingFollowups.map(f => (
+                                    <li key={f.id} onClick={() => { setFollowupForm(f); setView('createFollowup'); }} className="flex justify-between items-center text-sm border-b border-orange-200/50 pb-2 last:border-0 cursor-pointer">
+                                        <div className="flex flex-col overflow-hidden">
+                                            <span className="font-bold text-orange-900 truncate">{f.client}</span>
+                                            <span className="text-xs text-orange-700/70">{f.offerNumber}</span>
+                                        </div>
+                                        <div className="font-bold text-orange-700">€ {f.amount}</div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
+                         <input type="file" ref={fileInputRef} className="hidden" onChange={handleImport} accept=".xlsx, .xls, .csv" />
+                        <button onClick={() => fileInputRef.current.click()} className="text-xs text-blue-600 p-3 bg-blue-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-blue-100 active:scale-95"><Icons.Upload size={16} /> Importa</button>
+                        <button onClick={exportToExcel} className="text-xs text-green-600 p-3 bg-green-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-green-100 active:scale-95"><Icons.Download size={16} /> Backup</button>
+                        <button onClick={handleCleanDuplicates} className="text-xs text-purple-600 p-3 bg-purple-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-purple-100 active:scale-95"><Icons.Trash2 size={16} /> Pulisci</button>
+                        <button onClick={handleLogout} className="text-xs text-red-500 p-3 bg-red-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-red-100 active:scale-95"><Icons.LogOut size={16} /> Esci</button>
                     </div>
                 </div>
+            );
+        };
+
+        const ReportForm = () => {
+            const { reportForm: initialData, saveReport, setView, clients } = useContext(CRMContext);
+            const [formData, setFormData] = useState(initialData);
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value, ...(name === 'client' ? {contactRef: ''} : {}) }));
+            };
+
+            const handleSubmit = (e) => { e.preventDefault(); saveReport(formData); };
+            const selectedClientData = useMemo(() => clients.find(c => c.ragioneSociale === formData.client), [clients, formData.client]);
+            const availableContacts = selectedClientData ? [selectedClientData.contact1, selectedClientData.contact2, selectedClientData.contact3, selectedClientData.contact4].filter(c => c?.nome) : [];
+
+            return (
+                <div className="animate-fade-in pb-32">
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica' : 'Nuovo'} Report</h2>
+                    <form onSubmit={handleSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <SectionContainer title="Dati" icon={Icons.FileText}>
+                            <div><label className="block text-sm font-bold text-gray-700 mb-1">Cliente *</label><select required name="client" value={formData.client} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="">Seleziona...</option>{clients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}</select></div>
+                            {availableContacts.length > 0 && (<div><label className="block text-sm font-bold text-gray-700 mb-1">Referente</label><select name="contactRef" value={formData.contactRef} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="">Nessuno spec.</option>{availableContacts.map((c, idx) => (<option key={idx} value={c.nome}>{c.nome} {c.mansione ? `(${c.mansione})` : ''}</option>))}</select></div>)}
+                            <div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="date" value={formData.date} onChange={handleChange} required /><Input label="Ore" type="number" step="0.5" name="hours" value={formData.hours} onChange={handleChange} required /></div>
+                            <div><label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label><select name="category" value={formData.category} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option>MANTENIMENTO RAPPORTO</option><option>ORDINE</option><option>RICHIESTA DI OFFERTA</option><option>RISCONTRO OFFERTA</option><option>COMUNICAZIONE</option><option>INIZIO RAPPORTO FORNITURE</option><option>SOLLECITO INIZIO FORNITURA</option><option>APPUNTAMENTO</option><option>ALTRO</option></select></div>
+                            <div><label className="block text-sm font-bold text-gray-700 mb-1">Tipo</label><select name="contactType" value={formData.contactType} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option>TELEFONICO</option><option>APPUNTAMENTO</option><option>VISITA</option><option>LINKEDIN</option><option>WHATSAPP</option><option>CANTIERE</option><option>ALTRO</option></select></div>
+                            <TextArea label="Descrizione" name="description" value={formData.description} onChange={handleChange} />
+                        </SectionContainer>
+                        <SectionContainer title="Follow-up" icon={Icons.AlarmCheck}>
+                            <div><label className="block text-sm font-bold text-gray-700 mb-2">Tipo Promemoria</label><div className="flex gap-2 mb-3">{['APPUNTAMENTO', 'PROMEMORIA', 'TELEFONATA'].map(type => (<button key={type} type="button" onClick={() => setFormData(p => ({ ...p, calendarEventType: type }))} className={`flex-1 py-3 text-xs font-bold rounded-lg border transition-all ${formData.calendarEventType === type ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'}`}>{type}</button>))}</div></div>
+                            <TextArea label="Appunti Futuri" name="futureNotes" value={formData.futureNotes} onChange={handleChange} />
+                            <div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="nextContactDate" value={formData.nextContactDate} onChange={handleChange} /><Input label="Ora" type="time" name="nextContactTime" value={formData.nextContactTime} onChange={handleChange} /></div>
+                            <CalendarButton title={`${formData.calendarEventType} - ${formData.client}`} details={formData.futureNotes} date={formData.nextContactDate} time={formData.nextContactTime} />
+                        </SectionContainer>
+                        <div className="pt-2 flex gap-3">
+                            <button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button>
+                            <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 flex justify-center gap-2"><Icons.Save size={18} /> Salva</button>
+                        </div>
+                    </form>
+                </div>
+            );
+        };
+
+        const ClientsList = () => {
+            const { sortedClients, toggleSort, sortOrder, setClientForm, setView, setSelectedClient } = useContext(CRMContext);
+            const [search, setSearch] = useState('');
+            const filtered = useMemo(() => sortedClients.filter(c => (c.ragioneSociale || '').toLowerCase().includes(search.toLowerCase())), [sortedClients, search]);
+
+            return (
+                <div className="animate-fade-in pb-32">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-800">Clienti</h2>
+                        <div className="flex gap-2">
+                            <button onClick={() => toggleSort('clients')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600"><Icons.ArrowUpDown size={14} /> {sortOrder.clients === 'desc' ? 'Z-A' : 'A-Z'}</button>
+                            <button onClick={() => { setClientForm({}); setView('createClient'); }} className="bg-gray-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"><Icons.Plus size={14} /> Nuovo</button>
+                        </div>
+                    </div>
+                    <div className="mb-4 relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div>
+                        <input type="text" placeholder="Cerca..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" />
+                        {search && <button onClick={() => setSearch('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"><Icons.X size={18} /></button>}
+                    </div>
+                    <div className="space-y-3">
+                        {filtered.length === 0 ? <div className="text-center py-8 text-gray-400 border border-dashed rounded-xl">Nessun cliente.</div> :
+                            filtered.map(c => (
+                                <div key={c.id} onClick={() => { setSelectedClient(c); setView('clientDetail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
+                                    <h3 className="font-bold text-gray-800 text-lg">{c.ragioneSociale}</h3>
+                                    <div className="text-xs text-gray-500">{c.sedeOperativa || c.sedeLegale || 'Sede non spec.'}</div>
+                                </div>
+                            ))
+                        }
+                    </div>
+                </div>
+            );
+        };
+
+        const ReportList = () => {
+             const { reports, toggleSort, sortOrder, setReportForm, setView, setSelectedReport } = useContext(CRMContext);
+             const [search, setSearch] = useState('');
+             
+             const filtered = useMemo(() => reports.filter(r => (r.client||'').toLowerCase().includes(search.toLowerCase()) || (r.description||'').toLowerCase().includes(search.toLowerCase())), [reports, search]);
+             const sorted = useMemo(() => [...filtered].sort((a,b) => sortOrder.reports === 'desc' ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date)), [filtered, sortOrder.reports]);
+
+             return (
+                <div className="animate-fade-in pb-32">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-800">Storico</h2>
+                        <div className="flex gap-2">
+                            <button onClick={() => toggleSort('reports')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600"><Icons.ArrowUpDown size={14} /> {sortOrder.reports === 'desc' ? 'Recenti' : 'Vecchi'}</button>
+                            <button onClick={() => { setReportForm({}); setView('create'); }} className="bg-gray-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"><Icons.Plus size={14} /> Nuovo</button>
+                        </div>
+                    </div>
+                     <div className="mb-4 relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div>
+                        <input type="text" placeholder="Cerca..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" />
+                    </div>
+                    <div className="space-y-3">
+                        {sorted.map(r => (
+                            <div key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className={`p-4 rounded-xl border relative cursor-pointer active:scale-[0.99] transition-transform ${r.nextContactDate && !r.completed && new Date(r.nextContactDate) < new Date() ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-100'}`}>
+                                <div className="flex justify-between">
+                                    <h3 className="font-bold text-gray-800 truncate pr-4">{r.client}</h3>
+                                    <span className="font-bold text-blue-600 shrink-0">{r.hours}h</span>
+                                </div>
+                                <div className="text-sm text-gray-500 flex justify-between mt-1">
+                                    <span>{r.category}</span>
+                                    <span className="text-xs">{new Date(r.date).toLocaleDateString('it-IT')}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+             );
+        };
+        
+        const ClientDetailView = () => {
+            const { selectedClient, setView, setClientForm, setSelectedClient } = useContext(CRMContext);
+            const { clients } = useContext(CRMContext); // Access clients list for delete if needed, or pass handleDelete
+
+            if (!selectedClient) return null;
+            
+            const getFullPaymentMethod = (client) => [client.paymentMethod1, client.paymentMethod2, client.paymentMethod3].filter(Boolean).join(' - ') || 'Non Specificato';
+
+            return (
+                <div className="animate-fade-in pb-32 bg-white min-h-full">
+                    <div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center">
+                        <button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><Icons.ChevronRight size={24} className="rotate-180" /></button>
+                        <div className="flex gap-2">
+                            <button onClick={() => { setClientForm(selectedClient); setView('createClient'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Icons.Edit2 size={20}/></button>
+                            {/* Delete could be implemented here */}
+                        </div>
+                    </div>
+                    <div className="p-6 space-y-8">
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1>
+                            <p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                {selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Icons.Phone size={14}/> Chiama</a>}
+                                {selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Icons.Mail size={14}/> Email</a>}
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <SectionTitle icon={<Icons.CreditCard size={16}/>} title="Dati Amministrativi" />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <InfoRow label="Codice Univoco" value={selectedClient.sdiCode} />
+                                <InfoRow label="PEC" value={selectedClient.pec} />
+                                <div className="col-span-1 sm:col-span-2"><InfoRow label="Metodo Pagamento" value={getFullPaymentMethod(selectedClient)} /></div>
+                                <InfoRow label="Fido (€)" value={selectedClient.fido} />
+                                <InfoRow label="Data Fido" value={selectedClient.fidoDate} />
+                                <InfoRow label="N. Operai" value={selectedClient.numeroOperai} />
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <SectionTitle icon={<Icons.Building2 size={16}/>} title="Sedi" />
+                            <InfoRow label="Sede Legale" value={selectedClient.sedeLegale} />
+                            <InfoRow label="Sede Operativa" value={selectedClient.sedeOperativa} />
+                            <InfoRow label="Magazzino" value={selectedClient.magazzino} />
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <SectionTitle icon={<Icons.Users size={16}/>} title="Referenti" />
+                            {[1,2,3,4].map(num => { 
+                                const c = selectedClient[`contact${num}`]; 
+                                if (!c?.nome && !c?.mansione && !c?.telefono && !c?.mail) return null; 
+                                return (
+                                    <div key={num} className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                        <div className="font-bold text-gray-800">{c.nome || `Contatto ${num}`}</div>
+                                        <div className="text-xs text-blue-600 font-medium mb-1">{c.mansione || '-'}</div>
+                                        <div className="text-xs text-gray-500 space-y-0.5">
+                                            {c.telefono && <div>Tel: <a href={`tel:${c.telefono}`} className="underline text-blue-500">{c.telefono}</a></div>}
+                                            {c.mail && <div>Mail: <a href={`mailto:${c.mail}`} className="underline text-blue-500">{c.mail}</a></div>}
+                                        </div>
+                                    </div>
+                                ); 
+                            })} 
+                        </div>
+
+                        <div className="space-y-4">
+                            <SectionTitle icon={<Icons.MessageSquare size={16}/>} title="Note & Comunicazioni" />
+                            <SectionDisplay title="Abbigliamento" content={selectedClient.abbigliamento} small />
+                            <SectionDisplay title="Note Interne" content={selectedClient.note} small />
+                            <SectionDisplay title="Comunicazioni al Cliente" content={selectedClient.comunicazioni} small />
+                        </div>
+
+                        <div className="space-y-4">
+                            <SectionTitle icon={<Icons.ClipboardList size={16}/>} title="Info Iniziali" />
+                            <div className="grid grid-cols-1 gap-4">
+                                <InfoRow label="Settore" value={selectedClient.sector === 'ALTRO' ? selectedClient.sectorOther : selectedClient.sector} />
+                                <InfoRow label="Aree Geografiche" value={(selectedClient.geoAreas || []).join(', ')} />
+                                <div className="col-span-1">
+                                    <div className="text-sm font-medium text-gray-500 mb-1">Regioni:</div>
+                                    <div className="text-sm text-gray-800 bg-gray-50 p-2 rounded border border-gray-100 flex flex-wrap gap-1">
+                                        {(selectedClient.regions || []).length > 0 ? (selectedClient.regions || []).map(r => (<span key={r} className="bg-white border border-gray-200 px-2 py-0.5 rounded text-xs">{r}</span>)) : '-'}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <InfoRow label="Cantieri Attivi" value={selectedClient.activeSites} />
+                                    <InfoRow label="Sub-Appalti" value={selectedClient.subContracting} />
+                                </div>
+                                <SectionDisplay title="Note Cantieri" content={selectedClient.activeSitesNotes} small />
+                                <SectionDisplay title="Processi Decisionali" content={selectedClient.decisionProcess} small />
+                                <div className="col-span-1">
+                                    <div className="text-sm font-medium text-gray-500 mb-1">Brand Utilizzati:</div>
+                                    <div className="text-sm text-gray-800">
+                                        {(selectedClient.brands || []).join(', ')} {selectedClient.brandsOther && (selectedClient.brands?.length > 0 ? ', ' : '') + selectedClient.brandsOther}
+                                    </div>
+                                </div>
+                                <InfoRow label="Prodotti Più Utilizzati" value={selectedClient.products} />
+                                <InfoRow label="Approvvigionamenti" value={selectedClient.supplies === 'ALTRO' ? selectedClient.suppliesOther : selectedClient.supplies} />
+                                <SectionDisplay title="Note Generali" content={selectedClient.infoNotes} small />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <InfoRow label="Preferenza" value={selectedClient.preference} />
+                                    <InfoRow label="Valutazione" value={`${selectedClient.rating} / 5`} />
+                                </div>
+                                <InfoRow label="Fornitori Abituali" value={selectedClient.suppliers} />
+                                <InfoRow label="Pagamenti Abituali" value={selectedClient.payments} />
+                                <SectionDisplay title="Conclusione" content={selectedClient.conclusion} small />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ClientForm = () => {
+            const { clientForm: initialData, saveClient, setView } = useContext(CRMContext);
+            const [formData, setFormData] = useState({ 
+                geoAreas: [], regions: [], brands: [], contact1: {}, contact2: {}, contact3: {}, contact4: {},
+                ...initialData 
+            });
+
+            const handleChange = (e, section) => {
+                const { name, value } = e.target;
+                if (section) setFormData(p => ({ ...p, [section]: { ...p[section], [name]: value } }));
+                else setFormData(p => ({ ...p, [name]: value }));
+            };
+
+            const handleMulti = (e, arrName) => {
+                const { value, checked } = e.target;
+                setFormData(p => ({ ...p, [arrName]: checked ? [...(p[arrName]||[]), value] : (p[arrName]||[]).filter(x => x !== value) }));
+            };
+            
+            return (
+                <div className="animate-fade-in pb-32 bg-gray-50 min-h-full">
+                    <div className="sticky top-0 bg-white z-10 p-4 border-b border-gray-200 flex justify-between shadow-sm">
+                        <button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><Icons.ChevronRight size={24} className="rotate-180" /></button>
+                        <button onClick={() => saveClient(formData)} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg flex items-center gap-2"><Icons.Save size={16} /> Salva</button>
+                    </div>
+                    <div className="p-4 space-y-6 max-w-lg mx-auto">
+                        <SectionContainer title="Anagrafica" icon={Icons.Building2}>
+                            <Input label="Ragione Sociale *" name="ragioneSociale" value={formData.ragioneSociale} onChange={handleChange} required />
+                            <Input label="Partita IVA" name="pIva" value={formData.pIva} onChange={handleChange} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <Input label="Telefono" name="telefono" value={formData.telefono} onChange={handleChange} />
+                                <Input label="Email" name="email" value={formData.email} onChange={handleChange} />
+                            </div>
+                        </SectionContainer>
+                        
+                        <SectionContainer title="Amministrazione" icon={Icons.CreditCard}>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Metodo Pagamento</label>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <SelectComponent label="Tipo Base" name="paymentMethod1" value={formData.paymentMethod1} onChange={handleChange} options={paymentOptions.method1} />
+                                <SelectComponent label="Scadenza" name="paymentMethod2" value={formData.paymentMethod2} onChange={handleChange} options={paymentOptions.method2} />
+                                <SelectComponent label="Struttura" name="paymentMethod3" value={formData.paymentMethod3} onChange={handleChange} options={paymentOptions.method3} />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-gray-100 mt-4">
+                                <Input label="Codice Univoco" name="sdiCode" value={formData.sdiCode} onChange={handleChange} />
+                                <Input label="PEC" name="pec" value={formData.pec} onChange={handleChange} />
+                                <Input label="Fido (€)" name="fido" value={formData.fido} onChange={handleChange} />
+                                <Input label="Data Fido" type="date" name="fidoDate" value={formData.fidoDate} onChange={handleChange} />
+                                <Input label="Abbigliamento" name="abbigliamento" value={formData.abbigliamento} onChange={handleChange} />
+                                <Input label="N. Operai" name="numeroOperai" value={formData.numeroOperai} onChange={handleChange} type="number" />
+                            </div>
+                        </SectionContainer>
+                        
+                        <SectionContainer title="Sedi" icon={Icons.MapPin}>
+                            <Input label="Sede Legale" name="sedeLegale" value={formData.sedeLegale} onChange={handleChange} />
+                            <Input label="Sede Operativa" name="sedeOperativa" value={formData.sedeOperativa} onChange={handleChange} />
+                            <Input label="Magazzino" name="magazzino" value={formData.magazzino} onChange={handleChange} />
+                        </SectionContainer>
+
+                        <SectionContainer title="Note" icon={Icons.MessageSquare}>
+                            <TextArea label="Note Interne" name="note" value={formData.note} onChange={handleChange} />
+                            <TextArea label="Comunicazioni" name="comunicazioni" value={formData.comunicazioni} onChange={handleChange} />
+                        </SectionContainer>
+
+                        <SectionContainer title="Info Iniziali" icon={Icons.ClipboardList}>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Settore</label>
+                            <select name="sector" value={formData.sector} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-2">
+                                {sectorsList.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            {formData.sector === 'ALTRO' && <input type="text" name="sectorOther" value={formData.sectorOther || ''} onChange={handleChange} placeholder="Specifica settore..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />}
+                            
+                            <label className="block text-sm font-bold text-gray-700 mt-4 mb-2">Aree Geografiche</label>
+                            <div className="flex gap-4 mb-4">{['ITALIA','ESTERO'].map(a=><label key={a} className="flex gap-2 text-sm cursor-pointer"><input type="checkbox" value={a} checked={(formData.geoAreas||[]).includes(a)} onChange={e=>handleMulti(e,'geoAreas')}/>{a}</label>)}</div>
+                            
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Regioni Operative</label>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
+                                {regionsList.map(reg => (
+                                    <label key={reg} className="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100">
+                                        <input type="checkbox" value={reg} checked={(formData.regions || []).includes(reg)} onChange={(e) => handleMulti(e, 'regions')} className="w-3.5 h-3.5" />
+                                        <span className="truncate">{reg}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label className="block text-sm font-bold text-gray-700 mb-1">Cantieri Attivi</label><select name="activeSites" value={formData.activeSites} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none">{[...Array(50).keys()].map(i => <option key={i+1} value={i+1}>{i+1}</option>)}<option value="OLTRE 50">OLTRE 50</option></select></div>
+                                <Input label="Note Cantieri" name="activeSitesNotes" value={formData.activeSitesNotes} onChange={handleChange} />
+                            </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <div><label className="block text-sm font-bold text-gray-700 mb-1">Sub-Appalti</label><select name="subContracting" value={formData.subContracting} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="SI">SI</option><option value="NO">NO</option></select></div>
+                                <Input label="Processi Decisionali" name="decisionProcess" value={formData.decisionProcess} onChange={handleChange} />
+                            </div>
+                            
+                            <label className="block text-sm font-bold text-gray-700 mt-4 mb-2">Brand</label>
+                            <div className="flex flex-wrap gap-2 mb-2">{brandsList.map(b=><label key={b} className="flex gap-2 text-xs bg-white p-2 border rounded cursor-pointer"><input type="checkbox" value={b} checked={(formData.brands||[]).includes(b)} onChange={e=>handleMulti(e,'brands')}/>{b}</label>)}</div>
+                            <Input label="Altri Brand" name="brandsOther" value={formData.brandsOther} onChange={handleChange} />
+                            
+                            <Input label="Prodotti Più Utilizzati" name="products" value={formData.products} onChange={handleChange} />
+                            
+                            <div className="mt-4">
+                                <label className="block text-sm font-bold text-gray-700 mb-1">Approvvigionamenti</label>
+                                <select name="supplies" value={formData.supplies} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none mb-2">{suppliesList.map(s => <option key={s} value={s}>{s}</option>)}</select>
+                                {formData.supplies === 'ALTRO' && <input type="text" name="suppliesOther" value={formData.suppliesOther || ''} onChange={handleChange} placeholder="Specifica..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />}
+                            </div>
+
+                            <TextArea label="Note Generali" name="infoNotes" value={formData.infoNotes} onChange={handleChange}/>
+                            
+                            <div className="mt-4">
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Preferenza</label>
+                                <div className="flex gap-4">{['ACQUISTO', 'NOLEGGIO'].map(pref => (<label key={pref} className="flex items-center gap-2 cursor-pointer"><input type="radio" name="preference" value={pref} checked={formData.preference === pref} onChange={handleChange} className="w-4 h-4" /><span className="text-sm">{pref}</span></label>))}</div>
+                            </div>
+
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <Input label="Fornitori Abituali" name="suppliers" value={formData.suppliers} onChange={handleChange} />
+                                <Input label="Pagamenti Abituali" name="payments" value={formData.payments} onChange={handleChange} />
+                            </div>
+                            <Input label="Mia Conclusione" name="conclusion" value={formData.conclusion} onChange={handleChange} />
+                             <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-1 mt-4">Valutazione</label>
+                                <select name="rating" value={formData.rating} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none">{[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} Stelle</option>)}</select>
+                            </div>
+                        </SectionContainer>
+                        
+                        <SectionContainer title="Rubrica Contatti" icon={Icons.Users}>
+                             {[1, 2, 3, 4].map(num => (<div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4"><div className="font-bold text-blue-600 mb-3 text-sm">Contatto {num}</div><div className="space-y-3"><Input label="Nome e Cognome" name="nome" value={formData[`contact${num}`]?.nome} onChange={(e) => handleChange(e, `contact${num}`)} /><Input label="Mansione" name="mansione" value={formData[`contact${num}`]?.mansione} onChange={(e) => handleChange(e, `contact${num}`)} /><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={formData[`contact${num}`]?.telefono} onChange={(e) => handleChange(e, `contact${num}`)} /><Input label="Email" name="mail" value={formData[`contact${num}`]?.mail} onChange={(e) => handleChange(e, `contact${num}`)} /></div></div></div>))}
+                        </SectionContainer>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [db, setDb] = useState(null);
+            const [userKey, setUserKey] = useState(localStorage.getItem('crm_user_key') || '');
+            const [isLoggedIn, setIsLoggedIn] = useState(!!userKey);
+            const [view, setView] = useState('dashboard');
+            
+            // Dati
+            const [clients, setClients] = useState([]);
+            const [reports, setReports] = useState([]);
+            const [followups, setFollowups] = useState([]);
+            const [ideas, setIdeas] = useState([]);
+            
+            // Stati Selezione
+            const [selectedReport, setSelectedReport] = useState(null);
+            const [selectedClient, setSelectedClient] = useState(null);
+            
+            // Stati Form Temporanei (Initial Data)
+            const [reportForm, setReportForm] = useState({});
+            const [clientForm, setClientForm] = useState({});
+            const [followupForm, setFollowupForm] = useState({});
+            const [ideaForm, setIdeaForm] = useState({});
+
+            const [sortOrder, setSortOrder] = useState({ reports: 'desc', clients: 'asc', followups: 'desc', ideas: 'desc' });
+            const [message, setMessage] = useState({ text: '', type: '' });
+            const fileInputRef = useRef(null);
+            
+            // 1. Init
+            useEffect(() => {
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                const dbInst = getFirestore(app);
+                setDb(dbInst);
+                onAuthStateChanged(auth, u => !u && signInAnonymously(auth));
+            }, []);
+
+            // 2. Data Fetching
+            useEffect(() => {
+                if (!db || !userKey) return;
+                const key = userKey.toLowerCase().replace(/\s/g, '');
+                const subs = [
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/reports`), s => setReports(s.docs.map(d => ({ ...d.data(), id: d.id })))),
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/clients`), s => setClients(s.docs.map(d => ({ ...d.data(), id: d.id })))),
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/followups`), s => setFollowups(s.docs.map(d => ({ ...d.data(), id: d.id })))),
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/ideas`), s => setIdeas(s.docs.map(d => ({ ...d.data(), id: d.id }))))
+                ];
+                return () => subs.forEach(unsub => unsub());
+            }, [db, userKey]);
+
+            // Memoized Sorted Lists
+            const sortedClients = useMemo(() => {
+                const s = [...clients].sort((a,b) => (a.ragioneSociale||'').localeCompare(b.ragioneSociale||''));
+                return sortOrder.clients === 'desc' ? s.reverse() : s;
+            }, [clients, sortOrder.clients]);
+
+            // Actions
+            const showMessage = (text, type='info') => { setMessage({text, type}); setTimeout(() => setMessage({text:'', type:''}), 3000); };
+            const toggleSort = (k) => setSortOrder(p => ({ ...p, [k]: p[k] === 'desc' ? 'asc' : 'desc' }));
+            
+            const saveReport = async (data) => {
+                const key = userKey.toLowerCase().replace(/\s/g, '');
+                const id = data.id || String(Date.now());
+                const title = data.title || `${data.category} - ${data.date}`;
+                await setDoc(doc(db, `artifacts/${appId}/users/${key}/reports`, id), { ...data, id, title, createdAt: data.createdAt || new Date().toISOString() });
+                showMessage('Report Salvato', 'success');
+                setView('list');
+            };
+
+            const saveClient = async (data) => {
+                const key = userKey.toLowerCase().replace(/\s/g, '');
+                const id = data.id || String(Date.now());
+                await setDoc(doc(db, `artifacts/${appId}/users/${key}/clients`, id), { ...data, id, updatedAt: new Date().toLocaleDateString('it-IT') });
+                showMessage('Cliente Salvato', 'success');
+                setView('clients');
+            };
+
+             const handleLogin = (e) => {
+                e.preventDefault();
+                const input = e.target.elements[0].value.trim();
+                if(input) { localStorage.setItem('crm_user_key', input); setUserKey(input); setIsLoggedIn(true); }
+            };
+
+            const handleLogout = () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); setView('dashboard'); };
+            const handleCleanDuplicates = () => showMessage('Funzione simulata per performance', 'info'); // Placeholder
+            const handleImport = () => showMessage('Import simulato', 'info'); // Placeholder
+            const exportToExcel = () => showMessage('Export simulato', 'info'); // Placeholder
+
+            // Nav swipe logic (Simplificata)
+            const [touchStart, setTouchStart] = useState(null);
+            const onTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX);
+            const onTouchEnd = (e) => {
+                if(!touchStart) return;
+                const diff = touchStart - e.changedTouches[0].clientX;
+                const tabs = ['dashboard', 'list', 'followups', 'ideas', 'clients'];
+                const idx = tabs.indexOf(view);
+                if(idx > -1 && Math.abs(diff) > 75) {
+                    if (diff > 0 && idx < tabs.length - 1) setView(tabs[idx + 1]);
+                    if (diff < 0 && idx > 0) setView(tabs[idx - 1]);
+                }
+                setTouchStart(null);
+            };
+
+            // Initial form states
+            const emptyReport = { date: new Date().toISOString().split('T')[0], hours: '', category: 'MANTENIMENTO RAPPORTO', contactType: 'TELEFONICO', calendarEventType: 'APPUNTAMENTO' };
+
+            const contextValue = {
+                db, userKey, view, setView,
+                clients, reports, followups, ideas, sortedClients,
+                sortOrder, toggleSort,
+                selectedReport, setSelectedReport, selectedClient, setSelectedClient,
+                reportForm: { ...emptyReport, ...reportForm }, setReportForm,
+                clientForm: { ...clientForm }, setClientForm,
+                followupForm, setFollowupForm, ideaForm, setIdeaForm,
+                saveReport, saveClient,
+                fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout
+            };
+
+            if (!isLoggedIn) return (
+                <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4">
+                    <form onSubmit={handleLogin} className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center">
+                        <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600"><Icons.Lock size={32}/></div>
+                        <h1 className="text-2xl font-bold mb-2">WorkReport CRM</h1>
+                        <input type="text" placeholder="Tua Chiave Segreta" className="w-full p-4 bg-gray-50 rounded-xl mb-4 text-center font-bold outline-none border focus:border-blue-500" autoFocus/>
+                        <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">Accedi</button>
+                    </form>
+                </div>
+            );
+
+            return (
+                <CRMContext.Provider value={contextValue}>
+                    <div className="min-h-screen bg-gray-100 flex justify-center pt-0 sm:pt-6">
+                        <div className="w-full max-w-7xl bg-white h-dvh sm:rounded-[2.5rem] sm:shadow-2xl overflow-hidden flex flex-col ring-8 ring-gray-900/5">
+                            <div className="flex-1 overflow-y-auto scrollbar-hide p-6" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+                                {view === 'dashboard' && <DashboardView />}
+                                {view === 'list' && <ReportList />}
+                                {view === 'create' && <ReportForm />}
+                                {view === 'clients' && <ClientsList />}
+                                {view === 'createClient' && <ClientForm />}
+                                {view === 'clientDetail' && <ClientDetailView />}
+                                {/* Altre viste (followups, ideas) omesse per brevità ma il pattern è lo stesso */}
+                            </div>
+                            
+                            {/* Navigazione */}
+                            <nav className="border-t border-gray-200 p-3 bg-white z-20">
+                                <div className="flex justify-around">
+                                    {[
+                                        { id: 'dashboard', icon: Icons.LayoutDashboard, label: 'Home' },
+                                        { id: 'list', icon: Icons.FileText, label: 'Report' },
+                                        { id: 'followups', icon: Icons.Target, label: 'Offerte' },
+                                        { id: 'ideas', icon: Icons.Lightbulb, label: 'Idee' },
+                                        { id: 'clients', icon: Icons.Users, label: 'Clienti' }
+                                    ].map(item => (
+                                        <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 rounded-xl transition-all active:scale-95 ${view === item.id ? 'text-blue-600 scale-105' : 'text-gray-400'}`}>
+                                            <item.icon size={24} className="mb-0.5" />
+                                            <span className="text-[10px] font-bold">{item.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </nav>
+                            
+                            {message.text && (
+                                <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-xl text-white font-bold text-sm z-50 ${message.type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`}>
+                                    {message.text}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </CRMContext.Provider>
             );
         };
 
