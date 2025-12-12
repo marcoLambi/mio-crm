@@ -201,6 +201,7 @@
             const [selectedReport, setSelectedReport] = useState(null);
             const [selectedClient, setSelectedClient] = useState(null);
             const [clientSearch, setClientSearch] = useState('');
+            const [reportSearch, setReportSearch] = useState(''); // NUOVO STATO RICERCA REPORT
             const [statusFilter, setStatusFilter] = useState('ALL');
 
             // --- NUOVI STATI PER ORDINAMENTO ---
@@ -1467,57 +1468,45 @@
                 ); 
             };
 
-            const renderDetail = () => { if (!selectedReport) return null; return (<div className="animate-fade-in h-full flex flex-col relative bg-white pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}><div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex justify-between items-center no-print"><button onClick={() => setView('list')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => prepareEditReport(selectedReport)} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Edit2 size={20} /></button><button onClick={() => handleDeleteReport(selectedReport.id)} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Trash2 size={20} /></button><button onClick={() => window.print()} className="p-2 text-gray-600 bg-gray-100 rounded-full hover:bg-gray-200"><Printer size={20} /></button></div></div><div className="p-6 print:p-0 space-y-6"><div className="border-b border-gray-100 pb-4"><span className="text-sm text-gray-500 uppercase tracking-wide">Rapporto di Intervento</span><h1 className="text-2xl font-bold text-gray-900 mt-1">{selectedReport.title}</h1><div className="text-sm text-gray-600 mt-2">Cliente: <span className="font-semibold text-blue-600">{selectedReport.client}</span></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><InfoBox label="Ore Totali" value={`${selectedReport.hours} h`} color="text-green-600" icon={Clock} /><InfoBox label="Data Inserimento" value={new Date(selectedReport.date).toLocaleDateString('it-IT')} color="text-purple-600" icon={Calendar} /><InfoBox label="Categoria" value={selectedReport.category} icon={Briefcase} color="text-gray-700" /><InfoBox label="Tipo Contatto" value={selectedReport.contactType} icon={MessageSquare} color="text-gray-700" /><InfoBox label="Creato il" value={selectedReport.createdAt ? new Date(selectedReport.createdAt).toLocaleDateString('it-IT') : '-'} icon={Check} color="text-gray-700" />
-            
-            {/* Mostra il referente se presente */}
-            {selectedReport.contactRef && (
-                <InfoBox label="Referente" value={selectedReport.contactRef} icon={Users} color="text-gray-700" />
-            )}
-            
-            </div><SectionDisplay title="Descrizione Dettagliata" content={selectedReport.description} /><div className="bg-blue-50 p-4 rounded-xl border border-blue-200 space-y-3"><h3 className="text-sm font-bold text-blue-800 flex items-center gap-2"><AlarmCheck size={18}/> Prossima Pianificazione</h3><SectionDisplay title="Appunti Futuri" content={selectedReport.futureNotes} small />{(selectedReport.nextContactDate || selectedReport.nextContactTime) ? (<div className="pt-2 border-t border-blue-100"><InfoBox label="Prossimo Contatto" value={`${selectedReport.nextContactDate} ${selectedReport.nextContactTime ? `alle ${selectedReport.nextContactTime}` : ''}`} icon={Calendar} color="text-blue-800" />{selectedReport.nextContactDate && (<button onClick={() => addToGoogleCalendar(selectedReport)} className="mt-3 w-full flex justify-center items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md active:scale-[0.98] transition-transform"><Calendar size={18} /> Apri Calendario</button>)}</div>) : (<p className="text-sm text-blue-700 italic">Nessun contatto futuro pianificato.</p>)}</div></div></div>); };
-
-            const renderClients = () => {
-                const nameCounts = clients.reduce((acc, client) => {
-                    const name = (client.ragioneSociale || '').trim().toLowerCase();
-                    acc[name] = (acc[name] || 0) + 1;
-                    return acc;
-                }, {});
-
-                const normalizeForSearch = (str) => {
-                    return (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                };
-
-                const searchClean = normalizeForSearch(clientSearch);
-                const filteredClients = sortedClients.filter(client => {
-                    const matchesSearch = normalizeForSearch(client.ragioneSociale).includes(searchClean);
-                    if (!matchesSearch) return false;
-                    if (statusFilter === 'ALL') return true;
-                    const status = getClientStatus(client.ragioneSociale);
-                    return status.label === statusFilter;
+            const renderList = () => {
+                // Filtro report basato sulla ricerca
+                const filteredReports = reports.filter(r => {
+                    const searchLower = reportSearch.toLowerCase();
+                    return (
+                        (r.client || '').toLowerCase().includes(searchLower) ||
+                        (r.description || '').toLowerCase().includes(searchLower) ||
+                        (r.title || '').toLowerCase().includes(searchLower)
+                    );
                 });
 
                 return (
                     <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-gray-800">Schede Clienti</h2>
-                            <button onClick={() => { setClientForm(initialClientState); setView('createClient'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2"><Plus size={16} /> Aggiungi</button>
+                            <h2 className="text-xl font-bold text-gray-800">Storico</h2>
+                            <div className="flex gap-2">
+                                <button onClick={() => toggleSort('reports')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 shadow-sm active:scale-95 transition-transform">
+                                    <ArrowUpDown size={14} />
+                                    {sortOrder.reports === 'desc' ? 'Più recenti' : 'Meno recenti'}
+                                </button>
+                                <button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="bg-gray-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md active:scale-95 transition-transform flex items-center gap-1"><Plus size={14} /> Nuovo</button>
+                            </div>
                         </div>
 
-                        {/* Barra di Ricerca */}
+                        {/* BARRA DI RICERCA REPORT */}
                         <div className="mb-4 relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                                 <Search size={18} />
                             </div>
                             <input 
                                 type="text"
-                                placeholder="Cerca cliente..."
-                                value={clientSearch}
-                                onChange={(e) => setClientSearch(e.target.value)}
+                                placeholder="Cerca nel report..."
+                                value={reportSearch}
+                                onChange={(e) => setReportSearch(e.target.value)}
                                 className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
                             />
-                            {clientSearch && (
+                            {reportSearch && (
                                 <button 
-                                    onClick={() => setClientSearch('')}
+                                    onClick={() => setReportSearch('')}
                                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                                 >
                                     <X size={18} />
@@ -1525,171 +1514,74 @@
                             )}
                         </div>
 
-                        {/* Filtri Stato */}
-                        <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-                            <button 
-                                onClick={() => setStatusFilter('ALL')}
-                                className={`px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${statusFilter === 'ALL' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200'}`}
-                            >
-                                Tutti
-                            </button>
-                            <button 
-                                onClick={() => setStatusFilter('CALDO')}
-                                className={`px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${statusFilter === 'CALDO' ? 'bg-rose-100 text-rose-800 border-rose-200 ring-1 ring-rose-300' : 'bg-white text-gray-600 border-gray-200'}`}
-                            >
-                                Caldo
-                            </button>
-                            <button 
-                                onClick={() => setStatusFilter('TIEPIDO')}
-                                className={`px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${statusFilter === 'TIEPIDO' ? 'bg-amber-100 text-amber-800 border-amber-200 ring-1 ring-amber-300' : 'bg-white text-gray-600 border-gray-200'}`}
-                            >
-                                Tiepido
-                            </button>
-                            <button 
-                                onClick={() => setStatusFilter('FREDDO')}
-                                className={`px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap transition-colors ${statusFilter === 'FREDDO' ? 'bg-blue-100 text-blue-800 border-blue-200 ring-1 ring-blue-300' : 'bg-white text-gray-600 border-gray-200'}`}
-                            >
-                                Freddo
-                            </button>
-                        </div>
+                        <div className="space-y-3">
+                            {filteredReports.length === 0 ? (<div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessun report trovato.</div>) : (
+                                [...filteredReports].sort((a, b) => {
+                                    // Ordinamento primario: Data selezionata dall'utente
+                                    const dateA = new Date(a.date).getTime();
+                                    const dateB = new Date(b.date).getTime();
+                                    
+                                    // Ordinamento secondario: Orario di creazione (createdAt)
+                                    // Se le date sono uguali, ordina per orario di inserimento per mantenere la sequenza
+                                    const createdA = new Date(a.createdAt || 0).getTime();
+                                    const createdB = new Date(b.createdAt || 0).getTime();
 
-                        {filteredClients.length === 0 ? 
-                            <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
-                                <p className="text-gray-400 mb-2">Nessun cliente trovato</p>
-                                <p className="text-gray-400 text-sm">Prova una ricerca diversa o aggiungi un nuovo cliente.</p>
-                            </div> 
-                        : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {filteredClients.map(client => {
-                                    const status = getClientStatus(client.ragioneSociale);
-                                    const normalizedName = (client.ragioneSociale || '').trim().toLowerCase();
-                                    const isDuplicate = nameCounts[normalizedName] > 1;
-
-                                    let isIncomplete = false;
-                                    const ignoredKeys = ['id', 'updatedAt', 'contact1', 'contact2', 'contact3', 'contact4', 'note', 'comunicazioni',
-                                        // Ignore new fields for completeness check to keep old data valid
-                                        'sector', 'sectorOther', 'geoAreas', 'regions', 'activeSites', 'activeSitesNotes', 'subContracting', 'decisionProcess', 'brands', 'brandsOther', 'products', 'supplies', 'suppliesOther', 'infoNotes', 'preference', 'suppliers', 'payments', 'conclusion', 'rating'
-                                    ];
-                                    for (const key in client) {
-                                        if (ignoredKeys.includes(key)) continue;
-                                        if (!client[key] || (typeof client[key] === 'string' && client[key].trim() === '')) {
-                                            isIncomplete = true;
-                                            break;
-                                        }
+                                    if (sortOrder.reports === 'desc') {
+                                        // Ordine discendente (Più recenti)
+                                        if (dateA !== dateB) return dateB - dateA; // Prima date più recenti
+                                        return createdB - createdA; // A parità di data, prima gli ultimi inseriti (LIFO)
+                                    } else {
+                                        // Ordine ascendente (Meno recenti)
+                                        if (dateA !== dateB) return dateA - dateB; // Prima date più vecchie
+                                        return createdA - createdB; // A parità di data, prima i primi inseriti (FIFO)
                                     }
-
-                                    const cardStyle = isDuplicate 
-                                        ? "bg-red-50 border-red-300 shadow-red-100" 
-                                        : "bg-gray-100 border-gray-200";
+                                }).map(report => {
+                                    // Logica per data scaduta report
+                                    const today = new Date();
+                                    today.setHours(0,0,0,0);
+                                    const nextDate = report.nextContactDate ? new Date(report.nextContactDate) : null;
+                                    const isExpired = nextDate && nextDate < today && !report.completed;
+                                    const cardStyle = isExpired ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-white border-gray-100 shadow-sm';
 
                                     return (
-                                        <div key={client.id} onClick={() => { setSelectedClient(client); setView('clientDetail'); }} className={`${cardStyle} p-5 rounded-xl shadow-sm border relative active:scale-[0.98] transition-transform cursor-pointer`}>
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <h3 className="font-bold text-gray-800 text-lg">{client.ragioneSociale}</h3>
-                                                    {isDuplicate && (
-                                                        <span className="text-[10px] font-bold text-red-600 uppercase tracking-wider block mt-1">
-                                                            ⚠️ Contatto Duplicato
-                                                        </span>
+                                        <div key={report.id} onClick={() => { setSelectedReport(report); setView('detail'); }} className={`${cardStyle} p-4 rounded-xl border relative cursor-pointer active:scale-[0.99] transition-transform`}>
+                                            <div className="flex justify-between items-center">
+                                                <h3 className="font-bold text-gray-800 truncate pr-4">{report.client}</h3>
+                                                <span className="font-bold text-blue-600 flex-shrink-0">{report.hours}h</span>
+                                            </div>
+                                            <div className="text-sm text-gray-500 flex justify-between items-center mt-1">
+                                                <span className="truncate">{report.category}</span>
+                                                <span className="text-xs text-gray-400 flex-shrink-0">{new Date(report.date).toLocaleDateString('it-IT')}</span>
+                                            </div>
+                                            {report.nextContactDate && (
+                                                <div className="mt-2 flex justify-between items-center">
+                                                    <div className="text-xs font-semibold text-yellow-700 flex items-center gap-1 bg-yellow-50 p-1 rounded">
+                                                        <Bell size={12} className="text-yellow-500" /> Contatto: {new Date(report.nextContactDate).toLocaleDateString('it-IT')}
+                                                    </div>
+                                                    {isExpired && (
+                                                        <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded uppercase tracking-wider ml-2">SCADUTO</span>
                                                     )}
                                                 </div>
-                                                <div className="flex flex-col items-end gap-1 pl-2">
-                                                    <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap ${status.color}`}>
-                                                        {status.label}
-                                                    </span>
-                                                    <ChevronRight size={18} className="text-gray-300" />
-                                                </div>
-                                            </div>
-                                            <div className="text-sm text-gray-500 flex flex-col gap-1 mt-2">
-                                                {client.telefono && <span className="flex items-center gap-2"><Phone size={12}/> {client.telefono}</span>}
-                                                {client.email && <span className="flex items-center gap-2"><Mail size={12}/> {client.email}</span>}
-                                            </div>
-                                            
-                                            {isIncomplete && (
-                                                <div className="mt-3 mb-1">
-                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
-                                                        <AlertTriangle size={10} /> ANAGRAFICA INCOMPLETA
-                                                    </span>
+                                            )}
+                                            {/* Pulsante Completa/Ripristina anche qui se c'è un nextContactDate */}
+                                            {report.nextContactDate && (
+                                                <div className="mt-2 flex justify-end">
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); handleCompleteReport(report); }} 
+                                                        className={`text-[10px] uppercase font-bold px-3 py-1.5 rounded-lg border transition-colors shadow-sm active:scale-95 ${report.completed ? 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200' : 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200'}`}
+                                                    >
+                                                        {report.completed ? 'Ripristina' : 'Completa'}
+                                                    </button>
                                                 </div>
                                             )}
-
-                                            <div className="mt-2 pt-3 border-t border-gray-200 flex justify-between items-center">
-                                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Aggiornato: {client.updatedAt || '-'}</span>
-                                                <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded font-bold">{getClientHours(client.ragioneSociale)}h Lavoro</span>
-                                            </div>
                                         </div>
                                     );
-                                })}
-                            </div>
-                        )}
+                                })
+                            )}
+                        </div>
                     </div>
                 );
             };
-
-            const renderList = () => (
-                <div className="animate-fade-in pb-32" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-                    <div className="flex justify-between items-center mb-6">
-                        <div className="flex items-center gap-3">
-                            <h2 className="text-xl font-bold text-gray-800">Storico</h2>
-                            <button onClick={() => toggleSort('reports')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 shadow-sm active:scale-95 transition-transform">
-                                <ArrowUpDown size={14} />
-                                {sortOrder.reports === 'desc' ? 'Più recenti' : 'Meno recenti'}
-                            </button>
-                        </div>
-                        <button onClick={() => { setReportForm(initialReportState); setView('create'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md active:scale-95 transition-transform flex items-center gap-2"><Plus size={16} /> Nuovo</button>
-                    </div>
-                    <div className="space-y-3">
-                        {reports.length === 0 ? (<div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessun report salvato.</div>) : (
-                            [...reports].sort((a, b) => {
-                                const dateA = new Date(a.date);
-                                const dateB = new Date(b.date);
-                                return sortOrder.reports === 'desc' ? dateB - dateA : dateA - dateB;
-                            }).map(report => {
-                                // Logica per data scaduta report
-                                const today = new Date();
-                                today.setHours(0,0,0,0);
-                                const nextDate = report.nextContactDate ? new Date(report.nextContactDate) : null;
-                                const isExpired = nextDate && nextDate < today && !report.completed;
-                                const cardStyle = isExpired ? 'bg-yellow-50 border-yellow-200 shadow-sm' : 'bg-white border-gray-100 shadow-sm';
-
-                                return (
-                                    <div key={report.id} onClick={() => { setSelectedReport(report); setView('detail'); }} className={`${cardStyle} p-4 rounded-xl border relative cursor-pointer active:scale-[0.99] transition-transform`}>
-                                        <div className="flex justify-between items-center">
-                                            <h3 className="font-bold text-gray-800 truncate pr-4">{report.client}</h3>
-                                            <span className="font-bold text-blue-600 flex-shrink-0">{report.hours}h</span>
-                                        </div>
-                                        <div className="text-sm text-gray-500 flex justify-between items-center mt-1">
-                                            <span className="truncate">{report.category}</span>
-                                            <span className="text-xs text-gray-400 flex-shrink-0">{new Date(report.date).toLocaleDateString('it-IT')}</span>
-                                        </div>
-                                        {report.nextContactDate && (
-                                            <div className="mt-2 flex justify-between items-center">
-                                                <div className="text-xs font-semibold text-yellow-700 flex items-center gap-1 bg-yellow-50 p-1 rounded">
-                                                    <Bell size={12} className="text-yellow-500" /> Contatto: {new Date(report.nextContactDate).toLocaleDateString('it-IT')}
-                                                </div>
-                                                {isExpired && (
-                                                    <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded uppercase tracking-wider ml-2">SCADUTO</span>
-                                                )}
-                                            </div>
-                                        )}
-                                        {/* Pulsante Completa/Ripristina anche qui se c'è un nextContactDate */}
-                                        {report.nextContactDate && (
-                                            <div className="mt-2 flex justify-end">
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); handleCompleteReport(report); }} 
-                                                    className={`text-[10px] uppercase font-bold px-3 py-1.5 rounded-lg border transition-colors shadow-sm active:scale-95 ${report.completed ? 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200' : 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200'}`}
-                                                >
-                                                    {report.completed ? 'Ripristina' : 'Completa'}
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
-                </div>
-            );
 
             const NavItem = ({ icon: Icon, label, currentView, targetView, setView }) => {
                 // Logica attiva per i pulsanti di navigazione
