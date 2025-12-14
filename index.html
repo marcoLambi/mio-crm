@@ -87,7 +87,8 @@
             LogOut: (p) => <IconBase {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></IconBase>,
             Search: (p) => <IconBase {...p}><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></IconBase>,
             ArrowUpDown: (p) => <IconBase {...p}><path d="m21 16-4 4-4-4"/><path d="m17 20V4"/><path d="m3 8 4-4 4 4"/><path d="m7 4v16"/></IconBase>,
-            ClipboardList: (p) => <IconBase {...p}><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></IconBase>
+            ClipboardList: (p) => <IconBase {...p}><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></IconBase>,
+            BarChart: (p) => <IconBase {...p}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></IconBase>
         };
 
         const InfoBox = ({ label, value, icon: Icon, color = 'text-gray-700' }) => (
@@ -213,11 +214,12 @@ END:VCALENDAR`;
         // --- 5. VISTE E COMPONENTI PRINCIPALI ---
 
         const DashboardView = () => {
-            const { clients, reports, followups, ideas, setView, setSelectedReport, setFollowupForm, fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout } = useContext(CRMContext);
+            const { clients, reports, followups, ideas, setView, setSelectedReport, setFollowupForm, setIdeaForm, fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout } = useContext(CRMContext);
             
             // Memoize lists for performance
             const pendingReports = useMemo(() => reports.filter(r => r.nextContactDate && !r.completed).sort((a,b) => new Date(a.nextContactDate) - new Date(b.nextContactDate)).slice(0, 5), [reports]);
             const pendingFollowups = useMemo(() => followups.filter(f => !f.completed).sort((a, b) => new Date(a.feedbackDate) - new Date(b.feedbackDate)).slice(0, 5), [followups]);
+            const recentIdeas = useMemo(() => ideas.sort((a, b) => new Date(b.deadline) - new Date(a.deadline)).slice(0, 5), [ideas]);
 
             return (
                 <div className="space-y-6 animate-fade-in pb-32">
@@ -227,37 +229,102 @@ END:VCALENDAR`;
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-purple-600"><Icons.Target size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-yellow-500"><Icons.Lightbulb size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Idee</span></div><div className="text-3xl font-bold text-gray-800">{ideas.length}</div></div>
                     </div>
-                    <button onClick={() => setView('create')} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 flex justify-center items-center gap-2 active:scale-95 transition-all"><Icons.Plus size={20} /> Nuovo Report</button>
                     
-                    {pendingReports.length > 0 && (
-                        <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
-                            <h3 className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><Icons.Bell size={18} /> Promemoria Contatti</h3>
-                            <ul className="space-y-2">
-                                {pendingReports.map(r => (
-                                    <li key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="text-sm cursor-pointer hover:underline text-yellow-700 truncate">
-                                        <strong>{new Date(r.nextContactDate).toLocaleDateString('it-IT')}</strong> - {r.client}
-                                    </li>
-                                ))}
-                            </ul>
+                    {/* SEZIONE REPORT E PROMEMORIA UNIFICATA */}
+                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2"><Icons.FileText size={20} className="text-blue-600"/> Gestione Report</h3>
+                            <button onClick={() => setView('list')} className="text-blue-600 text-xs font-bold bg-blue-50 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">Apri Storico</button>
                         </div>
-                    )}
+                        
+                        <button onClick={() => setView('create')} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 flex justify-center items-center gap-2 active:scale-95 transition-all mb-4">
+                            <Icons.Plus size={20} /> Nuovo Report
+                        </button>
 
-                    {pendingFollowups.length > 0 && (
-                         <div className="bg-orange-50 p-4 rounded-xl border border-orange-200">
-                            <h3 className="flex items-center gap-2 text-sm font-bold text-orange-800 mb-3"><Icons.Target size={18} /> Ultime Offerte</h3>
-                            <ul className="space-y-3">
-                                {pendingFollowups.map(f => (
-                                    <li key={f.id} onClick={() => { setFollowupForm(f); setView('createFollowup'); }} className="flex justify-between items-center text-sm border-b border-orange-200/50 pb-2 last:border-0 cursor-pointer">
-                                        <div className="flex flex-col overflow-hidden">
-                                            <span className="font-bold text-orange-900 truncate">{f.client}</span>
-                                            <span className="text-xs text-orange-700/70">{f.offerNumber}</span>
-                                        </div>
-                                        <div className="font-bold text-orange-700">€ {f.amount}</div>
-                                    </li>
-                                ))}
-                            </ul>
+                        {pendingReports.length > 0 ? (
+                            <div className="bg-yellow-50 p-3 rounded-xl border border-yellow-200">
+                                <h3 className="flex items-center gap-2 text-xs font-bold text-yellow-800 mb-2 uppercase tracking-wider"><Icons.Bell size={14} /> Promemoria Contatti</h3>
+                                <ul className="space-y-2">
+                                    {pendingReports.map(r => (
+                                        <li key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="text-sm cursor-pointer text-yellow-900 truncate flex justify-between items-center border-b border-yellow-100 last:border-0 pb-1 last:pb-0 active:opacity-70">
+                                            <span><strong>{new Date(r.nextContactDate).toLocaleDateString('it-IT')}</strong> - {r.client}</span>
+                                            <Icons.ChevronRight size={14} className="text-yellow-600 opacity-50"/>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ) : (
+                            <div className="text-center py-2 text-xs text-gray-400 italic bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                                Nessun promemoria in scadenza.
+                            </div>
+                        )}
+                    </div>
+
+                    {/* SEZIONE OFFERTE UNIFICATA */}
+                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2"><Icons.Target size={20} className="text-purple-600"/> Gestione Offerte</h3>
+                            <button onClick={() => setView('followups')} className="text-purple-600 text-xs font-bold bg-purple-50 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">Apri Storico</button>
                         </div>
-                    )}
+                        
+                        <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 flex justify-center items-center gap-2 active:scale-95 transition-all mb-4">
+                            <Icons.Plus size={20} /> Nuova Offerta
+                        </button>
+
+                        {pendingFollowups.length > 0 ? (
+                             <div className="bg-orange-50 p-3 rounded-xl border border-orange-200">
+                                <h3 className="flex items-center gap-2 text-xs font-bold text-orange-800 mb-2 uppercase tracking-wider"><Icons.Target size={14} /> Ultime Offerte</h3>
+                                <ul className="space-y-3">
+                                    {pendingFollowups.map(f => (
+                                        <li key={f.id} onClick={() => { setFollowupForm(f); setView('createFollowup'); }} className="flex justify-between items-center text-sm border-b border-orange-200/50 pb-2 last:border-0 cursor-pointer active:opacity-70">
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className="font-bold text-orange-900 truncate">{f.client}</span>
+                                                <span className="text-[10px] text-orange-700/70">{f.offerNumber}</span>
+                                            </div>
+                                            <div className="font-bold text-orange-700 text-sm">€ {f.amount}</div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ) : (
+                            <div className="text-center py-2 text-xs text-gray-400 italic bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                                Nessuna offerta recente.
+                            </div>
+                        )}
+                    </div>
+
+                    {/* SEZIONE IDEE UNIFICATA */}
+                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-gray-800 flex items-center gap-2"><Icons.Lightbulb size={20} className="text-yellow-500"/> Gestione Idee</h3>
+                            <button onClick={() => setView('ideas')} className="text-yellow-600 text-xs font-bold bg-yellow-50 px-3 py-1.5 rounded-lg active:scale-95 transition-transform">Apri Storico</button>
+                        </div>
+                        
+                        <button onClick={() => { setIdeaForm({}); setView('createIdea'); }} className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-yellow-200 flex justify-center items-center gap-2 active:scale-95 transition-all mb-4">
+                            <Icons.Plus size={20} /> Nuova Idea
+                        </button>
+
+                        {recentIdeas.length > 0 ? (
+                             <div className="bg-yellow-50 p-3 rounded-xl border border-yellow-200">
+                                <h3 className="flex items-center gap-2 text-xs font-bold text-yellow-800 mb-2 uppercase tracking-wider"><Icons.Lightbulb size={14} /> Ultime Idee</h3>
+                                <ul className="space-y-3">
+                                    {recentIdeas.map(item => (
+                                        <li key={item.id} onClick={() => { setIdeaForm(item); setView('createIdea'); }} className="flex justify-between items-center text-sm border-b border-yellow-200/50 pb-2 last:border-0 cursor-pointer active:opacity-70">
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className="font-bold text-yellow-900 truncate">{item.client}</span>
+                                                <span className="text-[10px] text-yellow-800/70 truncate">{item.text?.substring(0, 30)}...</span>
+                                            </div>
+                                            <div className="font-bold text-yellow-800 text-xs">{new Date(item.deadline).toLocaleDateString('it-IT')}</div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ) : (
+                            <div className="text-center py-2 text-xs text-gray-400 italic bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                                Nessuna idea registrata.
+                            </div>
+                        )}
+                    </div>
 
                     <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
                          <input type="file" ref={fileInputRef} className="hidden" onChange={handleImport} accept=".xlsx, .xls, .csv" />
@@ -279,6 +346,25 @@ END:VCALENDAR`;
                 setFormData(prev => ({ ...prev, [name]: value, ...(name === 'client' ? {contactRef: ''} : {}) }));
             };
 
+            // TIME DROPDOWN LOGIC
+            const timeParts = useMemo(() => {
+                const val = parseFloat(formData.hours) || 0;
+                const h = Math.floor(val);
+                const m = Math.round((val - h) * 60);
+                return { h, m };
+            }, [formData.hours]);
+
+            const handleTimeChange = (type, val) => {
+                let { h, m } = timeParts;
+                if (type === 'h') h = parseInt(val);
+                if (type === 'm') m = parseInt(val);
+                
+                // Convert back to decimal, e.g. 1h 30m -> 1.5
+                const decimal = (h + (m / 60)).toFixed(2);
+                const cleanDecimal = parseFloat(decimal).toString();
+                setFormData(prev => ({ ...prev, hours: cleanDecimal }));
+            };
+
             const handleSubmit = (e) => { e.preventDefault(); saveReport(formData); };
             const selectedClientData = useMemo(() => clients.find(c => c.ragioneSociale === formData.client), [clients, formData.client]);
             const availableContacts = selectedClientData ? [selectedClientData.contact1, selectedClientData.contact2, selectedClientData.contact3, selectedClientData.contact4].filter(c => c?.nome) : [];
@@ -290,7 +376,34 @@ END:VCALENDAR`;
                         <SectionContainer title="Dati" icon={Icons.FileText}>
                             <div><label className="block text-sm font-bold text-gray-700 mb-1">Cliente *</label><select required name="client" value={formData.client} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="">Seleziona...</option>{clients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}</select></div>
                             {availableContacts.length > 0 && (<div><label className="block text-sm font-bold text-gray-700 mb-1">Referente</label><select name="contactRef" value={formData.contactRef} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="">Nessuno spec.</option>{availableContacts.map((c, idx) => (<option key={idx} value={c.nome}>{c.nome} {c.mansione ? `(${c.mansione})` : ''}</option>))}</select></div>)}
-                            <div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="date" value={formData.date} onChange={handleChange} required /><Input label="Ore" type="number" step="0.5" name="hours" value={formData.hours} onChange={handleChange} required /></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="Data" type="date" name="date" value={formData.date} onChange={handleChange} required />
+                                
+                                {/* ORE E MINUTI A TENDINA */}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Durata</label>
+                                    <div className="flex gap-2">
+                                        <select 
+                                            value={timeParts.h} 
+                                            onChange={(e) => handleTimeChange('h', e.target.value)} 
+                                            className="w-1/2 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
+                                        >
+                                            {[...Array(13).keys()].map(h => (
+                                                <option key={h} value={h}>{h} h</option>
+                                            ))}
+                                        </select>
+                                        <select 
+                                            value={timeParts.m} 
+                                            onChange={(e) => handleTimeChange('m', e.target.value)} 
+                                            className="w-1/2 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
+                                        >
+                                            {[0, 15, 30, 45].map(m => (
+                                                <option key={m} value={m}>{m} min</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
                             <div><label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label><select name="category" value={formData.category} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option>MANTENIMENTO RAPPORTO</option><option>ORDINE</option><option>RICHIESTA DI OFFERTA</option><option>RISCONTRO OFFERTA</option><option>COMUNICAZIONE</option><option>INIZIO RAPPORTO FORNITURE</option><option>SOLLECITO INIZIO FORNITURA</option><option>APPUNTAMENTO</option><option>ALTRO</option></select></div>
                             <div><label className="block text-sm font-bold text-gray-700 mb-1">Tipo</label><select name="contactType" value={formData.contactType} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option>TELEFONICO</option><option>APPUNTAMENTO</option><option>VISITA</option><option>LINKEDIN</option><option>WHATSAPP</option><option>CANTIERE</option><option>ALTRO</option></select></div>
                             <TextArea label="Descrizione" name="description" value={formData.description} onChange={handleChange} />
@@ -333,78 +446,6 @@ END:VCALENDAR`;
                         </SectionContainer>
                         <div className="pt-2 flex gap-3">
                             <button type="button" onClick={() => setView('followups')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button>
-                            <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button>
-                        </div>
-                    </form>
-                </div>
-            );
-        };
-
-        const FollowupsList = () => {
-            const { followups, toggleSort, sortOrder, setFollowupForm, setView, deleteItem } = useContext(CRMContext);
-            const [search, setSearch] = useState('');
-            const sorted = useMemo(() => [...followups].sort((a,b) => sortOrder.followups === 'desc' ? new Date(b.feedbackDate) - new Date(a.feedbackDate) : new Date(a.feedbackDate) - new Date(b.feedbackDate)), [followups, sortOrder.followups]);
-            const filtered = sorted.filter(f => (f.client||'').toLowerCase().includes(search.toLowerCase()) || (f.offerNumber||'').toLowerCase().includes(search.toLowerCase()));
-
-            return (
-                <div className="animate-fade-in pb-32">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-gray-800">Offerte</h2>
-                        <div className="flex gap-2">
-                            <button onClick={() => toggleSort('followups')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600"><Icons.ArrowUpDown size={14} /> {sortOrder.followups === 'desc' ? 'Recenti' : 'Vecchie'}</button>
-                            <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md flex items-center gap-2"><Icons.Plus size={16} /> Nuova</button>
-                        </div>
-                    </div>
-                    <div className="mb-4 relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div>
-                        <input type="text" placeholder="Cerca offerta..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" />
-                    </div>
-                    <div className="space-y-3">
-                        {filtered.length === 0 ? <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessuna offerta.</div> : filtered.map(item => (
-                            <div key={item.id} className={`p-4 rounded-xl border relative transition-colors ${item.feedbackDate && new Date(item.feedbackDate) < new Date() && !item.completed ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-100'}`}>
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h3 className="font-bold text-gray-800 text-lg">{item.client}</h3>
-                                        <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded mt-1 inline-block">{item.offerNumber}</span>
-                                    </div>
-                                    <span className="font-bold text-blue-600 text-lg">€ {item.amount}</span>
-                                </div>
-                                <div className="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded border border-gray-50 italic">{item.notes || "Nessuna nota."}</div>
-                                <div className="flex justify-between items-end border-t border-gray-50 pt-3">
-                                    <div className="text-xs text-gray-400 flex items-center gap-1"><Icons.Calendar size={12} /> {new Date(item.feedbackDate).toLocaleDateString('it-IT')}</div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => { setFollowupForm(item); setView('createFollowup'); }} className="p-1.5 text-blue-600 bg-blue-50 rounded-lg"><Icons.Edit2 size={16} /></button>
-                                        <button onClick={() => deleteItem('followups', item.id)} className="p-1.5 text-red-500 bg-red-50 rounded-lg"><Icons.Trash2 size={16} /></button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-        };
-
-        const IdeaForm = () => {
-            const { ideaForm: initialData, saveIdea, setView, clients } = useContext(CRMContext);
-            const [formData, setFormData] = useState(initialData);
-
-            const handleChange = (e) => {
-                const { name, value } = e.target;
-                setFormData(prev => ({ ...prev, [name]: value }));
-            };
-
-            return (
-                <div className="animate-fade-in pb-32">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica Idea' : 'Nuova Idea'}</h2>
-                    <form onSubmit={(e) => { e.preventDefault(); saveIdea(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                        <SectionContainer title="Dettagli Progetto" icon={Icons.Lightbulb}>
-                            <div><label className="block text-sm font-bold text-gray-700 mb-1">Cliente *</label><select required name="client" value={formData.client} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="">Seleziona...</option>{clients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}</select></div>
-                            <TextArea label="Descrizione Idea" name="text" value={formData.text} onChange={handleChange} placeholder="Descrivi la tua idea o progetto..." />
-                            <Input label="Data Scadenza" type="date" name="deadline" value={formData.deadline} onChange={handleChange} required />
-                            <CalendarButton title={`Idea: ${formData.client}`} details={formData.text} date={formData.deadline} />
-                        </SectionContainer>
-                        <div className="pt-2 flex gap-3">
-                            <button type="button" onClick={() => setView('ideas')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button>
                             <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button>
                         </div>
                     </form>
@@ -805,6 +846,47 @@ END:VCALENDAR`;
             );
         };
 
+        const StatsView = () => {
+            const { reports } = useContext(CRMContext);
+
+            const data = useMemo(() => {
+                const map = {};
+                reports.forEach(r => {
+                    const c = r.client || 'N/A';
+                    const h = parseFloat(r.hours) || 0;
+                    map[c] = (map[c] || 0) + h;
+                });
+                const arr = Object.entries(map).map(([name, value]) => ({ name, value }));
+                arr.sort((a, b) => b.value - a.value);
+                return arr;
+            }, [reports]);
+
+            const maxValue = Math.max(...data.map(d => d.value), 0);
+
+            return (
+                <div className="animate-fade-in pb-32">
+                    <header className="mb-6"><h1 className="text-2xl font-bold text-gray-800">Situazione</h1></header>
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Icons.BarChart size={20} className="text-blue-600"/> Ore per Cliente</h3>
+                        <div className="space-y-4">
+                            {data.map(d => (
+                                <div key={d.name}>
+                                    <div className="flex justify-between text-sm mb-1">
+                                        <span className="font-medium text-gray-700 truncate w-3/4">{d.name}</span>
+                                        <span className="font-bold text-blue-600">{d.value.toFixed(2)}h</span>
+                                    </div>
+                                    <div className="w-full bg-gray-100 rounded-full h-2.5">
+                                        <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${maxValue > 0 ? (d.value / maxValue) * 100 : 0}%` }}></div>
+                                    </div>
+                                </div>
+                            ))}
+                            {data.length === 0 && <div className="text-center text-gray-400 text-sm italic py-4">Nessun dato disponibile nei report.</div>}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const App = () => {
             const [db, setDb] = useState(null);
             const [userKey, setUserKey] = useState(localStorage.getItem('crm_user_key') || '');
@@ -923,7 +1005,7 @@ END:VCALENDAR`;
             const onTouchEnd = (e) => {
                 if(!touchStart) return;
                 const diff = touchStart - e.changedTouches[0].clientX;
-                const tabs = ['dashboard', 'list', 'followups', 'ideas', 'clients'];
+                const tabs = ['dashboard', 'list', 'followups', 'ideas', 'clients', 'stats'];
                 const idx = tabs.indexOf(view);
                 if(idx > -1 && Math.abs(diff) > 75) {
                     if (diff > 0 && idx < tabs.length - 1) setView(tabs[idx + 1]);
@@ -974,6 +1056,7 @@ END:VCALENDAR`;
                                 {view === 'createFollowup' && <FollowupForm />}
                                 {view === 'ideas' && <IdeasList />}
                                 {view === 'createIdea' && <IdeaForm />}
+                                {view === 'stats' && <StatsView />}
                             </div>
                             
                             {/* Navigazione */}
@@ -981,9 +1064,10 @@ END:VCALENDAR`;
                                 <div className="flex justify-around">
                                     {[
                                         { id: 'dashboard', icon: Icons.LayoutDashboard, label: 'Home' },
-                                        { id: 'list', icon: Icons.FileText, label: 'Report' },
-                                        { id: 'followups', icon: Icons.Target, label: 'Offerte' },
-                                        { id: 'ideas', icon: Icons.Lightbulb, label: 'Idee' },
+                                        // { id: 'list', icon: Icons.FileText, label: 'Report' }, // REMOVED
+                                        // { id: 'followups', icon: Icons.Target, label: 'Offerte' }, // REMOVED
+                                        // { id: 'ideas', icon: Icons.Lightbulb, label: 'Idee' }, // REMOVED
+                                        { id: 'stats', icon: Icons.BarChart, label: 'Situazione' },
                                         { id: 'clients', icon: Icons.Users, label: 'Clienti' }
                                     ].map(item => (
                                         <button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 rounded-xl transition-all active:scale-95 ${view === item.id ? 'text-blue-600 scale-105' : 'text-gray-400'}`}>
