@@ -359,7 +359,8 @@ END:VCALENDAR`;
         };
 
         const TodoView = () => {
-            const { reports, followups, ideas, setSelectedReport, setFollowupForm, setIdeaForm, setView } = useContext(CRMContext);
+            const { reports, followups, ideas, setSelectedReport, setFollowupForm, setIdeaForm, setView, toggleTaskCompletion } = useContext(CRMContext);
+            const [search, setSearch] = useState('');
             
             // Unifica e ordina tutti gli elementi con una scadenza
             const todos = useMemo(() => {
@@ -374,7 +375,8 @@ END:VCALENDAR`;
                             date: new Date(`${r.nextContactDate}T${r.nextContactTime || '09:00'}`),
                             data: r,
                             label: 'Contatto',
-                            icon: Icons.Phone
+                            icon: Icons.Phone,
+                            collection: 'reports'
                         });
                     }
                 });
@@ -387,20 +389,22 @@ END:VCALENDAR`;
                             date: new Date(f.feedbackDate),
                             data: f,
                             label: 'Riscontro Offerta',
-                            icon: Icons.Target
+                            icon: Icons.Target,
+                            collection: 'followups'
                         });
                     }
                 });
 
                 // 3. Idee (Scadenza)
                 ideas.forEach(i => {
-                    if (i.deadline) {
+                    if (i.deadline && !i.completed) {
                         items.push({
                             type: 'idea',
                             date: new Date(i.deadline),
                             data: i,
                             label: 'Scadenza Idea',
-                            icon: Icons.Lightbulb
+                            icon: Icons.Lightbulb,
+                            collection: 'ideas'
                         });
                     }
                 });
@@ -408,6 +412,16 @@ END:VCALENDAR`;
                 // Ordina per data (dal più vecchio/urgente al più futuro)
                 return items.sort((a, b) => a.date - b.date);
             }, [reports, followups, ideas]);
+
+            const filteredTodos = useMemo(() => {
+                if (!search) return todos;
+                return todos.filter(item => {
+                    const s = search.toLowerCase();
+                    const client = (item.data.client || '').toLowerCase();
+                    const content = (item.data.description || item.data.notes || item.data.text || item.data.futureNotes || '').toLowerCase();
+                    return client.includes(s) || content.includes(s);
+                });
+            }, [todos, search]);
 
             const handleItemClick = (item) => {
                 if (item.type === 'report') {
@@ -425,8 +439,6 @@ END:VCALENDAR`;
             const getStyle = (type, date) => {
                 const isPast = date < new Date();
                 // UPDATE COLORS: Report->Gray, Offer->Yellow, Idea->Red
-                // Expired items generally get a reddish tint or darker shade to indicate urgency, 
-                // but let's try to keep the requested theme while indicating status.
                 
                 if (type === 'report') return isPast ? 'bg-red-50 border-red-200 text-red-900' : 'bg-gray-50 border-gray-200 text-gray-800';
                 if (type === 'offer') return isPast ? 'bg-orange-50 border-orange-200 text-orange-900' : 'bg-yellow-50 border-yellow-200 text-yellow-900';
@@ -440,15 +452,21 @@ END:VCALENDAR`;
                         <h1 className="text-2xl font-bold text-gray-800">Da Fare</h1>
                         <div className="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full">{todos.length} Attività</div>
                     </header>
+
+                    <div className="mb-4 relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div>
+                        <input type="text" placeholder="Cerca attività..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" />
+                        {search && <button onClick={() => setSearch('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"><Icons.X size={18} /></button>}
+                    </div>
                     
-                    {todos.length === 0 ? (
+                    {filteredTodos.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                             <div className="bg-gray-100 p-4 rounded-full mb-3"><Icons.CheckSquare size={32} /></div>
                             <p>Tutto fatto! Nessuna attività in scadenza.</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {todos.map((item, idx) => (
+                            {filteredTodos.map((item, idx) => (
                                 <div key={`${item.type}-${item.data.id}-${idx}`} onClick={() => handleItemClick(item)} 
                                     className={`p-4 rounded-xl border cursor-pointer active:scale-[0.99] transition-transform relative overflow-hidden ${getStyle(item.type, item.date)}`}
                                 >
@@ -460,10 +478,22 @@ END:VCALENDAR`;
                                             <div className="font-bold text-lg truncate mb-1">{item.data.client}</div>
                                             <div className="text-sm opacity-80 truncate">{item.data.description || item.data.notes || item.data.text || item.data.futureNotes}</div>
                                         </div>
-                                        <div className="text-right shrink-0">
-                                            <div className="text-xs font-bold opacity-60 uppercase mb-1">{item.date < new Date() ? 'Scaduto' : 'Scade il'}</div>
-                                            <div className="font-bold text-lg leading-none">{item.date.getDate()}</div>
-                                            <div className="text-xs font-bold uppercase">{item.date.toLocaleString('it-IT', { month: 'short' })}</div>
+                                        <div className="text-right shrink-0 flex flex-col items-end gap-2">
+                                            <div>
+                                                <div className="text-xs font-bold opacity-60 uppercase mb-1">{item.date < new Date() ? 'Scaduto' : 'Scade il'}</div>
+                                                <div className="font-bold text-lg leading-none">{item.date.getDate()}</div>
+                                                <div className="text-xs font-bold uppercase">{item.date.toLocaleString('it-IT', { month: 'short' })}</div>
+                                            </div>
+                                            <button 
+                                                onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    toggleTaskCompletion(item.collection, item.data.id, false); 
+                                                }} 
+                                                className="bg-red-500 text-white p-2 rounded-full shadow-md hover:bg-red-600 transition-colors z-20"
+                                                title="Segna come fatto"
+                                            >
+                                                <Icons.Check size={16} />
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -581,7 +611,7 @@ END:VCALENDAR`;
         };
 
         const FollowupsList = () => {
-            const { followups, toggleSort, sortOrder, setFollowupForm, setView, deleteItem } = useContext(CRMContext);
+            const { followups, toggleSort, sortOrder, setFollowupForm, setView, deleteItem, toggleTaskCompletion } = useContext(CRMContext);
             const [search, setSearch] = useState('');
             const sorted = useMemo(() => [...followups].sort((a,b) => sortOrder.followups === 'desc' ? new Date(b.feedbackDate) - new Date(a.feedbackDate) : new Date(a.feedbackDate) - new Date(b.feedbackDate)), [followups, sortOrder.followups]);
             const filtered = sorted.filter(i => (i.client||'').toLowerCase().includes(search.toLowerCase()) || (i.notes||'').toLowerCase().includes(search.toLowerCase()));
@@ -612,7 +642,16 @@ END:VCALENDAR`;
                                 <div className="text-sm text-gray-700 mb-3 whitespace-pre-wrap">{item.notes}</div>
                                 <div className="flex justify-between items-center border-t border-gray-50 pt-3">
                                     <span className={`text-xs font-bold px-2 py-1 rounded ${new Date(item.feedbackDate) < new Date() ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{new Date(item.feedbackDate).toLocaleDateString('it-IT')}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); deleteItem('followups', item.id); }} className="p-1.5 text-red-500 bg-red-50 rounded-lg"><Icons.Trash2 size={16} /></button>
+                                    <div className="flex gap-2">
+                                        {/* Tasto Spunta */}
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); toggleTaskCompletion('followups', item.id, item.completed); }} 
+                                            className={`p-2 rounded-full text-white shadow-sm transition-colors ${item.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}
+                                        >
+                                            <Icons.Check size={16} />
+                                        </button>
+                                        <button onClick={(e) => { e.stopPropagation(); deleteItem('followups', item.id); }} className="p-1.5 text-red-500 bg-red-50 rounded-lg"><Icons.Trash2 size={16} /></button>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -622,7 +661,7 @@ END:VCALENDAR`;
         };
 
         const IdeasList = () => {
-            const { ideas, toggleSort, sortOrder, setIdeaForm, setView, deleteItem } = useContext(CRMContext);
+            const { ideas, toggleSort, sortOrder, setIdeaForm, setView, deleteItem, toggleTaskCompletion } = useContext(CRMContext);
             const [search, setSearch] = useState('');
             const sorted = useMemo(() => [...ideas].sort((a,b) => sortOrder.ideas === 'desc' ? new Date(b.deadline) - new Date(a.deadline) : new Date(a.deadline) - new Date(b.deadline)), [ideas, sortOrder.ideas]);
             const filtered = sorted.filter(i => (i.client||'').toLowerCase().includes(search.toLowerCase()) || (i.text||'').toLowerCase().includes(search.toLowerCase()));
@@ -649,6 +688,13 @@ END:VCALENDAR`;
                                 </div>
                                 <div className="text-sm text-gray-700 mb-3 whitespace-pre-wrap">{item.text}</div>
                                 <div className="flex justify-end gap-2 border-t border-gray-50 pt-3">
+                                    {/* Tasto Spunta */}
+                                    <button 
+                                        onClick={() => toggleTaskCompletion('ideas', item.id, item.completed)} 
+                                        className={`p-2 rounded-full text-white shadow-sm transition-colors ${item.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}
+                                    >
+                                        <Icons.Check size={16} />
+                                    </button>
                                     <button onClick={() => { setIdeaForm(item); setView('createIdea'); }} className="p-1.5 text-blue-600 bg-blue-50 rounded-lg"><Icons.Edit2 size={16} /></button>
                                     <button onClick={() => deleteItem('ideas', item.id)} className="p-1.5 text-red-500 bg-red-50 rounded-lg"><Icons.Trash2 size={16} /></button>
                                 </div>
@@ -693,7 +739,7 @@ END:VCALENDAR`;
         };
 
         const ReportList = () => {
-             const { reports, toggleSort, sortOrder, setReportForm, setView, setSelectedReport, formatDuration } = useContext(CRMContext);
+             const { reports, toggleSort, sortOrder, setReportForm, setView, setSelectedReport, formatDuration, toggleTaskCompletion } = useContext(CRMContext);
              const [search, setSearch] = useState('');
              
              const filtered = useMemo(() => reports.filter(r => (r.client||'').toLowerCase().includes(search.toLowerCase()) || (r.description||'').toLowerCase().includes(search.toLowerCase())), [reports, search]);
@@ -721,7 +767,19 @@ END:VCALENDAR`;
                                 </div>
                                 <div className="text-sm text-gray-500 flex justify-between mt-1">
                                     <span>{r.category}</span>
-                                    <span className="text-xs">{new Date(r.date).toLocaleDateString('it-IT')}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs">{new Date(r.date).toLocaleDateString('it-IT')}</span>
+                                        {/* Tasto Spunta per Report (Se c'è un follow-up) */}
+                                        {r.nextContactDate && (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); toggleTaskCompletion('reports', r.id, r.completed); }} 
+                                                className={`p-1.5 rounded-full text-white shadow-sm transition-colors ${r.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}
+                                                title={r.completed ? "Segna come incompleto" : "Segna come completato"}
+                                            >
+                                                <Icons.Check size={12} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -1072,6 +1130,13 @@ END:VCALENDAR`;
                 return false;
             };
 
+            const toggleTaskCompletion = async (collectionName, id, currentStatus) => {
+                const key = userKey.toLowerCase().replace(/\s/g, '');
+                // Toggle status
+                await setDoc(doc(db, `artifacts/${appId}/users/${key}/${collectionName}`, id), { completed: !currentStatus }, { merge: true });
+                // Opzionale: showMessage(!currentStatus ? 'Completata!' : 'Ripristinata!', 'success');
+            };
+
              const handleLogin = (e) => {
                 e.preventDefault();
                 const input = e.target.elements[0].value.trim();
@@ -1119,7 +1184,7 @@ END:VCALENDAR`;
                 reportForm: { ...emptyReport, ...reportForm }, setReportForm,
                 clientForm: { ...clientForm }, setClientForm,
                 followupForm, setFollowupForm, ideaForm, setIdeaForm,
-                saveReport, saveClient, saveFollowup, saveIdea, deleteItem,
+                saveReport, saveClient, saveFollowup, saveIdea, deleteItem, toggleTaskCompletion,
                 fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout,
                 formatDuration
             };
