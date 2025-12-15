@@ -321,7 +321,9 @@ END:VCALENDAR`;
                         <button onClick={() => setView('create')} className="w-full bg-gray-600 hover:bg-gray-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-gray-200 flex justify-center items-center gap-2 active:scale-95 transition-all mb-3 text-lg">
                             <Icons.Plus size={22} /> Nuovo Report
                         </button>
-                        <button onClick={() => setView('list')} className="text-gray-600 text-sm font-bold bg-gray-50 px-4 py-2 rounded-lg active:scale-95 transition-transform hover:bg-gray-100">Apri Storico Report</button>
+                        <button onClick={() => setView('list')} className="w-full text-gray-600 font-bold bg-gray-50 py-3 rounded-xl border border-gray-200 active:scale-95 transition-transform hover:bg-gray-100 flex justify-center items-center gap-2">
+                            <Icons.ClipboardList size={18} /> Storico Report
+                        </button>
                     </div>
 
                     {/* SEZIONE OFFERTE - SEMPLIFICATA (GIALLO) */}
@@ -329,7 +331,9 @@ END:VCALENDAR`;
                         <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-yellow-200 flex justify-center items-center gap-2 active:scale-95 transition-all mb-3 text-lg">
                             <Icons.Plus size={22} /> Nuova Offerta
                         </button>
-                        <button onClick={() => setView('followups')} className="text-yellow-600 text-sm font-bold bg-yellow-50 px-4 py-2 rounded-lg active:scale-95 transition-transform hover:bg-yellow-100">Apri Storico Offerte</button>
+                        <button onClick={() => setView('followups')} className="w-full text-yellow-700 font-bold bg-yellow-50 py-3 rounded-xl border border-yellow-100 active:scale-95 transition-transform hover:bg-yellow-100 flex justify-center items-center gap-2">
+                            <Icons.ClipboardList size={18} /> Storico Offerte
+                        </button>
                     </div>
 
                     {/* SEZIONE IDEE - SEMPLIFICATA (ROSSO) */}
@@ -337,7 +341,9 @@ END:VCALENDAR`;
                         <button onClick={() => { setIdeaForm({}); setView('createIdea'); }} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-red-200 flex justify-center items-center gap-2 active:scale-95 transition-all mb-3 text-lg">
                             <Icons.Plus size={22} /> Nuova Idea
                         </button>
-                        <button onClick={() => setView('ideas')} className="text-red-600 text-sm font-bold bg-red-50 px-4 py-2 rounded-lg active:scale-95 transition-transform hover:bg-red-100">Apri Storico Idee</button>
+                        <button onClick={() => setView('ideas')} className="w-full text-red-700 font-bold bg-red-50 py-3 rounded-xl border border-red-100 active:scale-95 transition-transform hover:bg-red-100 flex justify-center items-center gap-2">
+                            <Icons.ClipboardList size={18} /> Storico Idee
+                        </button>
                     </div>
 
                     {/* FOOTER ACTIONS */}
