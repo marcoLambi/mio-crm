@@ -635,12 +635,34 @@ END:VCALENDAR`;
         };
         
         const ClientDetailView = () => {
-            const { selectedClient, setView, setClientForm, setSelectedClient } = useContext(CRMContext);
-            const { clients } = useContext(CRMContext); // Access clients list for delete if needed, or pass handleDelete
+            // Aggiunti setReportForm, setFollowupForm, setIdeaForm al destructuring
+            const { selectedClient, setView, setClientForm, setSelectedClient, setReportForm, setFollowupForm, setIdeaForm } = useContext(CRMContext);
 
             if (!selectedClient) return null;
             
             const getFullPaymentMethod = (client) => [client.paymentMethod1, client.paymentMethod2, client.paymentMethod3].filter(Boolean).join(' - ') || 'Non Specificato';
+
+            // Funzioni di azione rapida con pre-compilazione cliente
+            const handleNewReport = () => {
+                setReportForm({ 
+                    client: selectedClient.ragioneSociale, 
+                    date: new Date().toISOString().split('T')[0], 
+                    category: 'MANTENIMENTO RAPPORTO', 
+                    contactType: 'TELEFONICO', 
+                    calendarEventType: 'APPUNTAMENTO' 
+                });
+                setView('create');
+            };
+
+            const handleNewOffer = () => {
+                setFollowupForm({ client: selectedClient.ragioneSociale });
+                setView('createFollowup');
+            };
+
+            const handleNewIdea = () => {
+                setIdeaForm({ client: selectedClient.ragioneSociale });
+                setView('createIdea');
+            };
 
             return (
                 <div className="animate-fade-in pb-32 bg-white min-h-full">
@@ -651,17 +673,40 @@ END:VCALENDAR`;
                             {/* Delete could be implemented here */}
                         </div>
                     </div>
-                    <div className="p-6 space-y-8">
+                    
+                    <div className="p-6 space-y-6">
+                        {/* Intestazione Cliente */}
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1>
                             <p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p>
+                            
+                            {/* Contatti Rapidi */}
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Icons.Phone size={14}/> Chiama</a>}
                                 {selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Icons.Mail size={14}/> Email</a>}
                             </div>
                         </div>
 
-                        <div className="space-y-4">
+                        {/* --- NUOVA SEZIONE: AZIONI RAPIDE --- */}
+                        <div className="grid grid-cols-3 gap-3">
+                            <button onClick={handleNewReport} className="flex flex-col items-center justify-center p-3 bg-blue-50 border border-blue-100 rounded-xl active:scale-95 transition-transform">
+                                <div className="bg-white p-2 rounded-full mb-1 shadow-sm text-blue-600"><Icons.FileText size={20} /></div>
+                                <span className="text-xs font-bold text-blue-800">Nuovo Report</span>
+                            </button>
+                            
+                            <button onClick={handleNewOffer} className="flex flex-col items-center justify-center p-3 bg-purple-50 border border-purple-100 rounded-xl active:scale-95 transition-transform">
+                                <div className="bg-white p-2 rounded-full mb-1 shadow-sm text-purple-600"><Icons.Target size={20} /></div>
+                                <span className="text-xs font-bold text-purple-800">Nuova Offerta</span>
+                            </button>
+                            
+                            <button onClick={handleNewIdea} className="flex flex-col items-center justify-center p-3 bg-yellow-50 border border-yellow-100 rounded-xl active:scale-95 transition-transform">
+                                <div className="bg-white p-2 rounded-full mb-1 shadow-sm text-yellow-600"><Icons.Lightbulb size={20} /></div>
+                                <span className="text-xs font-bold text-yellow-800">Nuova Idea</span>
+                            </button>
+                        </div>
+                        {/* ------------------------------------ */}
+
+                        <div className="space-y-4 pt-2">
                             <SectionTitle icon={<Icons.CreditCard size={16}/>} title="Dati Amministrativi" />
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <InfoRow label="Codice Univoco" value={selectedClient.sdiCode} />
