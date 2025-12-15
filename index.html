@@ -693,7 +693,7 @@ END:VCALENDAR`;
         };
 
         const ReportList = () => {
-             const { reports, toggleSort, sortOrder, setReportForm, setView, setSelectedReport } = useContext(CRMContext);
+             const { reports, toggleSort, sortOrder, setReportForm, setView, setSelectedReport, formatDuration } = useContext(CRMContext);
              const [search, setSearch] = useState('');
              
              const filtered = useMemo(() => reports.filter(r => (r.client||'').toLowerCase().includes(search.toLowerCase()) || (r.description||'').toLowerCase().includes(search.toLowerCase())), [reports, search]);
@@ -717,7 +717,7 @@ END:VCALENDAR`;
                             <div key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className={`p-4 rounded-xl border relative cursor-pointer active:scale-[0.99] transition-transform ${r.nextContactDate && !r.completed && new Date(r.nextContactDate) < new Date() ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-100'}`}>
                                 <div className="flex justify-between">
                                     <h3 className="font-bold text-gray-800 truncate pr-4">{r.client}</h3>
-                                    <span className="font-bold text-gray-600 shrink-0">{r.hours}h</span>
+                                    <span className="font-bold text-gray-600 shrink-0">{formatDuration(r.hours)}</span>
                                 </div>
                                 <div className="text-sm text-gray-500 flex justify-between mt-1">
                                     <span>{r.category}</span>
@@ -731,7 +731,7 @@ END:VCALENDAR`;
         };
 
         const ReportDetailView = () => {
-            const { selectedReport, setView, setReportForm, deleteItem } = useContext(CRMContext);
+            const { selectedReport, setView, setReportForm, deleteItem, formatDuration } = useContext(CRMContext);
 
             if (!selectedReport) return null;
 
@@ -752,7 +752,7 @@ END:VCALENDAR`;
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                         <div>
                             <h1 className="text-xl font-bold text-gray-800">{selectedReport.title}</h1>
-                            <p className="text-sm text-gray-500">{new Date(selectedReport.date).toLocaleDateString('it-IT')} - {selectedReport.hours}h</p>
+                            <p className="text-sm text-gray-500">{new Date(selectedReport.date).toLocaleDateString('it-IT')} - {formatDuration(selectedReport.hours)}</p>
                         </div>
                         <InfoBox label="Cliente" value={selectedReport.client} icon={Icons.Users} />
                         <InfoBox label="Categoria" value={selectedReport.category} icon={Icons.Target} />
@@ -931,7 +931,7 @@ END:VCALENDAR`;
         };
 
         const StatsView = () => {
-            const { reports } = useContext(CRMContext);
+            const { reports, formatDuration } = useContext(CRMContext);
 
             const data = useMemo(() => {
                 const map = {};
@@ -947,15 +947,6 @@ END:VCALENDAR`;
 
             const maxValue = Math.max(...data.map(d => d.value), 0);
 
-            // NEW HELPER
-            const formatHours = (val) => {
-                const h = Math.floor(val);
-                const m = Math.round((val - h) * 60);
-                if (h > 0 && m > 0) return `${h}h ${m}m`;
-                if (h > 0) return `${h}h`;
-                return `${m}m`;
-            }
-
             return (
                 <div className="animate-fade-in pb-32">
                     <header className="mb-6"><h1 className="text-2xl font-bold text-gray-800">Situazione</h1></header>
@@ -966,7 +957,7 @@ END:VCALENDAR`;
                                 <div key={d.name}>
                                     <div className="flex justify-between text-sm mb-1">
                                         <span className="font-medium text-gray-700 truncate w-3/4">{d.name}</span>
-                                        <span className="font-bold text-blue-600">{formatHours(d.value)}</span>
+                                        <span className="font-bold text-blue-600">{formatDuration(d.value)}</span>
                                     </div>
                                     <div className="w-full bg-gray-100 rounded-full h-2.5">
                                         <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${maxValue > 0 ? (d.value / maxValue) * 100 : 0}%` }}></div>
@@ -1107,6 +1098,16 @@ END:VCALENDAR`;
                 setTouchStart(null);
             };
 
+            const formatDuration = (val) => {
+                const num = parseFloat(val) || 0;
+                const h = Math.floor(num);
+                const m = Math.round((num - h) * 60);
+                if (h === 0 && m === 0) return '0m';
+                if (h > 0 && m > 0) return `${h}h ${m}m`;
+                if (h > 0) return `${h}h`;
+                return `${m}m`;
+            };
+
             // Initial form states
             const emptyReport = { date: new Date().toISOString().split('T')[0], hours: '', category: 'MANTENIMENTO RAPPORTO', contactType: 'TELEFONICO', calendarEventType: 'APPUNTAMENTO' };
 
@@ -1119,7 +1120,8 @@ END:VCALENDAR`;
                 clientForm: { ...clientForm }, setClientForm,
                 followupForm, setFollowupForm, ideaForm, setIdeaForm,
                 saveReport, saveClient, saveFollowup, saveIdea, deleteItem,
-                fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout
+                fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout,
+                formatDuration
             };
 
             if (!isLoggedIn) return (
