@@ -299,7 +299,6 @@ END:VCALENDAR`;
         const brandsList = ['HILTI', 'WURTH', 'MAKITA', 'BOSCH', 'BERNER'];
         const suppliesList = ['URGENZE', 'SCORTE', 'PIANIFICAZIONE', 'ALTRO'];
 
-
         // --- 5. VISTE E COMPONENTI PRINCIPALI ---
 
         const DashboardView = () => {
@@ -307,9 +306,8 @@ END:VCALENDAR`;
             
             return (
                 <div className="space-y-6 animate-fade-in pb-32">
+                    {/* ... existing header and stats ... */}
                     <header className="mb-6"><h1 className="text-2xl font-bold text-gray-800">Dashboard</h1></header>
-                    
-                    {/* STATS RAPIDE */}
                     <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-blue-600"><Icons.Users size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Clienti</span></div><div className="text-3xl font-bold text-gray-800">{clients.length}</div></div>
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-yellow-600"><Icons.Target size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
@@ -500,6 +498,100 @@ END:VCALENDAR`;
                             ))}
                         </div>
                     )}
+                </div>
+            );
+        };
+
+        // --- NEW COMPONENT: DUPLICATES CLEANER MODAL ---
+        const CleanDuplicatesModal = ({ groups, onClose, onDelete }) => {
+            // State to keep track of checked IDs. 
+            // Initially, select all except the oldest one in each group.
+            const [selectedIds, setSelectedIds] = useState(() => {
+                const initialSelection = new Set();
+                groups.forEach(group => {
+                    // Sort by createdAt ascending (oldest first)
+                    // If createdAt is missing, use ID or assume input order is somewhat chronological?
+                    // Let's assume we want to keep the first one.
+                    const sorted = [...group].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+                    // Check all except the first one
+                    for (let i = 1; i < sorted.length; i++) {
+                        initialSelection.add(sorted[i].id);
+                    }
+                });
+                return initialSelection;
+            });
+
+            const toggleSelection = (id) => {
+                const newSelection = new Set(selectedIds);
+                if (newSelection.has(id)) {
+                    newSelection.delete(id);
+                } else {
+                    newSelection.add(id);
+                }
+                setSelectedIds(newSelection);
+            };
+
+            const handleDelete = () => {
+                onDelete(Array.from(selectedIds));
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+                        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+                            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                <Icons.Trash2 className="text-purple-600" /> Pulizia Duplicati
+                            </h2>
+                            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><Icons.X size={20} /></button>
+                        </div>
+                        
+                        <div className="p-4 overflow-y-auto flex-1 space-y-4">
+                            <p className="text-sm text-gray-600 mb-2">
+                                Trovati <strong>{groups.length}</strong> gruppi di report duplicati. 
+                                Seleziona quelli da eliminare (le copie più recenti sono già selezionate).
+                            </p>
+                            
+                            {groups.map((group, groupIdx) => (
+                                <div key={groupIdx} className="border border-gray-200 rounded-xl overflow-hidden">
+                                    <div className="bg-gray-50 p-2 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                                        {group[0].client} - {new Date(group[0].date).toLocaleDateString('it-IT')}
+                                    </div>
+                                    <div>
+                                        {group.map((item, idx) => (
+                                            <div key={item.id} className="flex items-center p-3 border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={selectedIds.has(item.id)} 
+                                                    onChange={() => toggleSelection(item.id)}
+                                                    className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sm font-medium text-gray-800 truncate">{item.category}</div>
+                                                    <div className="text-xs text-gray-500">Inserito: {new Date(item.createdAt || 0).toLocaleString('it-IT')}</div>
+                                                </div>
+                                                {selectedIds.has(item.id) ? (
+                                                    <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded">Elimina</span>
+                                                ) : (
+                                                    <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Mantieni</span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="p-4 border-t border-gray-100 flex gap-3 bg-gray-50 rounded-b-2xl">
+                            <button onClick={onClose} className="flex-1 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50">Annulla</button>
+                            <button 
+                                onClick={handleDelete} 
+                                disabled={selectedIds.size === 0}
+                                className="flex-1 py-3 bg-purple-600 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 disabled:shadow-none hover:bg-purple-700 flex justify-center items-center gap-2"
+                            >
+                                <Icons.Trash2 size={18} /> Elimina ({selectedIds.size})
+                            </button>
+                        </div>
+                    </div>
                 </div>
             );
         };
@@ -710,6 +802,13 @@ END:VCALENDAR`;
             const [search, setSearch] = useState('');
             const filtered = useMemo(() => sortedClients.filter(c => (c.ragioneSociale || '').toLowerCase().includes(search.toLowerCase())), [sortedClients, search]);
 
+            // Helper check
+            const isIncomplete = (c) => {
+                 // Lista campi fondamentali per anagrafica completa
+                 const fields = ['pIva', 'telefono', 'email', 'sedeLegale', 'pec', 'sdiCode'];
+                 return fields.some(f => !c[f]);
+            }
+
             return (
                 <div className="animate-fade-in pb-32">
                     <div className="flex justify-between items-center mb-4">
@@ -727,9 +826,14 @@ END:VCALENDAR`;
                     <div className="space-y-3">
                         {filtered.length === 0 ? <div className="text-center py-8 text-gray-400 border border-dashed rounded-xl">Nessun cliente.</div> :
                             filtered.map(c => (
-                                <div key={c.id} onClick={() => { setSelectedClient(c); setView('clientDetail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
+                                <div key={c.id} onClick={() => { setSelectedClient(c); setView('clientDetail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform relative">
                                     <h3 className="font-bold text-gray-800 text-lg">{c.ragioneSociale}</h3>
                                     <div className="text-xs text-gray-500">{c.sedeOperativa || c.sedeLegale || 'Sede non spec.'}</div>
+                                    {isIncomplete(c) && (
+                                        <div className="mt-2 inline-block bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded border border-yellow-200 uppercase tracking-wide">
+                                            ⚠ Anagrafica Incompleta
+                                        </div>
+                                    )}
                                 </div>
                             ))
                         }
@@ -1153,6 +1257,15 @@ END:VCALENDAR`;
 
             const maxValue = Math.max(...data.map(d => d.value), 0);
 
+            // NEW HELPER
+            const formatHours = (val) => {
+                const h = Math.floor(val);
+                const m = Math.round((val - h) * 60);
+                if (h > 0 && m > 0) return `${h}h ${m}m`;
+                if (h > 0) return `${h}h`;
+                return `${m}m`;
+            }
+
             return (
                 <div className="animate-fade-in pb-32">
                     <header className="mb-6"><h1 className="text-2xl font-bold text-gray-800">Situazione</h1></header>
@@ -1163,7 +1276,7 @@ END:VCALENDAR`;
                                 <div key={d.name}>
                                     <div className="flex justify-between text-sm mb-1">
                                         <span className="font-medium text-gray-700 truncate w-3/4">{d.name}</span>
-                                        <span className="font-bold text-blue-600">{formatDuration(d.value)}</span>
+                                        <span className="font-bold text-blue-600">{formatHours(d.value)}</span>
                                     </div>
                                     <div className="w-full bg-gray-100 rounded-full h-2.5">
                                         <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${maxValue > 0 ? (d.value / maxValue) * 100 : 0}%` }}></div>
@@ -1201,6 +1314,11 @@ END:VCALENDAR`;
 
             const [sortOrder, setSortOrder] = useState({ reports: 'desc', clients: 'asc', followups: 'desc', ideas: 'desc' });
             const [message, setMessage] = useState({ text: '', type: '' });
+            
+            // --- STATE PER PULIZIA DUPLICATI ---
+            const [showCleanModal, setShowCleanModal] = useState(false);
+            const [duplicatesData, setDuplicatesData] = useState([]);
+
             const fileInputRef = useRef(null);
             
             // 1. Init
@@ -1284,6 +1402,39 @@ END:VCALENDAR`;
                 await setDoc(doc(db, `artifacts/${appId}/users/${key}/${collectionName}`, id), { completed: !currentStatus }, { merge: true });
                 // Opzionale: showMessage(!currentStatus ? 'Completata!' : 'Ripristinata!', 'success');
             };
+            
+            const handleCleanDuplicates = () => {
+                const groups = {};
+                reports.forEach(r => {
+                    const compositeKey = `${(r.client||'').trim().toLowerCase()}|${r.date}|${(r.category||'').trim()}|${(r.description||'').trim().toLowerCase()}`;
+                    if (!groups[compositeKey]) groups[compositeKey] = [];
+                    groups[compositeKey].push(r);
+                });
+
+                const duplicateGroups = Object.values(groups).filter(g => g.length > 1);
+
+                if (duplicateGroups.length === 0) {
+                    showMessage('Nessun duplicato trovato.', 'info');
+                    return;
+                }
+
+                setDuplicatesData(duplicateGroups);
+                setShowCleanModal(true);
+            };
+
+            const executeClean = async (idsToDelete) => {
+                if (idsToDelete.length === 0) return;
+                const key = userKey.toLowerCase().replace(/\s/g, '');
+                try {
+                    const deletePromises = idsToDelete.map(id => deleteDoc(doc(db, `artifacts/${appId}/users/${key}/reports`, id)));
+                    await Promise.all(deletePromises);
+                    showMessage(`Eliminati ${idsToDelete.length} duplicati.`, 'success');
+                    setShowCleanModal(false);
+                } catch (error) {
+                    console.error("Errore pulizia:", error);
+                    showMessage('Errore durante l\'eliminazione.', 'error');
+                }
+            };
 
              const handleLogin = (e) => {
                 e.preventDefault();
@@ -1292,11 +1443,10 @@ END:VCALENDAR`;
             };
 
             const handleLogout = () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); setView('dashboard'); };
-            const handleCleanDuplicates = () => showMessage('Funzione simulata per performance', 'info'); // Placeholder
-            const handleImport = () => showMessage('Import simulato', 'info'); // Placeholder
-            const exportToExcel = () => showMessage('Export simulato', 'info'); // Placeholder
+            const handleImport = () => showMessage('Import simulato', 'info'); 
+            const exportToExcel = () => showMessage('Export simulato', 'info'); 
 
-            // Nav swipe logic (Simplificata)
+            // ... nav logic and formatDuration ...
             const [touchStart, setTouchStart] = useState(null);
             const onTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX);
             const onTouchEnd = (e) => {
@@ -1389,6 +1539,15 @@ END:VCALENDAR`;
                                 <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-xl text-white font-bold text-sm z-50 ${message.type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`}>
                                     {message.text}
                                 </div>
+                            )}
+
+                            {/* Clean Modal */}
+                            {showCleanModal && (
+                                <CleanDuplicatesModal 
+                                    groups={duplicatesData} 
+                                    onClose={() => setShowCleanModal(false)} 
+                                    onDelete={executeClean} 
+                                />
                             )}
                         </div>
                     </div>
