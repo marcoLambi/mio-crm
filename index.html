@@ -66,7 +66,7 @@
         const IconBase = ({ children, size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
         );
-        // Icone (Memoized per performance)
+        
         const Icons = {
             Plus: (p) => <IconBase {...p}><path d="M5 12h14"/><path d="M12 5v14"/></IconBase>,
             LayoutDashboard: (p) => <IconBase {...p}><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></IconBase>,
@@ -299,6 +299,7 @@ END:VCALENDAR`;
         const brandsList = ['HILTI', 'WURTH', 'MAKITA', 'BOSCH', 'BERNER'];
         const suppliesList = ['URGENZE', 'SCORTE', 'PIANIFICAZIONE', 'ALTRO'];
 
+
         // --- 5. VISTE E COMPONENTI PRINCIPALI ---
 
         const DashboardView = () => {
@@ -474,7 +475,9 @@ END:VCALENDAR`;
                                                 <item.icon size={12} /> {item.label}
                                             </div>
                                             <div className="font-bold text-lg truncate mb-1">{item.data.client}</div>
-                                            <div className="text-sm opacity-80 truncate">{item.data.description || item.data.notes || item.data.text || item.data.futureNotes}</div>
+                                            <div className="text-sm opacity-80 truncate">
+                                                {item.type === 'report' ? (item.data.futureNotes || item.data.description) : (item.data.notes || item.data.text || item.data.description)}
+                                            </div>
                                         </div>
                                         <div className="text-right shrink-0 flex flex-col items-end gap-2">
                                             <div>
@@ -645,7 +648,7 @@ END:VCALENDAR`;
         };
 
         const FollowupForm = () => {
-            const { followupForm: initialData, saveFollowup, setView, clients } = useContext(CRMContext);
+            const { followupForm: initialData, saveFollowup, setView, clients, toggleTaskCompletion } = useContext(CRMContext);
             const [formData, setFormData] = useState(initialData);
 
             const handleChange = (e) => {
@@ -653,9 +656,24 @@ END:VCALENDAR`;
                 setFormData(prev => ({ ...prev, [name]: value }));
             };
 
+            const toggleComplete = async () => {
+                if (formData.id) {
+                    await toggleTaskCompletion('followups', formData.id, formData.completed);
+                    setFormData(prev => ({ ...prev, completed: !prev.completed }));
+                }
+            };
+
             return (
                 <div className="animate-fade-in pb-32">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica Offerta' : 'Nuova Offerta'}</h2>
+                    {formData.id && (
+                        <button 
+                            onClick={toggleComplete}
+                            className={`w-full py-3 rounded-xl font-bold text-white shadow-lg mb-6 flex items-center justify-center gap-2 transition-all ${formData.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}
+                        >
+                            {formData.completed ? <><Icons.Check size={20}/> Completato</> : <><Icons.AlarmCheck size={20}/> Da Fare</>}
+                        </button>
+                    )}
                     <form onSubmit={(e) => { e.preventDefault(); saveFollowup(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <SectionContainer title="Dettagli Offerta" icon={Icons.Target}>
                             <div><label className="block text-sm font-bold text-gray-700 mb-1">Cliente *</label><select required name="client" value={formData.client} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="">Seleziona...</option>{clients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}</select></div>
@@ -675,7 +693,7 @@ END:VCALENDAR`;
         };
 
         const IdeaForm = () => {
-            const { ideaForm: initialData, saveIdea, setView, clients } = useContext(CRMContext);
+            const { ideaForm: initialData, saveIdea, setView, clients, toggleTaskCompletion } = useContext(CRMContext);
             const [formData, setFormData] = useState(initialData);
 
             const handleChange = (e) => {
@@ -683,9 +701,24 @@ END:VCALENDAR`;
                 setFormData(prev => ({ ...prev, [name]: value }));
             };
 
+             const toggleComplete = async () => {
+                if (formData.id) {
+                    await toggleTaskCompletion('ideas', formData.id, formData.completed);
+                    setFormData(prev => ({ ...prev, completed: !prev.completed }));
+                }
+            };
+
             return (
                 <div className="animate-fade-in pb-32">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica Idea' : 'Nuova Idea'}</h2>
+                    {formData.id && (
+                        <button 
+                            onClick={toggleComplete}
+                            className={`w-full py-3 rounded-xl font-bold text-white shadow-lg mb-6 flex items-center justify-center gap-2 transition-all ${formData.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}
+                        >
+                            {formData.completed ? <><Icons.Check size={20}/> Completato</> : <><Icons.AlarmCheck size={20}/> Da Fare</>}
+                        </button>
+                    )}
                     <form onSubmit={(e) => { e.preventDefault(); saveIdea(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <SectionContainer title="Dettagli Progetto" icon={Icons.Lightbulb}>
                             <div><label className="block text-sm font-bold text-gray-700 mb-1">Cliente *</label><select required name="client" value={formData.client} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="">Seleziona...</option>{clients.map(c => <option key={c.id} value={c.ragioneSociale}>{c.ragioneSociale}</option>)}</select></div>
@@ -912,12 +945,15 @@ END:VCALENDAR`;
         };
 
         const ReportDetailView = () => {
-            const { selectedReport, setView, setReportForm, deleteItem, formatDuration } = useContext(CRMContext);
+            const { selectedReport, setView, setReportForm, deleteItem, formatDuration, toggleTaskCompletion, reports } = useContext(CRMContext);
 
-            if (!selectedReport) return null;
+            // Reattivo rispetto a reports
+            const report = useMemo(() => reports.find(r => r.id === selectedReport?.id) || selectedReport, [reports, selectedReport]);
+
+            if (!report) return null;
 
             const handleDelete = async () => {
-                const confirmed = await deleteItem('reports', selectedReport.id);
+                const confirmed = await deleteItem('reports', report.id);
                 if (confirmed) setView('list');
             };
 
@@ -926,26 +962,36 @@ END:VCALENDAR`;
                      <div className="flex justify-between items-center mb-6">
                         <button onClick={() => setView('list')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><Icons.ChevronRight size={24} className="rotate-180" /></button>
                         <div className="flex gap-2">
-                            <button onClick={() => { setReportForm(selectedReport); setView('create'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Icons.Edit2 size={20} /></button>
+                            <button onClick={() => { setReportForm(report); setView('create'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Icons.Edit2 size={20} /></button>
                             <button onClick={handleDelete} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Icons.Trash2 size={20} /></button>
                         </div>
                     </div>
+                    
+                    {report.nextContactDate && (
+                         <button 
+                            onClick={() => toggleTaskCompletion('reports', report.id, report.completed)}
+                            className={`w-full py-3 rounded-xl font-bold text-white shadow-lg mb-6 flex items-center justify-center gap-2 transition-all ${report.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}
+                        >
+                            {report.completed ? <><Icons.Check size={20}/> Completato</> : <><Icons.AlarmCheck size={20}/> Da Fare</>}
+                        </button>
+                    )}
+
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                         <div>
-                            <h1 className="text-xl font-bold text-gray-800">{selectedReport.title}</h1>
-                            <p className="text-sm text-gray-500">{new Date(selectedReport.date).toLocaleDateString('it-IT')} - {formatDuration(selectedReport.hours)}</p>
+                            <h1 className="text-xl font-bold text-gray-800">{report.title}</h1>
+                            <p className="text-sm text-gray-500">{new Date(report.date).toLocaleDateString('it-IT')} - {formatDuration(report.hours)}</p>
                         </div>
-                        <InfoBox label="Cliente" value={selectedReport.client} icon={Icons.Users} />
-                        <InfoBox label="Categoria" value={selectedReport.category} icon={Icons.Target} />
-                        <InfoBox label="Tipo Contatto" value={selectedReport.contactType} icon={Icons.Phone} />
-                        <SectionDisplay title="Descrizione" content={selectedReport.description} />
-                        {selectedReport.futureNotes && (
+                        <InfoBox label="Cliente" value={report.client} icon={Icons.Users} />
+                        <InfoBox label="Categoria" value={report.category} icon={Icons.Target} />
+                        <InfoBox label="Tipo Contatto" value={report.contactType} icon={Icons.Phone} />
+                        <SectionDisplay title="Descrizione" content={report.description} />
+                        {report.futureNotes && (
                             <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100">
                                 <h3 className="text-sm font-bold text-yellow-800 mb-2 flex items-center gap-2"><Icons.Bell size={16}/> Appunti Futuri</h3>
-                                <p className="text-sm text-yellow-900">{selectedReport.futureNotes}</p>
-                                {selectedReport.nextContactDate && (
+                                <p className="text-sm text-yellow-900">{report.futureNotes}</p>
+                                {report.nextContactDate && (
                                     <div className="mt-2 text-xs font-bold text-yellow-700">
-                                        Prossimo contatto: {new Date(selectedReport.nextContactDate).toLocaleDateString('it-IT')} {selectedReport.nextContactTime}
+                                        Prossimo contatto: {new Date(report.nextContactDate).toLocaleDateString('it-IT')} {report.nextContactTime}
                                     </div>
                                 )}
                             </div>
@@ -957,7 +1003,7 @@ END:VCALENDAR`;
         
         const ClientDetailView = () => {
             // Aggiunti setReportForm, setFollowupForm, setIdeaForm al destructuring
-            const { selectedClient, setView, setClientForm, setSelectedClient, setReportForm, setFollowupForm, setIdeaForm } = useContext(CRMContext);
+            const { selectedClient, setView, setClientForm, setSelectedClient, setReportForm, setFollowupForm, setIdeaForm, deleteItem } = useContext(CRMContext);
 
             if (!selectedClient) return null;
             
@@ -984,6 +1030,11 @@ END:VCALENDAR`;
                 setIdeaForm({ client: selectedClient.ragioneSociale });
                 setView('createIdea');
             };
+            
+            const handleDelete = async () => {
+                const confirmed = await deleteItem('clients', selectedClient.id);
+                if (confirmed) setView('clients');
+            };
 
             return (
                 <div className="animate-fade-in pb-32 bg-white min-h-full">
@@ -991,7 +1042,7 @@ END:VCALENDAR`;
                         <button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><Icons.ChevronRight size={24} className="rotate-180" /></button>
                         <div className="flex gap-2">
                             <button onClick={() => { setClientForm(selectedClient); setView('createClient'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Icons.Edit2 size={20}/></button>
-                            {/* Delete could be implemented here */}
+                            <button onClick={handleDelete} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Icons.Trash2 size={20}/></button>
                         </div>
                     </div>
                     
