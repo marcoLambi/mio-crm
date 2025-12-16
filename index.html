@@ -98,7 +98,8 @@
             ArrowUpDown: (p) => <IconBase {...p}><path d="m21 16-4 4-4-4"/><path d="m17 20V4"/><path d="m3 8 4-4 4 4"/><path d="m7 4v16"/></IconBase>,
             ClipboardList: (p) => <IconBase {...p}><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></IconBase>,
             BarChart: (p) => <IconBase {...p}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></IconBase>,
-            CheckSquare: (p) => <IconBase {...p}><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></IconBase>
+            CheckSquare: (p) => <IconBase {...p}><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></IconBase>,
+            BookOpen: (p) => <IconBase {...p}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></IconBase>
         };
 
         const InfoBox = ({ label, value, icon: Icon, color = 'text-gray-700' }) => (
@@ -140,15 +141,18 @@
             </div>
         );
 
+        // --- NEW COMPONENT: TIME WHEEL PICKER ---
         const TimeWheelPicker = ({ value, onChange }) => {
+            // value is decimal string "1.5" (1h 30m)
             const hVal = Math.floor(parseFloat(value) || 0);
             const mVal = Math.round(((parseFloat(value) || 0) - hVal) * 60);
 
-            const hours = [...Array(13).keys()]; 
-            const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]; 
+            // Ranges
+            const hours = [...Array(13).keys()]; // 0-12
+            const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]; // 5 min steps
 
-            const itemHeight = 40; 
-            const spacerHeight = 40; 
+            const itemHeight = 40; // px
+            const spacerHeight = 40; // To allow centering first/last items
 
             const handleScroll = (e, type) => {
                 const index = Math.round(e.target.scrollTop / itemHeight);
@@ -162,14 +166,18 @@
             };
 
             const updateTime = (h, m) => {
+                // Ensure minutes like 5 don't become 0.08333 but stay manageable
+                // Just saving as decimal for compatibility with rest of app
                 const decimal = (h + (m / 60)).toFixed(2);
                 onChange(parseFloat(decimal).toString());
             };
             
+            // Refs for initial scroll positioning
             const hRef = useRef(null);
             const mRef = useRef(null);
 
             useEffect(() => {
+                // Scroll to current value on mount
                 if(hRef.current) hRef.current.scrollTop = hours.indexOf(hVal) * itemHeight;
                 if(mRef.current) mRef.current.scrollTop = minutes.indexOf(mVal) * itemHeight;
             }, []);
@@ -178,13 +186,34 @@
                 <div>
                      <label className="block text-sm font-bold text-gray-700 mb-2">Durata</label>
                     <div className="flex justify-center gap-2 py-4 relative bg-gray-50 rounded-xl border border-gray-200 select-none">
+                        {/* Highlight bar */}
                         <div className="absolute top-1/2 -translate-y-1/2 w-full h-[40px] bg-blue-100/50 pointer-events-none border-y border-blue-200"></div>
-                        <div className="w-24 h-[120px] overflow-y-auto snap-y snap-mandatory wheel-scroller relative z-10 text-center" onScroll={(e) => handleScroll(e, 'h')} ref={hRef}>
-                            <div style={{ height: spacerHeight }} />{hours.map(h => (<div key={h} className="h-[40px] flex items-center justify-center font-bold text-gray-700 snap-center transition-colors">{h} <span className="text-xs text-gray-400 ml-1 font-normal">ore</span></div>))}<div style={{ height: spacerHeight }} />
+                        
+                        {/* Hours */}
+                        <div className="w-24 h-[120px] overflow-y-auto snap-y snap-mandatory wheel-scroller relative z-10 text-center" 
+                             onScroll={(e) => handleScroll(e, 'h')} ref={hRef}>
+                            <div style={{ height: spacerHeight }} />
+                            {hours.map(h => (
+                                <div key={h} className="h-[40px] flex items-center justify-center font-bold text-gray-700 snap-center transition-colors">
+                                    {h} <span className="text-xs text-gray-400 ml-1 font-normal">ore</span>
+                                </div>
+                            ))}
+                            <div style={{ height: spacerHeight }} />
                         </div>
+
+                        {/* Divider */}
                         <div className="h-[120px] flex items-center justify-center text-gray-300 font-light text-2xl pb-1">:</div>
-                        <div className="w-24 h-[120px] overflow-y-auto snap-y snap-mandatory wheel-scroller relative z-10 text-center" onScroll={(e) => handleScroll(e, 'm')} ref={mRef}>
-                            <div style={{ height: spacerHeight }} />{minutes.map(m => (<div key={m} className="h-[40px] flex items-center justify-center font-bold text-gray-700 snap-center transition-colors">{m} <span className="text-xs text-gray-400 ml-1 font-normal">min</span></div>))}<div style={{ height: spacerHeight }} />
+
+                        {/* Minutes */}
+                        <div className="w-24 h-[120px] overflow-y-auto snap-y snap-mandatory wheel-scroller relative z-10 text-center" 
+                             onScroll={(e) => handleScroll(e, 'm')} ref={mRef}>
+                            <div style={{ height: spacerHeight }} />
+                            {minutes.map(m => (
+                                <div key={m} className="h-[40px] flex items-center justify-center font-bold text-gray-700 snap-center transition-colors">
+                                    {m} <span className="text-xs text-gray-400 ml-1 font-normal">min</span>
+                                </div>
+                            ))}
+                            <div style={{ height: spacerHeight }} />
                         </div>
                     </div>
                 </div>
@@ -209,6 +238,7 @@
             <h2 className="text-base font-bold text-gray-700 border-b border-gray-200 pb-2 flex items-center gap-2">{icon} {title}</h2>
         );
 
+        // --- 3. LOGICA DI CALENDARIO (ICS + Google) ---
         const generateICSFile = (title, description, startDateTime, endDateTime, uid, sequence = 0, location = "") => {
              const formatDate = (date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
              const eventUid = uid || `${Date.now()}@crm.app`; 
@@ -266,6 +296,7 @@ END:VCALENDAR`;
             );
         };
 
+        // --- 4. LISTE DATI ---
         const paymentOptions = {
             method1: [{ label: "BB (Bonifico Bancario)", value: "BB" }, { label: "RI.BA (Ricevuta Bancaria)", value: "RI.BA" }],
             method2: [{ label: "30 giorni", value: "30" }, { label: "60 giorni", value: "60" }, { label: "90 giorni", value: "90" }],
@@ -275,6 +306,69 @@ END:VCALENDAR`;
         const regionsList = ['Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche', 'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana', 'Trentino-Alto Adige', 'Umbria', 'Valle d\'Aosta', 'Veneto'];
         const brandsList = ['HILTI', 'WURTH', 'MAKITA', 'BOSCH', 'BERNER'];
         const suppliesList = ['URGENZE', 'SCORTE', 'PIANIFICAZIONE', 'ALTRO'];
+
+        // --- NEW COMPONENT: MANUAL VIEW ---
+        const ManualView = () => {
+            const { setView } = useContext(CRMContext);
+            return (
+                <div className="animate-fade-in pb-32">
+                     <div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 border-b border-gray-100 flex items-center mb-4">
+                        <button onClick={() => setView('dashboard')} className="p-2 -ml-2 rounded-full hover:bg-gray-100 mr-2"><Icons.ChevronRight size={24} className="rotate-180" /></button>
+                        <h1 className="text-xl font-bold text-gray-800">Manuale Utente</h1>
+                    </div>
+                    
+                    <div className="p-4 space-y-6">
+                        <SectionContainer title="Benvenuto" icon={Icons.BookOpen}>
+                            <p className="text-sm text-gray-600">Benvenuto nel CRM WorkReport. Questa guida ti aiuterà a sfruttare al meglio tutte le funzionalità dell'applicazione.</p>
+                        </SectionContainer>
+
+                        <SectionContainer title="Dashboard" icon={Icons.LayoutDashboard}>
+                            <p className="text-sm text-gray-600">La schermata principale offre accesso rapido alle funzioni principali:</p>
+                            <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1 mt-2">
+                                <li><strong>Report (Grigio):</strong> Crea e visualizza i report delle visite/contatti.</li>
+                                <li><strong>Offerte (Giallo):</strong> Gestisci le offerte inviate e i loro esiti.</li>
+                                <li><strong>Idee (Rosso):</strong> Appunta velocemente idee o progetti futuri.</li>
+                            </ul>
+                        </SectionContainer>
+
+                        <SectionContainer title="Colori e Stati" icon={Icons.Target}>
+                            <p className="text-sm text-gray-600">Il sistema usa un codice colori per identificare rapidamente il tipo di attività:</p>
+                            <div className="flex gap-2 mt-2">
+                                <div className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-bold border border-gray-200">Report</div>
+                                <div className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold border border-yellow-200">Offerte</div>
+                                <div className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold border border-red-200">Idee</div>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">Inoltre, le attività possono essere <strong>Da Fare</strong> (Rosso) o <strong>Completate</strong> (Verde).</p>
+                        </SectionContainer>
+
+                         <SectionContainer title="Lista TO-DO" icon={Icons.CheckSquare}>
+                            <p className="text-sm text-gray-600">La tab TO-DO raccoglie automaticamente:</p>
+                             <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1 mt-2">
+                                <li>Report con un prossimo contatto programmato.</li>
+                                <li>Offerte in attesa di riscontro.</li>
+                                <li>Idee non ancora realizzate.</li>
+                            </ul>
+                            <p className="text-sm text-gray-600 mt-2">Usa il pulsante di spunta per completare un'attività e rimuoverla dalla lista.</p>
+                        </SectionContainer>
+
+                        <SectionContainer title="Gestione Clienti" icon={Icons.Users}>
+                            <p className="text-sm text-gray-600">Nella sezione Clienti puoi gestire l'anagrafica completa. Se mancano dati importanti (es. Email, P.IVA), vedrai un avviso <strong>"Anagrafica Incompleta"</strong> sulla scheda del cliente.</p>
+                            <p className="text-sm text-gray-600 mt-2">Dalla scheda cliente, puoi creare rapidamente nuovi Report, Offerte o Idee già precompilati.</p>
+                        </SectionContainer>
+
+                        <SectionContainer title="Funzioni Avanzate" icon={Icons.Trash2}>
+                            <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1">
+                                <li><strong>Pulisci:</strong> Rileva ed elimina i report duplicati.</li>
+                                <li><strong>Backup/Importa:</strong> Salva i tuoi dati in Excel o ripristinali.</li>
+                                <li><strong>Calendario:</strong> Esporta eventi su Google Calendar o scarica il file .ics per Outlook/Apple. Le Idee hanno una durata preimpostata di 5 minuti.</li>
+                            </ul>
+                        </SectionContainer>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 5. VISTE E COMPONENTI PRINCIPALI ---
 
         const DashboardView = () => {
             const { clients, followups, ideas, setView, setFollowupForm, setIdeaForm, fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout } = useContext(CRMContext);
@@ -288,6 +382,7 @@ END:VCALENDAR`;
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-red-600"><Icons.Lightbulb size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Idee</span></div><div className="text-3xl font-bold text-gray-800">{ideas.length}</div></div>
                     </div>
                     
+                    {/* SEZIONE REPORT - SEMPLIFICATA (GRIGIO) */}
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center">
                         <button onClick={() => setView('create')} className="w-full bg-gray-600 hover:bg-gray-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-gray-200 flex justify-center items-center gap-2 active:scale-95 transition-all mb-3 text-lg">
                             <Icons.Plus size={22} /> Nuovo Report
@@ -297,6 +392,7 @@ END:VCALENDAR`;
                         </button>
                     </div>
 
+                    {/* SEZIONE OFFERTE - SEMPLIFICATA (GIALLO) */}
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center">
                         <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-yellow-200 flex justify-center items-center gap-2 active:scale-95 transition-all mb-3 text-lg">
                             <Icons.Plus size={22} /> Nuova Offerta
@@ -306,6 +402,7 @@ END:VCALENDAR`;
                         </button>
                     </div>
 
+                    {/* SEZIONE IDEE - SEMPLIFICATA (ROSSO) */}
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center">
                         <button onClick={() => { setIdeaForm({}); setView('createIdea'); }} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-red-200 flex justify-center items-center gap-2 active:scale-95 transition-all mb-3 text-lg">
                             <Icons.Plus size={22} /> Nuova Idea
@@ -315,12 +412,20 @@ END:VCALENDAR`;
                         </button>
                     </div>
 
+                    {/* FOOTER ACTIONS */}
                     <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
                          <input type="file" ref={fileInputRef} className="hidden" onChange={handleImport} accept=".xlsx, .xls, .csv" />
                         <button onClick={() => fileInputRef.current.click()} className="text-xs text-blue-600 p-3 bg-blue-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-blue-100 active:scale-95"><Icons.Upload size={16} /> Importa</button>
                         <button onClick={exportToExcel} className="text-xs text-green-600 p-3 bg-green-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-green-100 active:scale-95"><Icons.Download size={16} /> Backup</button>
                         <button onClick={handleCleanDuplicates} className="text-xs text-purple-600 p-3 bg-purple-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-purple-100 active:scale-95"><Icons.Trash2 size={16} /> Pulisci</button>
                         <button onClick={handleLogout} className="text-xs text-red-500 p-3 bg-red-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-red-100 active:scale-95"><Icons.LogOut size={16} /> Esci</button>
+                    </div>
+                    
+                    {/* MANUAL BUTTON */}
+                    <div className="mt-4 flex justify-center">
+                        <button onClick={() => setView('manual')} className="text-xs text-gray-500 underline hover:text-gray-800 flex items-center gap-1 p-2">
+                            <Icons.BookOpen size={14} /> Guida all'uso
+                        </button>
                     </div>
                 </div>
             );
@@ -330,8 +435,12 @@ END:VCALENDAR`;
             const { reports, followups, ideas, setSelectedReport, setFollowupForm, setIdeaForm, setView, toggleTaskCompletion } = useContext(CRMContext);
             const [search, setSearch] = useState('');
             
+            // Unifica e ordina tutti gli elementi con una scadenza
             const todos = useMemo(() => {
+                const now = new Date();
                 const items = [];
+
+                // 1. Report (Promemoria Contatti)
                 reports.forEach(r => {
                     if (r.nextContactDate && !r.completed) {
                         items.push({
@@ -345,6 +454,7 @@ END:VCALENDAR`;
                     }
                 });
 
+                // 2. Offerte (Riscontro Atteso)
                 followups.forEach(f => {
                     if (f.feedbackDate && !f.completed) {
                         items.push({
@@ -358,6 +468,7 @@ END:VCALENDAR`;
                     }
                 });
 
+                // 3. Idee (Scadenza)
                 ideas.forEach(i => {
                     if (i.deadline && !i.completed) {
                         items.push({
@@ -371,6 +482,7 @@ END:VCALENDAR`;
                     }
                 });
 
+                // Ordina per data (dal più vecchio/urgente al più futuro)
                 return items.sort((a, b) => a.date - b.date);
             }, [reports, followups, ideas]);
 
@@ -465,11 +577,18 @@ END:VCALENDAR`;
             );
         };
 
+        // --- NEW COMPONENT: DUPLICATES CLEANER MODAL ---
         const CleanDuplicatesModal = ({ groups, onClose, onDelete }) => {
+            // State to keep track of checked IDs. 
+            // Initially, select all except the oldest one in each group.
             const [selectedIds, setSelectedIds] = useState(() => {
                 const initialSelection = new Set();
                 groups.forEach(group => {
+                    // Sort by createdAt ascending (oldest first)
+                    // If createdAt is missing, use ID or assume input order is somewhat chronological?
+                    // Let's assume we want to keep the first one.
                     const sorted = [...group].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+                    // Check all except the first one
                     for (let i = 1; i < sorted.length; i++) {
                         initialSelection.add(sorted[i].id);
                     }
@@ -574,7 +693,12 @@ END:VCALENDAR`;
                             {availableContacts.length > 0 && (<div><label className="block text-sm font-bold text-gray-700 mb-1">Referente</label><select name="contactRef" value={formData.contactRef} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="">Nessuno spec.</option>{availableContacts.map((c, idx) => (<option key={idx} value={c.nome}>{c.nome} {c.mansione ? `(${c.mansione})` : ''}</option>))}</select></div>)}
                             <div className="grid grid-cols-2 gap-4">
                                 <Input label="Data" type="date" name="date" value={formData.date} onChange={handleChange} required />
-                                <TimeWheelPicker value={formData.hours} onChange={(val) => setFormData(prev => ({...prev, hours: val}))} />
+                                
+                                {/* NUOVA RUOTA TEMPORALE AL POSTO DELLE TENDINE */}
+                                <TimeWheelPicker 
+                                    value={formData.hours} 
+                                    onChange={(val) => setFormData(prev => ({...prev, hours: val}))} 
+                                />
                             </div>
                             <div><label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label><select name="category" value={formData.category} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option>MANTENIMENTO RAPPORTO</option><option>ORDINE</option><option>RICHIESTA DI OFFERTA</option><option>RISCONTRO OFFERTA</option><option>COMUNICAZIONE</option><option>INIZIO RAPPORTO FORNITURE</option><option>SOLLECITO INIZIO FORNITURA</option><option>APPUNTAMENTO</option><option>ALTRO</option></select></div>
                             <div><label className="block text-sm font-bold text-gray-700 mb-1">Tipo</label><select name="contactType" value={formData.contactType} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option>TELEFONICO</option><option>APPUNTAMENTO</option><option>VISITA</option><option>LINKEDIN</option><option>WHATSAPP</option><option>CANTIERE</option><option>ALTRO</option></select></div>
@@ -1525,6 +1649,7 @@ END:VCALENDAR`;
                                 {view === 'ideas' && <IdeasList />}
                                 {view === 'createIdea' && <IdeaForm />}
                                 {view === 'stats' && <StatsView />}
+                                {view === 'manual' && <ManualView />}
                             </div>
                             
                             {/* Navigazione */}
