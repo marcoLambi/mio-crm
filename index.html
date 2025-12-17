@@ -19,22 +19,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+        /* Sfondo body leggermente più scuro */
+        body { font-family: 'Segoe UI', sans-serif; background-color: #e5e7eb; -webkit-tap-highlight-color: transparent; }
         .animate-fade-in { animation: fadeIn 0.2s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .h-dvh { height: 100dvh; }
-        /* Ottimizzazione rendering font e input */
-        input, textarea, select { font-size: 16px !important; } /* Previene zoom su iOS */
+        input, textarea, select { font-size: 16px !important; } 
 
-        /* Stili per la Ruota Temporale */
         .wheel-scroller {
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
         .wheel-scroller::-webkit-scrollbar {
-            display: none; /* Chrome, Safari and Opera */
+            display: none;
         }
     </style>
 </head>
@@ -59,10 +58,8 @@
 
         const { useState, useEffect, useMemo, useRef, useContext, createContext, useCallback } = React;
 
-        // --- 1. CONTEXT (Il cervello dell'app) ---
         const CRMContext = createContext();
 
-        // --- 2. UTILITY COMPONENTS (I mattoncini) ---
         const IconBase = ({ children, size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
         );
@@ -103,7 +100,7 @@
         };
 
         const InfoBox = ({ label, value, icon: Icon, color = 'text-gray-700' }) => (
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
                 <div className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1 mb-1">{Icon && <Icon size={12} className={color} />} {label}</div>
                 <div className={`text-lg font-semibold ${color}`}>{value || '-'}</div>
             </div>
@@ -120,7 +117,7 @@
             <div>
                 {label && <label className="block text-sm font-bold text-gray-700 mb-1">{label}</label>}
                 <input type={type} name={name} value={value ?? ''} onChange={onChange} required={required} step={step} placeholder={placeholder} 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
+                    className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
             </div>
         );
 
@@ -128,7 +125,7 @@
             <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">{label}</label>
                 <textarea name={name} value={value ?? ''} onChange={onChange} placeholder={placeholder} rows="3" 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-shadow" />
+                    className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-shadow" />
             </div>
         );
         
@@ -141,7 +138,6 @@
             </div>
         );
 
-        // --- NEW COMPONENT: SEARCHABLE CLIENT SELECT ---
         const ClientSearchInput = ({ clients, value, onChange, required = false }) => {
             const [isOpen, setIsOpen] = useState(false);
             const sortedClients = useMemo(() => [...clients].sort((a, b) => (a.ragioneSociale || '').localeCompare(b.ragioneSociale || '')), [clients]);
@@ -159,11 +155,11 @@
                         onBlur={() => setTimeout(() => setIsOpen(false), 200)}
                         required={required}
                         placeholder="Cerca o seleziona cliente..."
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
+                        className="w-full p-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow"
                         autoComplete="off"
                     />
                     {isOpen && filteredOptions.length > 0 && (
-                        <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                        <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
                             {filteredOptions.map(c => (
                                 <div 
                                     key={c.id}
@@ -175,14 +171,10 @@
                             ))}
                         </div>
                     )}
-                     {isOpen && filteredOptions.length === 0 && (
-                        <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm text-gray-400 text-center">Nessun cliente trovato</div>
-                    )}
                 </div>
             );
         };
 
-        // --- TIME WHEEL PICKER ---
         const TimeWheelPicker = ({ value, onChange }) => {
             const hVal = Math.floor(parseFloat(value) || 0);
             const mVal = Math.round(((parseFloat(value) || 0) - hVal) * 60);
@@ -217,14 +209,14 @@
             return (
                 <div>
                      <label className="block text-sm font-bold text-gray-700 mb-2">Durata</label>
-                    <div className="flex justify-center gap-2 py-4 relative bg-gray-50 rounded-xl border border-gray-200 select-none">
+                    <div className="flex justify-center gap-2 py-4 relative bg-white rounded-xl border border-gray-200 select-none shadow-inner">
                         <div className="absolute top-1/2 -translate-y-1/2 w-full h-[40px] bg-blue-100/50 pointer-events-none border-y border-blue-200"></div>
                         <div className="w-24 h-[120px] overflow-y-auto snap-y snap-mandatory wheel-scroller relative z-10 text-center" onScroll={(e) => handleScroll(e, 'h')} ref={hRef}>
-                            <div style={{ height: spacerHeight }} />{hours.map(h => (<div key={h} className="h-[40px] flex items-center justify-center font-bold text-gray-700 snap-center transition-colors">{h} <span className="text-xs text-gray-400 ml-1 font-normal">ore</span></div>))}<div style={{ height: spacerHeight }} />
+                            <div style={{ height: spacerHeight }} />{hours.map(h => (<div key={h} className="h-[40px] flex items-center justify-center font-bold text-gray-700 snap-center">{h} <span className="text-xs text-gray-400 ml-1 font-normal">ore</span></div>))}<div style={{ height: spacerHeight }} />
                         </div>
                         <div className="h-[120px] flex items-center justify-center text-gray-300 font-light text-2xl pb-1">:</div>
                         <div className="w-24 h-[120px] overflow-y-auto snap-y snap-mandatory wheel-scroller relative z-10 text-center" onScroll={(e) => handleScroll(e, 'm')} ref={mRef}>
-                            <div style={{ height: spacerHeight }} />{minutes.map(m => (<div key={m} className="h-[40px] flex items-center justify-center font-bold text-gray-700 snap-center transition-colors">{m} <span className="text-xs text-gray-400 ml-1 font-normal">min</span></div>))}<div style={{ height: spacerHeight }} />
+                            <div style={{ height: spacerHeight }} />{minutes.map(m => (<div key={m} className="h-[40px] flex items-center justify-center font-bold text-gray-700 snap-center">{m} <span className="text-xs text-gray-400 ml-1 font-normal">min</span></div>))}<div style={{ height: spacerHeight }} />
                         </div>
                     </div>
                 </div>
@@ -232,7 +224,7 @@
         };
 
         const SectionContainer = ({ title, icon: Icon, children }) => (
-            <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+            <section className="bg-white p-5 rounded-2xl shadow-md border border-gray-100 space-y-4">
                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">{Icon && <Icon size={14} />} {title}</h3>
                 {children}
             </section>
@@ -249,7 +241,6 @@
             <h2 className="text-base font-bold text-gray-700 border-b border-gray-200 pb-2 flex items-center gap-2">{icon} {title}</h2>
         );
 
-        // --- 3. LOGICA DI CALENDARIO ---
         const generateICSFile = (title, description, startDateTime, endDateTime, uid, sequence = 0, location = "") => {
              const formatDate = (date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
              const eventUid = uid || `${Date.now()}@crm.app`; 
@@ -277,38 +268,8 @@
             return (
                 <div className="flex flex-col gap-1 mt-3">
                     <div className="flex gap-2">
-                        <button type="button" onClick={openGoogle} className="flex-1 flex justify-center items-center gap-2 px-3 py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 active:scale-[0.98] transition-all hover:bg-indigo-100 text-xs"><Icons.Calendar size={16} /> Google Cal</button>
-                        <button type="button" onClick={downloadICS} className="flex-1 flex justify-center items-center gap-2 px-3 py-3 bg-gray-50 text-gray-700 font-bold rounded-xl border border-gray-200 active:scale-[0.98] transition-all hover:bg-gray-100 text-xs"><Icons.Download size={16} /> Scarica .ics</button>
-                    </div>
-                    <div className="text-[10px] text-gray-400 text-center italic px-1">Nota: Google Cal Web crea sempre nuovi eventi. Usa .ics per aggiornare su Outlook/Apple.</div>
-                </div>
-            );
-        };
-
-        // --- 4. LISTE DATI ---
-        const paymentOptions = {
-            method1: [{ label: "BB (Bonifico Bancario)", value: "BB" }, { label: "RI.BA (Ricevuta Bancaria)", value: "RI.BA" }],
-            method2: [{ label: "30 giorni", value: "30" }, { label: "60 giorni", value: "60" }, { label: "90 giorni", value: "90" }],
-            method3: [{ label: "DF (Data Fattura)", value: "DF" }, { label: "DFFM (Data Fattura Fine Mese)", value: "DFFM" }, { label: "Anticipato", value: "Anticipato" }],
-        };
-        const sectorsList = ['PUBBLICO', 'PRIVATO', 'INFRASTRUTTURE', 'EDILIZIA INDUSTRIALE', 'IMPIANTISTICA', 'ALTRO'];
-        const regionsList = ['Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche', 'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana', 'Trentino-Alto Adige', 'Umbria', 'Valle d\'Aosta', 'Veneto'];
-        const brandsList = ['HILTI', 'WURTH', 'MAKITA', 'BOSCH', 'BERNER'];
-        const suppliesList = ['URGENZE', 'SCORTE', 'PIANIFICAZIONE', 'ALTRO'];
-
-        // --- 5. COMPONENTI VISTA ---
-
-        const ManualView = () => {
-            const { setView } = useContext(CRMContext);
-            return (
-                <div className="animate-fade-in pb-32">
-                     <div className="sticky top-0 bg-gray-100/95 backdrop-blur z-10 p-4 mb-4 flex items-center">
-                        <button onClick={() => setView('dashboard')} className="p-2 -ml-2 rounded-full hover:bg-gray-200 mr-2"><Icons.ChevronRight size={24} className="rotate-180" /></button>
-                        <h1 className="text-xl font-bold text-gray-800">Manuale Utente</h1>
-                    </div>
-                    <div className="p-4 space-y-6">
-                        <SectionContainer title="Benvenuto" icon={Icons.BookOpen}><p className="text-sm text-gray-600">Benvenuto nel CRM WorkReport...</p></SectionContainer>
-                        {/* Altri contenuti manuale... */}
+                        <button type="button" onClick={openGoogle} className="flex-1 flex justify-center items-center gap-2 px-3 py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 active:scale-[0.98] transition-all hover:bg-indigo-100 shadow-sm text-xs"><Icons.Calendar size={16} /> Google Cal</button>
+                        <button type="button" onClick={downloadICS} className="flex-1 flex justify-center items-center gap-2 px-3 py-3 bg-gray-50 text-gray-700 font-bold rounded-xl border border-gray-200 active:scale-[0.98] transition-all hover:bg-gray-100 shadow-sm text-xs"><Icons.Download size={16} /> Scarica .ics</button>
                     </div>
                 </div>
             );
@@ -320,34 +281,32 @@
                 <div className="space-y-6 animate-fade-in pb-32">
                     <header className="mb-6"><h1 className="text-2xl font-bold text-gray-800">Dashboard</h1></header>
                     <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-blue-600"><Icons.Users size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Clienti</span></div><div className="text-3xl font-bold text-gray-800">{clients.length}</div></div>
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-yellow-600"><Icons.Target size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-red-600"><Icons.Lightbulb size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Idee</span></div><div className="text-3xl font-bold text-gray-800">{ideas.length}</div></div>
+                        <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-blue-600"><Icons.Users size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Clienti</span></div><div className="text-3xl font-bold text-gray-800">{clients.length}</div></div>
+                        <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-yellow-600"><Icons.Target size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
+                        <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100"><div className="flex items-center space-x-2 mb-2 text-red-600"><Icons.Lightbulb size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Idee</span></div><div className="text-3xl font-bold text-gray-800">{ideas.length}</div></div>
                     </div>
                     
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center">
-                        <button onClick={() => setView('create')} className="w-full bg-gray-600 hover:bg-gray-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-gray-200 flex justify-center items-center gap-2 active:scale-95 transition-all mb-3 text-lg"><Icons.Plus size={22} /> Nuovo Report</button>
-                        <button onClick={() => setView('list')} className="w-full text-gray-600 font-bold bg-gray-50 py-3 rounded-xl border border-gray-200 active:scale-95 transition-transform hover:bg-gray-100 flex justify-center items-center gap-2"><Icons.ClipboardList size={18} /> Storico Report</button>
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center text-center">
+                        <button onClick={() => setView('create')} className="w-full bg-gray-600 hover:bg-gray-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-gray-300 flex justify-center items-center gap-2 active:scale-95 transition-all mb-3 text-lg"><Icons.Plus size={22} /> Nuovo Report</button>
+                        <button onClick={() => setView('list')} className="w-full text-gray-600 font-bold bg-gray-50 py-3 rounded-xl border border-gray-200 active:scale-95 transition-transform hover:bg-gray-100 flex justify-center items-center gap-2 shadow-sm"> <Icons.ClipboardList size={18} /> Storico Report</button>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center">
-                        <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-yellow-200 flex justify-center items-center gap-2 active:scale-95 transition-all mb-3 text-lg"><Icons.Plus size={22} /> Nuova Offerta</button>
-                        <button onClick={() => setView('followups')} className="w-full text-yellow-700 font-bold bg-yellow-50 py-3 rounded-xl border border-yellow-100 active:scale-95 transition-transform hover:bg-yellow-100 flex justify-center items-center gap-2"><Icons.ClipboardList size={18} /> Storico Offerte</button>
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center text-center">
+                        <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-yellow-100 flex justify-center items-center gap-2 active:scale-95 transition-all mb-3 text-lg"><Icons.Plus size={22} /> Nuova Offerta</button>
+                        <button onClick={() => setView('followups')} className="w-full text-yellow-700 font-bold bg-yellow-50 py-3 rounded-xl border border-yellow-100 active:scale-95 transition-transform hover:bg-yellow-100 flex justify-center items-center gap-2 shadow-sm"><Icons.ClipboardList size={18} /> Storico Offerte</button>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center">
-                        <button onClick={() => { setIdeaForm({}); setView('createIdea'); }} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-red-200 flex justify-center items-center gap-2 active:scale-95 transition-all mb-3 text-lg"><Icons.Plus size={22} /> Nuova Idea</button>
-                        <button onClick={() => setView('ideas')} className="w-full text-red-700 font-bold bg-red-50 py-3 rounded-xl border border-red-100 active:scale-95 transition-transform hover:bg-red-100 flex justify-center items-center gap-2"><Icons.ClipboardList size={18} /> Storico Idee</button>
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center text-center">
+                        <button onClick={() => { setIdeaForm({}); setView('createIdea'); }} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-red-100 flex justify-center items-center gap-2 active:scale-95 transition-all mb-3 text-lg"><Icons.Plus size={22} /> Nuova Idea</button>
+                        <button onClick={() => setView('ideas')} className="w-full text-red-700 font-bold bg-red-50 py-3 rounded-xl border border-red-100 active:scale-95 transition-transform hover:bg-red-100 flex justify-center items-center gap-2 shadow-sm"><Icons.ClipboardList size={18} /> Storico Idee</button>
                     </div>
 
                     <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
-                         <input type="file" ref={fileInputRef} className="hidden" onChange={handleImport} accept=".xlsx, .xls, .csv" />
-                        <button onClick={() => fileInputRef.current.click()} className="text-xs text-blue-600 p-3 bg-blue-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-blue-100 active:scale-95"><Icons.Upload size={16} /> Importa</button>
-                        <button onClick={exportToExcel} className="text-xs text-green-600 p-3 bg-green-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-green-100 active:scale-95"><Icons.Download size={16} /> Backup</button>
-                        <button onClick={handleCleanDuplicates} className="text-xs text-purple-600 p-3 bg-purple-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-purple-100 active:scale-95"><Icons.Trash2 size={16} /> Pulisci</button>
-                        <button onClick={handleLogout} className="text-xs text-red-500 p-3 bg-red-50 rounded-xl flex items-center justify-center gap-1 font-bold transition-colors hover:bg-red-100 active:scale-95"><Icons.LogOut size={16} /> Esci</button>
+                        <button onClick={() => fileInputRef.current.click()} className="text-xs text-blue-600 p-3 bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-1 font-bold shadow-sm active:scale-95"><Icons.Upload size={16} /> Importa</button>
+                        <button onClick={exportToExcel} className="text-xs text-green-600 p-3 bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-1 font-bold shadow-sm active:scale-95"><Icons.Download size={16} /> Backup</button>
+                        <button onClick={handleCleanDuplicates} className="text-xs text-purple-600 p-3 bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-1 font-bold shadow-sm active:scale-95"><Icons.Trash2 size={16} /> Pulisci</button>
+                        <button onClick={handleLogout} className="text-xs text-red-500 p-3 bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-1 font-bold shadow-sm active:scale-95"><Icons.LogOut size={16} /> Esci</button>
                     </div>
-                     <div className="mt-4 flex justify-center"><button onClick={() => setView('manual')} className="text-xs text-gray-500 underline hover:text-gray-800 flex items-center gap-1 p-2"><Icons.BookOpen size={14} /> Guida all'uso</button></div>
                 </div>
             );
         };
@@ -356,54 +315,23 @@
              const { reports, followups, ideas, setSelectedReport, setFollowupForm, setIdeaForm, setView, toggleTaskCompletion } = useContext(CRMContext);
              const [search, setSearch] = useState('');
              const todos = useMemo(() => {
-                 const now = new Date(); const items = [];
+                 const items = [];
                  reports.forEach(r => { if (r.nextContactDate && !r.completed) items.push({ type: 'report', date: new Date(`${r.nextContactDate}T${r.nextContactTime || '09:00'}`), data: r, label: 'Contatto', icon: Icons.Phone, collection: 'reports' }); });
                  followups.forEach(f => { if (f.feedbackDate && !f.completed) items.push({ type: 'offer', date: new Date(f.feedbackDate), data: f, label: 'Riscontro Offerta', icon: Icons.Target, collection: 'followups' }); });
                  ideas.forEach(i => { if (i.deadline && !i.completed) items.push({ type: 'idea', date: new Date(i.deadline), data: i, label: 'Scadenza Idea', icon: Icons.Lightbulb, collection: 'ideas' }); });
                  return items.sort((a, b) => a.date - b.date);
              }, [reports, followups, ideas]);
-             const filteredTodos = useMemo(() => { if (!search) return todos; return todos.filter(item => { const s = search.toLowerCase(); return (item.data.client || '').toLowerCase().includes(s) || (item.data.description || item.data.notes || item.data.text || item.data.futureNotes || '').toLowerCase().includes(s); }); }, [todos, search]);
+             const filteredTodos = todos.filter(item => { const s = search.toLowerCase(); return (item.data.client || '').toLowerCase().includes(s) || (item.data.description || item.data.notes || item.data.text || item.data.futureNotes || '').toLowerCase().includes(s); });
              const handleItemClick = (item) => {
                  if (item.type === 'report') { setSelectedReport(item.data); setView('detail'); } 
                  else if (item.type === 'offer') { setFollowupForm(item.data); setView('createFollowup'); } 
                  else if (item.type === 'idea') { setIdeaForm(item.data); setView('createIdea'); }
              };
-             const getStyle = (type, date) => {
-                const isPast = date < new Date();
-                if (type === 'report') return isPast ? 'bg-red-50 border-red-200 text-red-900' : 'bg-gray-50 border-gray-200 text-gray-800';
-                if (type === 'offer') return isPast ? 'bg-orange-50 border-orange-200 text-orange-900' : 'bg-yellow-50 border-yellow-200 text-yellow-900';
-                if (type === 'idea') return isPast ? 'bg-red-100 border-red-300 text-red-900' : 'bg-red-50 border-red-200 text-red-900';
-                return 'bg-white border-gray-200';
-            };
             return (
                 <div className="animate-fade-in pb-32">
-                    <header className="mb-6 flex justify-between items-center"><h1 className="text-2xl font-bold text-gray-800">Da Fare</h1><div className="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full">{todos.length} Attività</div></header>
-                    <div className="mb-4 relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div><input type="text" placeholder="Cerca attività..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" />{search && <button onClick={() => setSearch('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"><Icons.X size={18} /></button>}</div>
-                    {filteredTodos.length === 0 ? <div className="flex flex-col items-center justify-center py-12 text-gray-400"><div className="bg-gray-100 p-4 rounded-full mb-3"><Icons.CheckSquare size={32} /></div><p>Tutto fatto!</p></div> : 
-                        <div className="space-y-3">{filteredTodos.map((item, idx) => (<div key={`${item.type}-${item.data.id}-${idx}`} onClick={() => handleItemClick(item)} className={`p-4 rounded-xl border cursor-pointer active:scale-[0.99] transition-transform relative overflow-hidden ${getStyle(item.type, item.date)}`}><div className="flex justify-between items-start z-10 relative"><div className="flex-1 min-w-0 pr-2"><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider opacity-70 mb-1"><item.icon size={12} /> {item.label}</div><div className="font-bold text-lg truncate mb-1">{item.data.client}</div><div className="text-sm opacity-80 truncate">{item.type === 'report' ? (item.data.futureNotes || item.data.description) : (item.data.notes || item.data.text || item.data.description)}</div></div><div className="text-right shrink-0 flex flex-col items-end gap-2"><div><div className="text-xs font-bold opacity-60 uppercase mb-1">{item.date < new Date() ? 'Scaduto' : 'Scade il'}</div><div className="font-bold text-lg leading-none">{item.date.getDate()}</div><div className="text-xs font-bold uppercase">{item.date.toLocaleString('it-IT', { month: 'short' })}</div></div><button onClick={(e) => { e.stopPropagation(); toggleTaskCompletion(item.collection, item.data.id, false); }} className="bg-red-500 text-white p-2 rounded-full shadow-md hover:bg-red-600 transition-colors z-20"><Icons.Check size={16} /></button></div></div></div>))}</div>
-                    }
-                </div>
-            );
-        };
-
-        const CleanDuplicatesModal = ({ groups, onClose, onDelete }) => {
-            const [selectedIds, setSelectedIds] = useState(() => {
-                const initialSelection = new Set();
-                groups.forEach(group => { const sorted = [...group].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)); for (let i = 1; i < sorted.length; i++) { initialSelection.add(sorted[i].id); } });
-                return initialSelection;
-            });
-            const toggleSelection = (id) => { const newSelection = new Set(selectedIds); if (newSelection.has(id)) { newSelection.delete(id); } else { newSelection.add(id); } setSelectedIds(newSelection); };
-            const handleDelete = () => { onDelete(Array.from(selectedIds)); };
-            return (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
-                        <div className="p-4 border-b border-gray-100 flex justify-between items-center"><h2 className="text-lg font-bold text-gray-800 flex items-center gap-2"><Icons.Trash2 className="text-purple-600" /> Pulizia Duplicati</h2><button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><Icons.X size={20} /></button></div>
-                        <div className="p-4 overflow-y-auto flex-1 space-y-4">
-                            <p className="text-sm text-gray-600 mb-2">Trovati <strong>{groups.length}</strong> gruppi di report duplicati.</p>
-                            {groups.map((group, groupIdx) => (<div key={groupIdx} className="border border-gray-200 rounded-xl overflow-hidden"><div className="bg-gray-50 p-2 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200">{group[0].client} - {new Date(group[0].date).toLocaleDateString('it-IT')}</div><div>{group.map((item, idx) => (<div key={item.id} className="flex items-center p-3 border-b border-gray-100 last:border-0 hover:bg-gray-50"><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelection(item.id)} className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 mr-3"/><div className="flex-1 min-w-0"><div className="text-sm font-medium text-gray-800 truncate">{item.category}</div><div className="text-xs text-gray-500">Inserito: {new Date(item.createdAt || 0).toLocaleString('it-IT')}</div></div>{selectedIds.has(item.id) ? (<span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded">Elimina</span>) : (<span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Mantieni</span>)}</div>))}</div></div>))}
-                        </div>
-                        <div className="p-4 border-t border-gray-100 flex gap-3 bg-gray-50 rounded-b-2xl"><button onClick={onClose} className="flex-1 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50">Annulla</button><button onClick={handleDelete} disabled={selectedIds.size === 0} className="flex-1 py-3 bg-purple-600 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 disabled:shadow-none hover:bg-purple-700 flex justify-center items-center gap-2"><Icons.Trash2 size={18} /> Elimina ({selectedIds.size})</button></div>
-                    </div>
+                    <header className="mb-6 flex justify-between items-center"><h1 className="text-2xl font-bold text-gray-800">Da Fare</h1><div className="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">{todos.length} Attività</div></header>
+                    <div className="mb-4 relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div><input type="text" placeholder="Cerca attività..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none shadow-sm" /></div>
+                    <div className="space-y-3">{filteredTodos.map((item, idx) => (<div key={`${item.type}-${item.data.id}-${idx}`} onClick={() => handleItemClick(item)} className={`p-4 rounded-xl border cursor-pointer active:scale-[0.99] transition-transform shadow-md bg-white border-gray-100`}><div className="flex justify-between items-start"><div className="flex-1 min-w-0 pr-2"><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400 mb-1"><item.icon size={12} /> {item.label}</div><div className="font-bold text-lg text-gray-800 truncate mb-1">{item.data.client}</div><div className="text-sm text-gray-500 truncate">{item.type === 'report' ? (item.data.futureNotes || item.data.description) : (item.data.notes || item.data.text || item.data.description)}</div></div><div className="text-right shrink-0 flex flex-col items-end gap-2"><div><div className="font-bold text-lg text-gray-700 leading-none">{item.date.getDate()}</div><div className="text-xs font-bold uppercase text-gray-400">{item.date.toLocaleString('it-IT', { month: 'short' })}</div></div><button onClick={(e) => { e.stopPropagation(); toggleTaskCompletion(item.collection, item.data.id, false); }} className="bg-red-500 text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition-colors"><Icons.Check size={16} /></button></div></div></div>))}</div>
                 </div>
             );
         };
@@ -416,119 +344,35 @@
             const selectedClientData = useMemo(() => clients.find(c => c.ragioneSociale === formData.client), [clients, formData.client]);
             const availableContacts = selectedClientData ? [selectedClientData.contact1, selectedClientData.contact2, selectedClientData.contact3, selectedClientData.contact4].filter(c => c?.nome) : [];
 
+            const getEventDuration = (type) => {
+                switch(type) {
+                    case 'PROMEMORIA': return 5;
+                    case 'TELEFONATA': return 15;
+                    case 'APPUNTAMENTO': return 60;
+                    default: return 60;
+                }
+            };
+
             return (
                 <div className="animate-fade-in pb-32">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica' : 'Nuovo'} Report</h2>
-                    <form onSubmit={handleSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <form onSubmit={handleSubmit} className="space-y-5">
                         <SectionContainer title="Dati" icon={Icons.FileText}>
                             <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
-                            {availableContacts.length > 0 && (<div><label className="block text-sm font-bold text-gray-700 mb-1">Referente</label><select name="contactRef" value={formData.contactRef} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="">Nessuno spec.</option>{availableContacts.map((c, idx) => (<option key={idx} value={c.nome}>{c.nome} {c.mansione ? `(${c.mansione})` : ''}</option>))}</select></div>)}
+                            {availableContacts.length > 0 && (<div><label className="block text-sm font-bold text-gray-700 mb-1">Referente</label><select name="contactRef" value={formData.contactRef} onChange={handleChange} className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none"><option value="">Nessuno spec.</option>{availableContacts.map((c, idx) => (<option key={idx} value={c.nome}>{c.nome} {c.mansione ? `(${c.mansione})` : ''}</option>))}</select></div>)}
                             <div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="date" value={formData.date} onChange={handleChange} required /><TimeWheelPicker value={formData.hours} onChange={(val) => setFormData(prev => ({...prev, hours: val}))} /></div>
-                            <div><label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label><select name="category" value={formData.category} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option>MANTENIMENTO RAPPORTO</option><option>ORDINE</option><option>RICHIESTA DI OFFERTA</option><option>RISCONTRO OFFERTA</option><option>COMUNICAZIONE</option><option>INIZIO RAPPORTO FORNITURE</option><option>SOLLECITO INIZIO FORNITURA</option><option>APPUNTAMENTO</option><option>ALTRO</option></select></div>
-                            <div><label className="block text-sm font-bold text-gray-700 mb-1">Tipo</label><select name="contactType" value={formData.contactType} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option>TELEFONICO</option><option>APPUNTAMENTO</option><option>VISITA</option><option>LINKEDIN</option><option>WHATSAPP</option><option>CANTIERE</option><option>ALTRO</option></select></div>
+                            <div><label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label><select name="category" value={formData.category} onChange={handleChange} className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none"><option>MANTENIMENTO RAPPORTO</option><option>ORDINE</option><option>RICHIESTA DI OFFERTA</option><option>RISCONTRO OFFERTA</option><option>COMUNICAZIONE</option><option>INIZIO RAPPORTO FORNITURE</option><option>SOLLECITO INIZIO FORNITURA</option><option>APPUNTAMENTO</option><option>ALTRO</option></select></div>
+                            <div><label className="block text-sm font-bold text-gray-700 mb-1">Tipo</label><select name="contactType" value={formData.contactType} onChange={handleChange} className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none"><option>TELEFONICO</option><option>APPUNTAMENTO</option><option>VISITA</option><option>LINKEDIN</option><option>WHATSAPP</option><option>CANTIERE</option><option>ALTRO</option></select></div>
                             <TextArea label="Descrizione" name="description" value={formData.description} onChange={handleChange} />
                         </SectionContainer>
                         <SectionContainer title="Follow-up" icon={Icons.AlarmCheck}>
-                            <div><label className="block text-sm font-bold text-gray-700 mb-2">Tipo Promemoria</label><div className="flex gap-2 mb-3">{['APPUNTAMENTO', 'PROMEMORIA', 'TELEFONATA'].map(type => (<button key={type} type="button" onClick={() => setFormData(p => ({ ...p, calendarEventType: type }))} className={`flex-1 py-3 text-xs font-bold rounded-lg border transition-all ${formData.calendarEventType === type ? 'bg-gray-600 text-white border-gray-600' : 'bg-white text-gray-600 border-gray-200'}`}>{type}</button>))}</div></div>
+                            <div><label className="block text-sm font-bold text-gray-700 mb-2">Tipo Promemoria</label><div className="flex gap-2 mb-3">{['APPUNTAMENTO', 'PROMEMORIA', 'TELEFONATA'].map(type => (<button key={type} type="button" onClick={() => setFormData(p => ({ ...p, calendarEventType: type }))} className={`flex-1 py-3 text-xs font-bold rounded-lg border transition-all shadow-sm ${formData.calendarEventType === type ? 'bg-gray-600 text-white border-gray-600' : 'bg-white text-gray-600 border-gray-200'}`}>{type}</button>))}</div></div>
                             <TextArea label="Appunti Futuri" name="futureNotes" value={formData.futureNotes} onChange={handleChange} />
                             <div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="nextContactDate" value={formData.nextContactDate} onChange={handleChange} /><Input label="Ora" type="time" name="nextContactTime" value={formData.nextContactTime} onChange={handleChange} /></div>
-                            <CalendarButton title={`${formData.calendarEventType} - ${formData.client}`} details={formData.futureNotes} date={formData.nextContactDate} time={formData.nextContactTime} uid={formData.calendarUid} sequence={formData.calendarSequence} />
+                            <CalendarButton title={`${formData.calendarEventType} - ${formData.client}`} details={formData.futureNotes} date={formData.nextContactDate} time={formData.nextContactTime} duration={getEventDuration(formData.calendarEventType)} uid={formData.calendarUid} sequence={formData.calendarSequence} />
                         </SectionContainer>
-                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-gray-600 text-white font-bold rounded-xl shadow-lg shadow-gray-200 flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
+                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-white text-gray-700 font-bold rounded-xl shadow-md">Annulla</button><button type="submit" className="flex-1 py-3 bg-gray-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
                     </form>
-                </div>
-            );
-        };
-
-        const FollowupForm = () => {
-            const { followupForm: initialData, saveFollowup, setView, clients, toggleTaskCompletion } = useContext(CRMContext);
-            const [formData, setFormData] = useState(initialData);
-            const handleChange = (e) => { const { name, value } = e.target; setFormData(prev => ({ ...prev, [name]: value })); };
-            const toggleComplete = async () => { if (formData.id) { await toggleTaskCompletion('followups', formData.id, formData.completed); setFormData(prev => ({ ...prev, completed: !prev.completed })); } };
-
-            return (
-                <div className="animate-fade-in pb-32">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica Offerta' : 'Nuova Offerta'}</h2>
-                    {formData.id && (<button onClick={toggleComplete} className={`w-full py-3 rounded-xl font-bold text-white shadow-lg mb-6 flex items-center justify-center gap-2 transition-all ${formData.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}>{formData.completed ? <><Icons.Check size={20}/> Completato</> : <><Icons.AlarmCheck size={20}/> Da Fare</>}</button>)}
-                    <form onSubmit={(e) => { e.preventDefault(); saveFollowup(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                        <SectionContainer title="Dettagli Offerta" icon={Icons.Target}>
-                            <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
-                            <Input label="Numero Offerta" name="offerNumber" value={formData.offerNumber} onChange={handleChange} required placeholder="Es. OFF-2024/001" />
-                            <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required placeholder="0.00" />
-                            <Input label="Data Riscontro Atteso" type="date" name="feedbackDate" value={formData.feedbackDate} onChange={handleChange} required />
-                            <TextArea label="Note / Oggetto" name="notes" value={formData.notes} onChange={handleChange} placeholder="Dettagli sull'offerta..." />
-                            <CalendarButton title={`Riscontro Offerta - ${formData.client}`} details={`Importo: ${formData.amount} - ${formData.notes}`} date={formData.feedbackDate} uid={formData.calendarUid} sequence={formData.calendarSequence} />
-                        </SectionContainer>
-                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('followups')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-yellow-500 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
-                    </form>
-                </div>
-            );
-        };
-
-        const IdeaForm = () => {
-            const { ideaForm: initialData, saveIdea, setView, clients, toggleTaskCompletion } = useContext(CRMContext);
-            const [formData, setFormData] = useState(initialData);
-            const handleChange = (e) => { const { name, value } = e.target; setFormData(prev => ({ ...prev, [name]: value })); };
-            const toggleComplete = async () => { if (formData.id) { await toggleTaskCompletion('ideas', formData.id, formData.completed); setFormData(prev => ({ ...prev, completed: !prev.completed })); } };
-
-            return (
-                <div className="animate-fade-in pb-32">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica Idea' : 'Nuova Idea'}</h2>
-                    {formData.id && (<button onClick={toggleComplete} className={`w-full py-3 rounded-xl font-bold text-white shadow-lg mb-6 flex items-center justify-center gap-2 transition-all ${formData.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}>{formData.completed ? <><Icons.Check size={20}/> Completato</> : <><Icons.AlarmCheck size={20}/> Da Fare</>}</button>)}
-                    <form onSubmit={(e) => { e.preventDefault(); saveIdea(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                        <SectionContainer title="Dettagli Progetto" icon={Icons.Lightbulb}>
-                            <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
-                            <TextArea label="Descrizione Idea" name="text" value={formData.text} onChange={handleChange} placeholder="Descrivi la tua idea o progetto..." />
-                            <Input label="Data Scadenza" type="date" name="deadline" value={formData.deadline} onChange={handleChange} required />
-                            <CalendarButton title={`Idea: ${formData.client}`} details={formData.text} date={formData.deadline} duration={5} uid={formData.calendarUid} sequence={formData.calendarSequence} />
-                        </SectionContainer>
-                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('ideas')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
-                    </form>
-                </div>
-            );
-        };
-
-        const FollowupsList = () => {
-            const { followups, toggleSort, sortOrder, setFollowupForm, setView, deleteItem, toggleTaskCompletion } = useContext(CRMContext);
-            const [search, setSearch] = useState('');
-            const sorted = useMemo(() => [...followups].sort((a,b) => sortOrder.followups === 'desc' ? new Date(b.feedbackDate) - new Date(a.feedbackDate) : new Date(a.feedbackDate) - new Date(b.feedbackDate)), [followups, sortOrder.followups]);
-            const filtered = sorted.filter(i => (i.client||'').toLowerCase().includes(search.toLowerCase()) || (i.notes||'').toLowerCase().includes(search.toLowerCase()));
-
-            return (
-                <div className="animate-fade-in pb-32">
-                    <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-gray-800">Offerte</h2><div className="flex gap-2"><button onClick={() => toggleSort('followups')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600"><Icons.ArrowUpDown size={14} /> {sortOrder.followups === 'desc' ? 'Recenti' : 'Vecchie'}</button><button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md flex items-center gap-2"><Icons.Plus size={16} /> Nuova</button></div></div>
-                    <div className="mb-4 relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div><input type="text" placeholder="Cerca offerta..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" /></div>
-                    <div className="space-y-3">{filtered.length === 0 ? <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessuna offerta.</div> : filtered.map(item => (<div key={item.id} onClick={() => { setFollowupForm(item); setView('createFollowup'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative cursor-pointer active:scale-[0.99] transition-transform"><div className="flex justify-between items-start mb-2"><h3 className="font-bold text-gray-800 text-lg">{item.client}</h3><div className="text-right"><div className="font-bold text-yellow-600">€ {item.amount}</div><div className="text-[10px] text-gray-400">{item.offerNumber}</div></div></div><div className="text-sm text-gray-700 mb-3 whitespace-pre-wrap">{item.notes}</div><div className="flex justify-between items-center border-t border-gray-50 pt-3"><span className={`text-xs font-bold px-2 py-1 rounded ${new Date(item.feedbackDate) < new Date() ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{new Date(item.feedbackDate).toLocaleDateString('it-IT')}</span><div className="flex gap-2"><button onClick={(e) => { e.stopPropagation(); toggleTaskCompletion('followups', item.id, item.completed); }} className={`p-2 rounded-full text-white shadow-sm transition-colors ${item.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}><Icons.Check size={16} /></button><button onClick={(e) => { e.stopPropagation(); deleteItem('followups', item.id); }} className="p-1.5 text-red-500 bg-red-50 rounded-lg"><Icons.Trash2 size={16} /></button></div></div></div>))}</div>
-                </div>
-            );
-        };
-
-        const IdeasList = () => {
-            const { ideas, toggleSort, sortOrder, setIdeaForm, setView, deleteItem, toggleTaskCompletion } = useContext(CRMContext);
-            const [search, setSearch] = useState('');
-            const sorted = useMemo(() => [...ideas].sort((a,b) => sortOrder.ideas === 'desc' ? new Date(b.deadline) - new Date(a.deadline) : new Date(a.deadline) - new Date(b.deadline)), [ideas, sortOrder.ideas]);
-            const filtered = sorted.filter(i => (i.client||'').toLowerCase().includes(search.toLowerCase()) || (i.text||'').toLowerCase().includes(search.toLowerCase()));
-
-            return (
-                <div className="animate-fade-in pb-32">
-                    <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-gray-800">Idee</h2><div className="flex gap-2"><button onClick={() => toggleSort('ideas')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600"><Icons.ArrowUpDown size={14} /> {sortOrder.ideas === 'desc' ? 'Recenti' : 'Vecchie'}</button><button onClick={() => { setIdeaForm({}); setView('createIdea'); }} className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md flex items-center gap-2"><Icons.Plus size={16} /> Nuova</button></div></div>
-                    <div className="mb-4 relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div><input type="text" placeholder="Cerca idea..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" /></div>
-                    <div className="space-y-3">{filtered.length === 0 ? <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessuna idea.</div> : filtered.map(item => (<div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative"><div className="flex justify-between items-start mb-2"><h3 className="font-bold text-gray-800 text-lg">{item.client}</h3>{item.deadline && <span className={`text-xs font-bold px-2 py-1 rounded ${new Date(item.deadline) < new Date() ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{new Date(item.deadline).toLocaleDateString('it-IT')}</span>}</div><div className="text-sm text-gray-700 mb-3 whitespace-pre-wrap">{item.text}</div><div className="flex justify-end gap-2 border-t border-gray-50 pt-3"><button onClick={() => toggleTaskCompletion('ideas', item.id, item.completed)} className={`p-2 rounded-full text-white shadow-sm transition-colors ${item.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}><Icons.Check size={16} /></button><button onClick={() => { setIdeaForm(item); setView('createIdea'); }} className="p-1.5 text-blue-600 bg-blue-50 rounded-lg"><Icons.Edit2 size={16} /></button><button onClick={() => deleteItem('ideas', item.id)} className="p-1.5 text-red-500 bg-red-50 rounded-lg"><Icons.Trash2 size={16} /></button></div></div>))}</div>
-                </div>
-            );
-        };
-
-        const ClientsList = () => {
-            const { sortedClients, toggleSort, sortOrder, setClientForm, setView, setSelectedClient } = useContext(CRMContext);
-            const [search, setSearch] = useState('');
-            const filtered = useMemo(() => sortedClients.filter(c => (c.ragioneSociale || '').toLowerCase().includes(search.toLowerCase())), [sortedClients, search]);
-            const isIncomplete = (c) => ['pIva', 'telefono', 'email', 'sedeLegale', 'pec', 'sdiCode'].some(f => !c[f]);
-
-            return (
-                <div className="animate-fade-in pb-32">
-                    <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold text-gray-800">Clienti</h2><div className="flex gap-2"><button onClick={() => toggleSort('clients')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600"><Icons.ArrowUpDown size={14} /> {sortOrder.clients === 'desc' ? 'Z-A' : 'A-Z'}</button><button onClick={() => { setClientForm({}); setView('createClient'); }} className="bg-gray-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"><Icons.Plus size={14} /> Nuovo</button></div></div>
-                    <div className="mb-4 relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div><input type="text" placeholder="Cerca..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" />{search && <button onClick={() => setSearch('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"><Icons.X size={18} /></button>}</div>
-                    <div className="space-y-3">{filtered.length === 0 ? <div className="text-center py-8 text-gray-400 border border-dashed rounded-xl">Nessun cliente.</div> : filtered.map(c => (<div key={c.id} onClick={() => { setSelectedClient(c); setView('clientDetail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform relative"><h3 className="font-bold text-gray-800 text-lg">{c.ragioneSociale}</h3><div className="text-xs text-gray-500">{c.sedeOperativa || c.sedeLegale || 'Sede non spec.'}</div>{isIncomplete(c) && (<div className="mt-2 inline-block bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded border border-yellow-200 uppercase tracking-wide">⚠ Anagrafica Incompleta</div>)}</div>))}</div>
                 </div>
             );
         };
@@ -536,241 +380,76 @@
         const ReportList = () => {
              const { reports, toggleSort, sortOrder, setReportForm, setView, setSelectedReport, formatDuration, toggleTaskCompletion } = useContext(CRMContext);
              const [search, setSearch] = useState('');
-             const filtered = useMemo(() => reports.filter(r => (r.client||'').toLowerCase().includes(search.toLowerCase()) || (r.description||'').toLowerCase().includes(search.toLowerCase())), [reports, search]);
-             const sorted = useMemo(() => [...filtered].sort((a,b) => {
+             const filtered = reports.filter(r => (r.client||'').toLowerCase().includes(search.toLowerCase()) || (r.description||'').toLowerCase().includes(search.toLowerCase()));
+             const sorted = [...filtered].sort((a,b) => {
                  const dateA = new Date(a.date).getTime(); const dateB = new Date(b.date).getTime();
-                 const createdA = new Date(a.createdAt || 0).getTime(); const createdB = new Date(b.createdAt || 0).getTime();
-                 if (sortOrder.reports === 'desc') { if (dateB !== dateA) return dateB - dateA; return createdB - createdA; } 
-                 else { if (dateA !== dateB) return dateA - dateB; return createdA - createdB; }
-             }), [filtered, sortOrder.reports]);
+                 if (sortOrder.reports === 'desc') return dateB - dateA;
+                 return dateA - dateB;
+             });
 
              return (
                 <div className="animate-fade-in pb-32">
-                    <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold text-gray-800">Storico</h2><div className="flex gap-2"><button onClick={() => toggleSort('reports')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600"><Icons.ArrowUpDown size={14} /> {sortOrder.reports === 'desc' ? 'Recenti' : 'Vecchi'}</button><button onClick={() => { setReportForm({}); setView('create'); }} className="bg-gray-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"><Icons.Plus size={14} /> Nuovo</button></div></div>
-                     <div className="mb-4 relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div><input type="text" placeholder="Cerca..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" /></div>
-                    <div className="space-y-3">{sorted.map(r => (<div key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className={`p-4 rounded-xl border relative cursor-pointer active:scale-[0.99] transition-transform ${r.nextContactDate && !r.completed && new Date(r.nextContactDate) < new Date() ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-100'}`}><div className="flex justify-between"><h3 className="font-bold text-gray-800 truncate pr-4">{r.client}</h3><span className="font-bold text-gray-600 shrink-0">{formatDuration(r.hours)}</span></div><div className="text-sm text-gray-500 flex justify-between mt-1"><span>{r.category}</span><div className="flex items-center gap-2"><span className="text-xs">{new Date(r.date).toLocaleDateString('it-IT')}</span>{r.nextContactDate && (<button onClick={(e) => { e.stopPropagation(); toggleTaskCompletion('reports', r.id, r.completed); }} className={`p-1.5 rounded-full text-white shadow-sm transition-colors ${r.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`} title={r.completed ? "Segna come incompleto" : "Segna come completato"}><Icons.Check size={12} /></button>)}</div></div></div>))}</div>
+                    <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold text-gray-800">Storico</h2><div className="flex gap-2"><button onClick={() => toggleSort('reports')} className="bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600 shadow-sm flex items-center gap-1"><Icons.ArrowUpDown size={14} /> {sortOrder.reports === 'desc' ? 'Recenti' : 'Vecchi'}</button><button onClick={() => { setReportForm({}); setView('create'); }} className="bg-gray-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-md"><Icons.Plus size={14} /> Nuovo</button></div></div>
+                     <div className="mb-4 relative"><input type="text" placeholder="Cerca..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none shadow-sm" /><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div></div>
+                    <div className="space-y-3">{sorted.map(r => (<div key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className={`p-4 rounded-xl border relative cursor-pointer active:scale-[0.99] transition-transform shadow-md bg-white border-gray-100`}><div className="flex justify-between"><h3 className="font-bold text-gray-800 truncate pr-4">{r.client}</h3><span className="font-bold text-gray-600 shrink-0">{formatDuration(r.hours)}</span></div><div className="text-sm text-gray-500 flex justify-between mt-1"><span>{r.category}</span><div className="flex items-center gap-2"><span className="text-xs">{new Date(r.date).toLocaleDateString('it-IT')}</span>{r.nextContactDate && (<button onClick={(e) => { e.stopPropagation(); toggleTaskCompletion('reports', r.id, r.completed); }} className={`p-1.5 rounded-full text-white shadow-md transition-colors ${r.completed ? 'bg-green-500' : 'bg-red-500'}`}><Icons.Check size={12} /></button>)}</div></div></div>))}</div>
                 </div>
              );
         };
 
-        const ReportDetailView = () => {
-            const { selectedReport, setView, setReportForm, deleteItem, formatDuration, toggleTaskCompletion, reports } = useContext(CRMContext);
-            const report = useMemo(() => reports.find(r => r.id === selectedReport?.id) || selectedReport, [reports, selectedReport]);
-            if (!report) return null;
-            const handleDelete = async () => { const confirmed = await deleteItem('reports', report.id); if (confirmed) setView('list'); };
-
-            return (
-                <div className="animate-fade-in pb-32">
-                     <div className="flex justify-between items-center mb-6"><button onClick={() => setView('list')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => { setReportForm(report); setView('create'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Icons.Edit2 size={20} /></button><button onClick={handleDelete} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Icons.Trash2 size={20} /></button></div></div>
-                    {report.nextContactDate && (<button onClick={() => toggleTaskCompletion('reports', report.id, report.completed)} className={`w-full py-3 rounded-xl font-bold text-white shadow-lg mb-6 flex items-center justify-center gap-2 transition-all ${report.completed ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}>{report.completed ? <><Icons.Check size={20}/> Completato</> : <><Icons.AlarmCheck size={20}/> Da Fare</>}</button>)}
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                        <div><h1 className="text-xl font-bold text-gray-800">{report.title}</h1><p className="text-sm text-gray-500">{new Date(report.date).toLocaleDateString('it-IT')} - {formatDuration(report.hours)}</p></div>
-                        <InfoBox label="Cliente" value={report.client} icon={Icons.Users} /><InfoBox label="Categoria" value={report.category} icon={Icons.Target} /><InfoBox label="Tipo Contatto" value={report.contactType} icon={Icons.Phone} /><SectionDisplay title="Descrizione" content={report.description} />
-                        {report.futureNotes && (<div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100"><h3 className="text-sm font-bold text-yellow-800 mb-2 flex items-center gap-2"><Icons.Bell size={16}/> Appunti Futuri</h3><p className="text-sm text-yellow-900">{report.futureNotes}</p>{report.nextContactDate && (<div className="mt-2 text-xs font-bold text-yellow-700">Prossimo contatto: {new Date(report.nextContactDate).toLocaleDateString('it-IT')} {report.nextContactTime}</div>)}</div>)}
-                    </div>
-                </div>
-            );
-        };
-        
-        // --- NUOVA VISTA: LISTA REPORT FILTRATA PER CLIENTE ---
-        const ClientReportsView = () => {
-            const { selectedClient, reports, setView, setSelectedReport, formatDuration } = useContext(CRMContext);
-
-            // Filtra solo i report del cliente selezionato
-            const clientReports = useMemo(() => 
-                reports
-                    .filter(r => r.client === selectedClient?.ragioneSociale)
-                    .sort((a,b) => new Date(b.date) - new Date(a.date)), 
-            [reports, selectedClient]);
-
-            return (
-                <div className="animate-fade-in pb-32">
-                    <div className="sticky top-0 bg-gray-100/95 backdrop-blur z-10 p-4 mb-4 flex items-center border-b border-gray-200">
-                         <button onClick={() => setView('clientDetail')} className="p-2 -ml-2 rounded-full hover:bg-gray-200 mr-2">
-                            <Icons.ChevronRight size={24} className="rotate-180" />
-                        </button>
-                        <div>
-                            <h1 className="text-xl font-bold text-gray-800">Report Cliente</h1>
-                            <div className="text-xs text-gray-500">{selectedClient?.ragioneSociale}</div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-3 px-4 pt-0">
-                        {clientReports.length === 0 ? (
-                            <div className="text-center py-10 text-gray-400 bg-white rounded-xl border border-dashed">Nessun report trovato per questo cliente.</div>
-                        ) : (
-                            clientReports.map(r => (
-                                <div key={r.id} onClick={() => { setSelectedReport(r); setView('detail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative cursor-pointer active:scale-[0.99] transition-transform">
-                                     <div className="flex justify-between">
-                                        <h3 className="font-bold text-gray-800 truncate pr-4">{r.category}</h3>
-                                        <span className="font-bold text-gray-600 shrink-0">{formatDuration(r.hours)}</span>
-                                    </div>
-                                    <div className="text-sm text-gray-500 flex justify-between mt-1">
-                                        <span>{new Date(r.date).toLocaleDateString('it-IT')}</span>
-                                        <span className="text-xs truncate max-w-[50%]">{r.contactType}</span>
-                                    </div>
-                                    {r.description && <div className="mt-2 text-sm text-gray-700 line-clamp-2">{r.description}</div>}
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
-            );
-        }
-
         const ClientDetailView = () => {
-            const { selectedClient, setView, setClientForm, setSelectedClient, setReportForm, setFollowupForm, setIdeaForm, deleteItem } = useContext(CRMContext);
+            const { selectedClient, setView, setClientForm, setReportForm, setFollowupForm, setIdeaForm, deleteItem } = useContext(CRMContext);
             if (!selectedClient) return null;
-            
             const getFullPaymentMethod = (client) => [client.paymentMethod1, client.paymentMethod2, client.paymentMethod3].filter(Boolean).join(' - ') || 'Non Specificato';
-
             const handleNewReport = () => { setReportForm({ client: selectedClient.ragioneSociale, date: new Date().toISOString().split('T')[0], category: 'MANTENIMENTO RAPPORTO', contactType: 'TELEFONICO', calendarEventType: 'APPUNTAMENTO' }); setView('create'); };
             const handleNewOffer = () => { setFollowupForm({ client: selectedClient.ragioneSociale }); setView('createFollowup'); };
             const handleNewIdea = () => { setIdeaForm({ client: selectedClient.ragioneSociale }); setView('createIdea'); };
-            const handleDelete = async () => { const confirmed = await deleteItem('clients', selectedClient.id); if (confirmed) setView('clients'); };
-
-            // Modificato BG in gray-100 e organizzato contenuti in Card
-            return (
-                <div className="animate-fade-in pb-32 bg-gray-100 min-h-full">
-                    <div className="sticky top-0 bg-gray-100/95 backdrop-blur z-10 p-4 mb-2 flex justify-between items-center border-b border-gray-200">
-                        <button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button>
-                        <div className="flex gap-2">
-                            <button onClick={() => { setClientForm(selectedClient); setView('createClient'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100"><Icons.Edit2 size={20}/></button>
-                            <button onClick={handleDelete} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100"><Icons.Trash2 size={20}/></button>
-                        </div>
-                    </div>
-                    
-                    <div className="px-4 space-y-4">
-                        {/* Intestazione Cliente - ORA IN CARD BIANCA */}
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                            <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1>
-                            <p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p>
-                            <div className="mt-4 flex flex-wrap gap-2">
-                                {selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Icons.Phone size={14}/> Chiama</a>}
-                                {selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Icons.Mail size={14}/> Email</a>}
-                            </div>
-                        </div>
-
-                        {/* AZIONI RAPIDE */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <button onClick={handleNewReport} className="flex flex-col items-center justify-center p-4 bg-white border border-gray-100 rounded-2xl shadow-sm active:scale-95 transition-transform">
-                                <div className="bg-blue-50 p-2 rounded-full mb-1 text-blue-600"><Icons.FileText size={20} /></div>
-                                <span className="text-xs font-bold text-gray-800">Nuovo Report</span>
-                            </button>
-                            
-                            {/* --- NUOVO PULSANTE: REPORT CLIENTE --- */}
-                            <button onClick={() => setView('clientReports')} className="flex flex-col items-center justify-center p-4 bg-white border border-gray-100 rounded-2xl shadow-sm active:scale-95 transition-transform">
-                                <div className="bg-gray-100 p-2 rounded-full mb-1 text-gray-600"><Icons.ClipboardList size={20} /></div>
-                                <span className="text-xs font-bold text-gray-800">Storico Report</span>
-                            </button>
-
-                            <button onClick={handleNewOffer} className="flex flex-col items-center justify-center p-4 bg-white border border-gray-100 rounded-2xl shadow-sm active:scale-95 transition-transform">
-                                <div className="bg-yellow-50 p-2 rounded-full mb-1 text-yellow-600"><Icons.Target size={20} /></div>
-                                <span className="text-xs font-bold text-yellow-800">Nuova Offerta</span>
-                            </button>
-                            
-                            <button onClick={handleNewIdea} className="flex flex-col items-center justify-center p-4 bg-white border border-gray-100 rounded-2xl shadow-sm active:scale-95 transition-transform">
-                                <div className="bg-red-50 p-2 rounded-full mb-1 text-red-600"><Icons.Lightbulb size={20} /></div>
-                                <span className="text-xs font-bold text-red-800">Nuova Idea</span>
-                            </button>
-                        </div>
-
-                        {/* SEZIONI DATI - ORA IN CARD BIANCHE */}
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                            <SectionTitle icon={<Icons.CreditCard size={16}/>} title="Dati Amministrativi" />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <InfoRow label="Codice Univoco" value={selectedClient.sdiCode} /><InfoRow label="PEC" value={selectedClient.pec} />
-                                <div className="col-span-1 sm:col-span-2"><InfoRow label="Metodo Pagamento" value={getFullPaymentMethod(selectedClient)} /></div>
-                                <InfoRow label="Fido (€)" value={selectedClient.fido} /><InfoRow label="Data Fido" value={selectedClient.fidoDate} /><InfoRow label="N. Operai" value={selectedClient.numeroOperai} />
-                            </div>
-                        </div>
-
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                            <SectionTitle icon={<Icons.Building2 size={16}/>} title="Sedi" />
-                            <InfoRow label="Sede Legale" value={selectedClient.sedeLegale} /><InfoRow label="Sede Operativa" value={selectedClient.sedeOperativa} /><InfoRow label="Magazzino" value={selectedClient.magazzino} />
-                        </div>
-                        
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                            <SectionTitle icon={<Icons.Users size={16}/>} title="Referenti" />
-                            {[1,2,3,4].map(num => { const c = selectedClient[`contact${num}`]; if (!c?.nome && !c?.mansione && !c?.telefono && !c?.mail) return null; return (<div key={num} className="bg-gray-50 p-3 rounded-lg border border-gray-100"><div className="font-bold text-gray-800">{c.nome || `Contatto ${num}`}</div><div className="text-xs text-blue-600 font-medium mb-1">{c.mansione || '-'}</div><div className="text-xs text-gray-500 space-y-0.5">{c.telefono && <div>Tel: <a href={`tel:${c.telefono}`} className="underline text-blue-500">{c.telefono}</a></div>}{c.mail && <div>Mail: <a href={`mailto:${c.mail}`} className="underline text-blue-500">{c.mail}</a></div>}</div></div>); })} 
-                        </div>
-
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                            <SectionTitle icon={<Icons.MessageSquare size={16}/>} title="Note & Comunicazioni" />
-                            <SectionDisplay title="Abbigliamento" content={selectedClient.abbigliamento} small /><SectionDisplay title="Note Interne" content={selectedClient.note} small /><SectionDisplay title="Comunicazioni al Cliente" content={selectedClient.comunicazioni} small />
-                        </div>
-
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                            <SectionTitle icon={<Icons.ClipboardList size={16}/>} title="Info Iniziali" />
-                            <div className="grid grid-cols-1 gap-4">
-                                <InfoRow label="Settore" value={selectedClient.sector === 'ALTRO' ? selectedClient.sectorOther : selectedClient.sector} />
-                                <InfoRow label="Aree Geografiche" value={(selectedClient.geoAreas || []).join(', ')} />
-                                <div className="col-span-1"><div className="text-sm font-medium text-gray-500 mb-1">Regioni:</div><div className="text-sm text-gray-800 bg-gray-50 p-2 rounded border border-gray-100 flex flex-wrap gap-1">{(selectedClient.regions || []).length > 0 ? (selectedClient.regions || []).map(r => (<span key={r} className="bg-white border border-gray-200 px-2 py-0.5 rounded text-xs">{r}</span>)) : '-'}</div></div>
-                                <div className="grid grid-cols-2 gap-4"><InfoRow label="Cantieri Attivi" value={selectedClient.activeSites} /><InfoRow label="Sub-Appalti" value={selectedClient.subContracting} /></div>
-                                <SectionDisplay title="Note Cantieri" content={selectedClient.activeSitesNotes} small /><SectionDisplay title="Processi Decisionali" content={selectedClient.decisionProcess} small />
-                                <div className="col-span-1"><div className="text-sm font-medium text-gray-500 mb-1">Brand Utilizzati:</div><div className="text-sm text-gray-800">{(selectedClient.brands || []).join(', ')} {selectedClient.brandsOther && (selectedClient.brands?.length > 0 ? ', ' : '') + selectedClient.brandsOther}</div></div>
-                                <InfoRow label="Prodotti Più Utilizzati" value={selectedClient.products} /><InfoRow label="Approvvigionamenti" value={selectedClient.supplies === 'ALTRO' ? selectedClient.suppliesOther : selectedClient.supplies} />
-                                <SectionDisplay title="Note Generali" content={selectedClient.infoNotes} small />
-                                <div className="grid grid-cols-2 gap-4"><InfoRow label="Preferenza" value={selectedClient.preference} /><InfoRow label="Valutazione" value={`${selectedClient.rating} / 5`} /></div>
-                                <InfoRow label="Fornitori Abituali" value={selectedClient.suppliers} /><InfoRow label="Pagamenti Abituali" value={selectedClient.payments} /><SectionDisplay title="Conclusione" content={selectedClient.conclusion} small />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const ClientForm = () => {
-            const { clientForm: initialData, saveClient, setView } = useContext(CRMContext);
-            const [formData, setFormData] = useState({ geoAreas: [], regions: [], brands: [], contact1: {}, contact2: {}, contact3: {}, contact4: {}, ...initialData });
-            const handleChange = (e, section) => { const { name, value } = e.target; if (section) setFormData(p => ({ ...p, [section]: { ...p[section], [name]: value } })); else setFormData(p => ({ ...p, [name]: value })); };
-            const handleMulti = (e, arrName) => { const { value, checked } = e.target; setFormData(p => ({ ...p, [arrName]: checked ? [...(p[arrName]||[]), value] : (p[arrName]||[]).filter(x => x !== value) })); };
-            
-            return (
-                <div className="animate-fade-in pb-32 bg-gray-100 min-h-full">
-                    <div className="sticky top-0 bg-white z-10 p-4 border-b border-gray-200 flex justify-between shadow-sm">
-                        <button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-100"><Icons.ChevronRight size={24} className="rotate-180" /></button>
-                        <button onClick={() => saveClient(formData)} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg flex items-center gap-2"><Icons.Save size={16} /> Salva</button>
-                    </div>
-                    <div className="p-4 space-y-6 max-w-lg mx-auto">
-                        <SectionContainer title="Anagrafica" icon={Icons.Building2}>
-                            <Input label="Ragione Sociale *" name="ragioneSociale" value={formData.ragioneSociale} onChange={handleChange} required />
-                            <Input label="Partita IVA" name="pIva" value={formData.pIva} onChange={handleChange} /><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={formData.telefono} onChange={handleChange} /><Input label="Email" name="email" value={formData.email} onChange={handleChange} /></div>
-                        </SectionContainer>
-                        <SectionContainer title="Amministrazione" icon={Icons.CreditCard}>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Metodo Pagamento</label><div className="grid grid-cols-1 md:grid-cols-3 gap-2"><SelectComponent label="Tipo Base" name="paymentMethod1" value={formData.paymentMethod1} onChange={handleChange} options={paymentOptions.method1} /><SelectComponent label="Scadenza" name="paymentMethod2" value={formData.paymentMethod2} onChange={handleChange} options={paymentOptions.method2} /><SelectComponent label="Struttura" name="paymentMethod3" value={formData.paymentMethod3} onChange={handleChange} options={paymentOptions.method3} /></div><div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-gray-100 mt-4"><Input label="Codice Univoco" name="sdiCode" value={formData.sdiCode} onChange={handleChange} /><Input label="PEC" name="pec" value={formData.pec} onChange={handleChange} /><Input label="Fido (€)" name="fido" value={formData.fido} onChange={handleChange} /><Input label="Data Fido" type="date" name="fidoDate" value={formData.fidoDate} onChange={handleChange} /><Input label="Abbigliamento" name="abbigliamento" value={formData.abbigliamento} onChange={handleChange} /><Input label="N. Operai" name="numeroOperai" value={formData.numeroOperai} onChange={handleChange} type="number" /></div>
-                        </SectionContainer>
-                        <SectionContainer title="Sedi" icon={Icons.MapPin}><Input label="Sede Legale" name="sedeLegale" value={formData.sedeLegale} onChange={handleChange} /><Input label="Sede Operativa" name="sedeOperativa" value={formData.sedeOperativa} onChange={handleChange} /><Input label="Magazzino" name="magazzino" value={formData.magazzino} onChange={handleChange} /></SectionContainer>
-                        <SectionContainer title="Note" icon={Icons.MessageSquare}><TextArea label="Note Interne" name="note" value={formData.note} onChange={handleChange} /><TextArea label="Comunicazioni" name="comunicazioni" value={formData.comunicazioni} onChange={handleChange} /></SectionContainer>
-                        <SectionContainer title="Info Iniziali" icon={Icons.ClipboardList}>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">Settore</label><select name="sector" value={formData.sector} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-2">{sectorsList.map(s => <option key={s} value={s}>{s}</option>)}</select>{formData.sector === 'ALTRO' && <input type="text" name="sectorOther" value={formData.sectorOther || ''} onChange={handleChange} placeholder="Specifica settore..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />}
-                            <label className="block text-sm font-bold text-gray-700 mt-4 mb-2">Aree Geografiche</label><div className="flex gap-4 mb-4">{['ITALIA','ESTERO'].map(a=><label key={a} className="flex gap-2 text-sm cursor-pointer"><input type="checkbox" value={a} checked={(formData.geoAreas||[]).includes(a)} onChange={e=>handleMulti(e,'geoAreas')}/>{a}</label>)}</div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Regioni Operative</label><div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">{regionsList.map(reg => (<label key={reg} className="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100"><input type="checkbox" value={reg} checked={(formData.regions || []).includes(reg)} onChange={(e) => handleMulti(e, 'regions')} className="w-3.5 h-3.5" /><span className="truncate">{reg}</span></label>))}</div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-bold text-gray-700 mb-1">Cantieri Attivi</label><select name="activeSites" value={formData.activeSites} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none">{[...Array(50).keys()].map(i => <option key={i+1} value={i+1}>{i+1}</option>)}<option value="OLTRE 50">OLTRE 50</option></select></div><Input label="Note Cantieri" name="activeSitesNotes" value={formData.activeSitesNotes} onChange={handleChange} /></div>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"><div><label className="block text-sm font-bold text-gray-700 mb-1">Sub-Appalti</label><select name="subContracting" value={formData.subContracting} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="SI">SI</option><option value="NO">NO</option></select></div><Input label="Processi Decisionali" name="decisionProcess" value={formData.decisionProcess} onChange={handleChange} /></div>
-                            <label className="block text-sm font-bold text-gray-700 mt-4 mb-2">Brand</label><div className="flex flex-wrap gap-2 mb-2">{brandsList.map(b=><label key={b} className="flex gap-2 text-xs bg-white p-2 border rounded cursor-pointer"><input type="checkbox" value={b} checked={(formData.brands||[]).includes(b)} onChange={e=>handleMulti(e,'brands')}/>{b}</label>)}</div><Input label="Altri Brand" name="brandsOther" value={formData.brandsOther} onChange={handleChange} /><Input label="Prodotti Più Utilizzati" name="products" value={formData.products} onChange={handleChange} />
-                            <div className="mt-4"><label className="block text-sm font-bold text-gray-700 mb-1">Approvvigionamenti</label><select name="supplies" value={formData.supplies} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none mb-2">{suppliesList.map(s => <option key={s} value={s}>{s}</option>)}</select>{formData.supplies === 'ALTRO' && <input type="text" name="suppliesOther" value={formData.suppliesOther || ''} onChange={handleChange} placeholder="Specifica..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />}</div>
-                            <TextArea label="Note Generali" name="infoNotes" value={formData.infoNotes} onChange={handleChange}/>
-                            <div className="mt-4"><label className="block text-sm font-bold text-gray-700 mb-2">Preferenza</label><div className="flex gap-4">{['ACQUISTO', 'NOLEGGIO'].map(pref => (<label key={pref} className="flex items-center gap-2 cursor-pointer"><input type="radio" name="preference" value={pref} checked={formData.preference === pref} onChange={handleChange} className="w-4 h-4" /><span className="text-sm">{pref}</span></label>))}</div></div>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"><Input label="Fornitori Abituali" name="suppliers" value={formData.suppliers} onChange={handleChange} /><Input label="Pagamenti Abituali" name="payments" value={formData.payments} onChange={handleChange} /></div><Input label="Mia Conclusione" name="conclusion" value={formData.conclusion} onChange={handleChange} />
-                             <div><label className="block text-sm font-bold text-gray-700 mb-1 mt-4">Valutazione</label><select name="rating" value={formData.rating} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none">{[1, 2, 3, 4, 5].map(v => <option key={v} value={v}>{v} Stelle</option>)}</select></div>
-                        </SectionContainer>
-                        <SectionContainer title="Rubrica Contatti" icon={Icons.Users}>{[1, 2, 3, 4].map(num => (<div key={num} className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4"><div className="font-bold text-blue-600 mb-3 text-sm">Contatto {num}</div><div className="space-y-3"><Input label="Nome e Cognome" name="nome" value={formData[`contact${num}`]?.nome} onChange={(e) => handleChange(e, `contact${num}`)} /><Input label="Mansione" name="mansione" value={formData[`contact${num}`]?.mansione} onChange={(e) => handleChange(e, `contact${num}`)} /><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><Input label="Telefono" name="telefono" value={formData[`contact${num}`]?.telefono} onChange={(e) => handleChange(e, `contact${num}`)} /><Input label="Email" name="mail" value={formData[`contact${num}`]?.mail} onChange={(e) => handleChange(e, `contact${num}`)} /></div></div></div>))}</SectionContainer>
-                    </div>
-                </div>
-            );
-        };
-
-        const StatsView = () => {
-            const { reports, formatDuration } = useContext(CRMContext);
-            const data = useMemo(() => { const map = {}; reports.forEach(r => { const c = r.client || 'N/A'; const h = parseFloat(r.hours) || 0; map[c] = (map[c] || 0) + h; }); const arr = Object.entries(map).map(([name, value]) => ({ name, value })); arr.sort((a, b) => b.value - a.value); return arr; }, [reports]);
-            const maxValue = Math.max(...data.map(d => d.value), 0);
-            const formatHours = (val) => { const h = Math.floor(val); const m = Math.round((val - h) * 60); if (h > 0 && m > 0) return `${h}h ${m}m`; if (h > 0) return `${h}h`; return `${m}m`; }
 
             return (
                 <div className="animate-fade-in pb-32">
-                    <header className="mb-6"><h1 className="text-2xl font-bold text-gray-800">Situazione</h1></header>
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Icons.BarChart size={20} className="text-blue-600"/> Ore per Cliente</h3><div className="space-y-4">{data.map(d => (<div key={d.name}><div className="flex justify-between text-sm mb-1"><span className="font-medium text-gray-700 truncate w-3/4">{d.name}</span><span className="font-bold text-blue-600">{formatHours(d.value)}</span></div><div className="w-full bg-gray-100 rounded-full h-2.5"><div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${maxValue > 0 ? (d.value / maxValue) * 100 : 0}%` }}></div></div></div>))}{data.length === 0 && <div className="text-center text-gray-400 text-sm italic py-4">Nessun dato disponibile nei report.</div>}</div></div>
+                    <div className="sticky top-0 bg-gray-200/90 backdrop-blur z-10 p-4 mb-2 flex justify-between items-center border-b border-gray-300">
+                        <button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-white/50"><Icons.ChevronRight size={24} className="rotate-180" /></button>
+                        <div className="flex gap-2">
+                            <button onClick={() => { setClientForm(selectedClient); setView('createClient'); }} className="p-2 text-blue-600 bg-white rounded-full shadow-sm"><Icons.Edit2 size={20}/></button>
+                            <button onClick={() => deleteItem('clients', selectedClient.id)} className="p-2 text-red-500 bg-white rounded-full shadow-sm"><Icons.Trash2 size={20}/></button>
+                        </div>
+                    </div>
+                    <div className="px-4 space-y-4">
+                        <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+                            <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1>
+                            <p className="text-sm text-gray-400 font-semibold tracking-wide">P.IVA: {selectedClient.pIva || '-'}</p>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                {selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md shadow-green-100 flex items-center gap-2 transition-transform active:scale-95"><Icons.Phone size={14}/> Chiama</a>}
+                                {selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md shadow-blue-100 flex items-center gap-2 transition-transform active:scale-95"><Icons.Mail size={14}/> Email</a>}
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={handleNewReport} className="flex flex-col items-center justify-center p-5 bg-white border border-gray-100 rounded-2xl shadow-md active:scale-95 transition-transform"><div className="bg-blue-50 p-2 rounded-full mb-2 text-blue-600"><Icons.FileText size={20} /></div><span className="text-xs font-bold text-gray-800">Report</span></button>
+                            <button onClick={() => setView('clientReports')} className="flex flex-col items-center justify-center p-5 bg-white border border-gray-100 rounded-2xl shadow-md active:scale-95 transition-transform"><div className="bg-gray-50 p-2 rounded-full mb-2 text-gray-600"><Icons.ClipboardList size={20} /></div><span className="text-xs font-bold text-gray-800">Storico</span></button>
+                            <button onClick={handleNewOffer} className="flex flex-col items-center justify-center p-5 bg-white border border-gray-100 rounded-2xl shadow-md active:scale-95 transition-transform"><div className="bg-yellow-50 p-2 rounded-full mb-2 text-yellow-600"><Icons.Target size={20} /></div><span className="text-xs font-bold text-yellow-800">Offerta</span></button>
+                            <button onClick={handleNewIdea} className="flex flex-col items-center justify-center p-5 bg-white border border-gray-100 rounded-2xl shadow-md active:scale-95 transition-transform"><div className="bg-red-50 p-2 rounded-full mb-2 text-red-600"><Icons.Lightbulb size={20} /></div><span className="text-xs font-bold text-red-800">Idea</span></button>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl shadow-md border border-gray-100 space-y-4">
+                            <SectionTitle icon={<Icons.CreditCard size={16}/>} title="Dati Amministrativi" />
+                            <div className="grid grid-cols-1 gap-3">
+                                <InfoRow label="Univoco" value={selectedClient.sdiCode} /><InfoRow label="PEC" value={selectedClient.pec} /><InfoRow label="Fido (€)" value={selectedClient.fido} />
+                                <div className="pt-2"><label className="text-xs text-gray-400 font-bold uppercase">Pagamento</label><div className="text-sm font-semibold text-gray-800">{getFullPaymentMethod(selectedClient)}</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ClientsList = () => {
+            const { sortedClients, setView, setSelectedClient } = useContext(CRMContext);
+            const [search, setSearch] = useState('');
+            const filtered = sortedClients.filter(c => (c.ragioneSociale || '').toLowerCase().includes(search.toLowerCase()));
+
+            return (
+                <div className="animate-fade-in pb-32">
+                    <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold text-gray-800">Clienti</h2><button onClick={() => setView('createClient')} className="bg-gray-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md flex items-center gap-1"><Icons.Plus size={14} /> Nuovo</button></div>
+                    <div className="mb-4 relative"><input type="text" placeholder="Cerca..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none shadow-sm" /><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div></div>
+                    <div className="space-y-3">{filtered.map(c => (<div key={c.id} onClick={() => { setSelectedClient(c); setView('clientDetail'); }} className="bg-white p-5 rounded-2xl shadow-md border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform"><h3 className="font-bold text-gray-800 text-lg leading-tight mb-1">{c.ragioneSociale}</h3><div className="text-xs text-gray-400 font-medium uppercase tracking-wide">{c.sedeOperativa || 'Sede non spec.'}</div></div>))}</div>
                 </div>
             );
         };
@@ -796,7 +475,7 @@
             const [duplicatesData, setDuplicatesData] = useState([]);
             const fileInputRef = useRef(null);
             
-            useEffect(() => { const app = initializeApp(firebaseConfig); const auth = getAuth(app); const dbInst = getFirestore(app); setDb(dbInst); onAuthStateChanged(auth, u => !u && signInAnonymously(auth)); }, []);
+            useEffect(() => { const app = initializeApp(firebaseConfig); setDb(getFirestore(app)); onAuthStateChanged(getAuth(app), u => !u && signInAnonymously(getAuth(app))); }, []);
             useEffect(() => {
                 if (!db || !userKey) return;
                 const key = userKey.toLowerCase().replace(/\s/g, '');
@@ -808,82 +487,39 @@
             const showMessage = (text, type='info') => { setMessage({text, type}); setTimeout(() => setMessage({text:'', type:''}), 3000); };
             const toggleSort = (k) => setSortOrder(p => ({ ...p, [k]: p[k] === 'desc' ? 'asc' : 'desc' }));
             
-            const saveReport = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); const title = data.title || `${data.category} - ${data.date}`; const calendarUid = data.calendarUid || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@crm.app`; const calendarSequence = (data.calendarSequence || 0) + 1; await setDoc(doc(db, `artifacts/${appId}/users/${key}/reports`, id), { ...data, id, title, calendarUid, calendarSequence, createdAt: data.createdAt || new Date().toISOString() }); showMessage('Report Salvato', 'success'); setView('list'); };
-            const saveClient = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); await setDoc(doc(db, `artifacts/${appId}/users/${key}/clients`, id), { ...data, id, updatedAt: new Date().toLocaleDateString('it-IT') }); showMessage('Cliente Salvato', 'success'); setView('clients'); };
-            const saveFollowup = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); const calendarUid = data.calendarUid || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@crm.app`; const calendarSequence = (data.calendarSequence || 0) + 1; await setDoc(doc(db, `artifacts/${appId}/users/${key}/followups`, id), { ...data, id, calendarUid, calendarSequence, createdAt: data.createdAt || new Date().toISOString() }); showMessage('Offerta Salvata', 'success'); setView('followups'); };
-            const saveIdea = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); const calendarUid = data.calendarUid || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@crm.app`; const calendarSequence = (data.calendarSequence || 0) + 1; await setDoc(doc(db, `artifacts/${appId}/users/${key}/ideas`, id), { ...data, id, calendarUid, calendarSequence, createdAt: data.createdAt || new Date().toISOString() }); showMessage('Idea Salvata', 'success'); setView('ideas'); };
-            const deleteItem = async (collectionName, id) => { const key = userKey.toLowerCase().replace(/\s/g, ''); if (window.confirm("Sei sicuro di voler eliminare questo elemento?")) { await deleteDoc(doc(db, `artifacts/${appId}/users/${key}/${collectionName}`, id)); showMessage('Eliminato', 'success'); return true; } return false; };
-            const toggleTaskCompletion = async (collectionName, id, currentStatus) => { const key = userKey.toLowerCase().replace(/\s/g, ''); await setDoc(doc(db, `artifacts/${appId}/users/${key}/${collectionName}`, id), { completed: !currentStatus }, { merge: true }); };
-            const handleCleanDuplicates = () => { const groups = {}; reports.forEach(r => { const compositeKey = `${(r.client||'').trim().toLowerCase()}|${r.date}|${(r.category||'').trim()}|${(r.description||'').trim().toLowerCase()}`; if (!groups[compositeKey]) groups[compositeKey] = []; groups[compositeKey].push(r); }); const duplicateGroups = Object.values(groups).filter(g => g.length > 1); if (duplicateGroups.length === 0) { showMessage('Nessun duplicato trovato.', 'info'); return; } setDuplicatesData(duplicateGroups); setShowCleanModal(true); };
-            const executeClean = async (idsToDelete) => { if (idsToDelete.length === 0) return; const key = userKey.toLowerCase().replace(/\s/g, ''); try { const deletePromises = idsToDelete.map(id => deleteDoc(doc(db, `artifacts/${appId}/users/${key}/reports`, id))); await Promise.all(deletePromises); showMessage(`Eliminati ${idsToDelete.length} duplicati.`, 'success'); setShowCleanModal(false); } catch (error) { console.error("Errore pulizia:", error); showMessage('Errore durante l\'eliminazione.', 'error'); } };
-            const handleLogin = (e) => { e.preventDefault(); const input = e.target.elements[0].value.trim(); if(input) { localStorage.setItem('crm_user_key', input); setUserKey(input); setIsLoggedIn(true); } };
+            const saveReport = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); const title = data.title || `${data.category} - ${data.date}`; await setDoc(doc(db, `artifacts/${appId}/users/${key}/reports`, id), { ...data, id, title, createdAt: data.createdAt || new Date().toISOString() }); showMessage('Salvato', 'success'); setView('list'); };
+            const saveClient = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); await setDoc(doc(db, `artifacts/${appId}/users/${key}/clients`, id), { ...data, id, updatedAt: new Date().toLocaleDateString('it-IT') }); showMessage('Salvato', 'success'); setView('clients'); };
+            const deleteItem = async (col, id) => { if (window.confirm("Eliminare?")) { await deleteDoc(doc(db, `artifacts/${appId}/users/${userKey.toLowerCase().replace(/\s/g, '')}/${col}`, id)); showMessage('Eliminato'); return true; } return false; };
+            const toggleTaskCompletion = async (col, id, stat) => { await setDoc(doc(db, `artifacts/${appId}/users/${userKey.toLowerCase().replace(/\s/g, '')}/${col}`, id), { completed: !stat }, { merge: true }); };
             const handleLogout = () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); setView('dashboard'); };
-            const handleImport = () => showMessage('Import simulato', 'info'); 
-            const exportToExcel = () => {
-                if (!XLSX) { showMessage('Libreria Excel non caricata', 'error'); return; }
-                const wb = XLSX.utils.book_new();
-                const clientsData = clients.map(c => ({ "ID": c.id, "Ragione Sociale": c.ragioneSociale, "P.IVA": c.pIva, "Telefono": c.telefono, "Email": c.email, "Sede Legale": c.sedeLegale, "Sede Operativa": c.sedeOperativa, "Settore": c.sector === 'ALTRO' ? c.sectorOther : c.sector, "Pagamento": [c.paymentMethod1, c.paymentMethod2, c.paymentMethod3].filter(Boolean).join(' - '), "Fido": c.fido, "Note": c.note, "Valutazione": c.rating }));
-                const wsClients = XLSX.utils.json_to_sheet(clientsData);
-                if (clientsData.length > 0) wsClients['!cols'] = [{wch:15}, {wch:30}, {wch:15}, {wch:15}, {wch:25}, {wch:30}, {wch:30}, {wch:20}, {wch:30}, {wch:10}, {wch:40}, {wch:10}];
-                XLSX.utils.book_append_sheet(wb, wsClients, "Anagrafica Clienti");
-                const reportsData = reports.map(r => ({ "ID": r.id, "Data": r.date, "Cliente": r.client, "Categoria": r.category, "Tipo": r.contactType, "Durata (h)": r.hours, "Descrizione": r.description, "Appunti Futuri": r.futureNotes, "Prox Contatto": r.nextContactDate ? `${r.nextContactDate} ${r.nextContactTime || ''}` : '' }));
-                const wsReports = XLSX.utils.json_to_sheet(reportsData);
-                if (reportsData.length > 0) wsReports['!cols'] = [{wch:15}, {wch:12}, {wch:25}, {wch:25}, {wch:15}, {wch:10}, {wch:50}, {wch:40}, {wch:20}];
-                XLSX.utils.book_append_sheet(wb, wsReports, "Report");
-                const offersData = followups.map(f => ({ "ID": f.id, "Cliente": f.client, "N. Offerta": f.offerNumber, "Importo": f.amount, "Data Riscontro": f.feedbackDate, "Note": f.notes, "Stato": f.completed ? "Completato" : "Da Fare" }));
-                const wsOffers = XLSX.utils.json_to_sheet(offersData);
-                if (offersData.length > 0) wsOffers['!cols'] = [{wch:15}, {wch:30}, {wch:15}, {wch:10}, {wch:15}, {wch:40}, {wch:10}];
-                XLSX.utils.book_append_sheet(wb, wsOffers, "Offerte");
-                const ideasData = ideas.map(i => ({ "ID": i.id, "Cliente": i.client, "Descrizione": i.text, "Scadenza": i.deadline, "Stato": i.completed ? "Completato" : "Da Fare" }));
-                const wsIdeas = XLSX.utils.json_to_sheet(ideasData);
-                if (ideasData.length > 0) wsIdeas['!cols'] = [{wch:15}, {wch:30}, {wch:50}, {wch:15}, {wch:10}];
-                XLSX.utils.book_append_sheet(wb, wsIdeas, "Idee");
-                XLSX.writeFile(wb, `Backup_CRM_${new Date().toISOString().slice(0,10)}.xlsx`);
-                showMessage('Backup Excel scaricato con successo!', 'success');
-            };
-            const [touchStart, setTouchStart] = useState(null);
-            const onTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX);
-            const onTouchEnd = (e) => { if(!touchStart) return; const diff = touchStart - e.changedTouches[0].clientX; const tabs = ['dashboard', 'todo', 'stats', 'clients']; const idx = tabs.indexOf(view); if(idx > -1 && Math.abs(diff) > 75) { if (diff > 0 && idx < tabs.length - 1) setView(tabs[idx + 1]); if (diff < 0 && idx > 0) setView(tabs[idx - 1]); } setTouchStart(null); };
-            const formatDuration = (val) => { const num = parseFloat(val) || 0; const h = Math.floor(num); const m = Math.round((num - h) * 60); if (h === 0 && m === 0) return '0m'; if (h > 0 && m > 0) return `${h}h ${m}m`; if (h > 0) return `${h}h`; return `${m}m`; };
-            const emptyReport = { date: new Date().toISOString().split('T')[0], hours: '', category: 'MANTENIMENTO RAPPORTO', contactType: 'TELEFONICO', calendarEventType: 'APPUNTAMENTO' };
+            const handleLogin = (e) => { e.preventDefault(); const val = e.target.elements[0].value.trim(); if(val) { localStorage.setItem('crm_user_key', val); setUserKey(val); setIsLoggedIn(true); } };
+            const exportToExcel = () => { if(!XLSX) return; const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clients), "Clienti"); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reports), "Report"); XLSX.writeFile(wb, `Backup.xlsx`); showMessage('Backup scaricato'); };
+            const formatDuration = (val) => { const num = parseFloat(val) || 0; const h = Math.floor(num); const m = Math.round((num - h) * 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; };
 
-            const contextValue = { db, userKey, view, setView, clients, reports, followups, ideas, sortedClients, sortOrder, toggleSort, selectedReport, setSelectedReport, selectedClient, setSelectedClient, reportForm: { ...emptyReport, ...reportForm }, setReportForm, clientForm: { ...clientForm }, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, saveReport, saveClient, saveFollowup, saveIdea, deleteItem, toggleTaskCompletion, fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout, formatDuration };
+            if (!isLoggedIn) return ( <div className="min-h-screen bg-gray-300 flex justify-center items-center p-4"> <form onSubmit={handleLogin} className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center"> <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600 shadow-md"><Icons.Lock size={32}/></div> <h1 className="text-2xl font-bold mb-2">WorkReport CRM</h1> <input type="text" placeholder="Chiave" className="w-full p-4 bg-gray-50 rounded-xl mb-4 text-center font-bold outline-none border focus:border-blue-500 shadow-inner" autoFocus/> <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform">Accedi</button> </form> </div> );
 
-            if (!isLoggedIn) return ( <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4"> <form onSubmit={handleLogin} className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center"> <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600"><Icons.Lock size={32}/></div> <h1 className="text-2xl font-bold mb-2">WorkReport CRM</h1> <input type="text" placeholder="Tua Chiave Segreta" className="w-full p-4 bg-gray-50 rounded-xl mb-4 text-center font-bold outline-none border focus:border-blue-500" autoFocus/> <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">Accedi</button> </form> </div> );
-
-            // MODIFICATO BG PRINCIPALE E AGGIUNTA VISTA CLIENTREPORTS
             return (
-                <CRMContext.Provider value={contextValue}>
-                    <div className="min-h-screen bg-gray-100 flex justify-center pt-0 sm:pt-6">
-                        <div className="w-full max-w-7xl bg-gray-100 h-dvh sm:rounded-[2.5rem] sm:shadow-2xl overflow-hidden flex flex-col ring-8 ring-gray-900/5">
-                            <div className="flex-1 overflow-y-auto scrollbar-hide p-6" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+                <CRMContext.Provider value={{ db, userKey, view, setView, clients, reports, followups, ideas, sortedClients, sortOrder, toggleSort, selectedReport, setSelectedReport, selectedClient, setSelectedClient, reportForm, setReportForm, clientForm, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, saveReport, saveClient, deleteItem, toggleTaskCompletion, fileInputRef, exportToExcel, handleLogout, formatDuration }}>
+                    <div className="min-h-screen bg-gray-200 flex justify-center pt-0 sm:pt-6">
+                        <div className="w-full max-w-7xl bg-gray-200 h-dvh sm:rounded-[2.5rem] sm:shadow-2xl overflow-hidden flex flex-col ring-8 ring-gray-900/5">
+                            <div className="flex-1 overflow-y-auto scrollbar-hide p-6">
                                 {view === 'dashboard' && <DashboardView />}
                                 {view === 'todo' && <TodoView />}
                                 {view === 'list' && <ReportList />}
                                 {view === 'create' && <ReportForm />}
                                 {view === 'clients' && <ClientsList />}
-                                {view === 'createClient' && <ClientForm />}
                                 {view === 'clientDetail' && <ClientDetailView />}
-                                {view === 'clientReports' && <ClientReportsView />}
-                                {view === 'detail' && <ReportDetailView />}
-                                {view === 'followups' && <FollowupsList />}
-                                {view === 'createFollowup' && <FollowupForm />}
-                                {view === 'ideas' && <IdeasList />}
-                                {view === 'createIdea' && <IdeaForm />}
-                                {view === 'stats' && <StatsView />}
-                                {view === 'manual' && <ManualView />}
+                                {view === 'stats' && <div className="p-4 text-center text-gray-400">Statistiche in arrivo...</div>}
                             </div>
-                            <nav className="border-t border-gray-200 p-3 bg-white z-20"><div className="flex justify-around">{[{ id: 'dashboard', icon: Icons.LayoutDashboard, label: 'Home' }, { id: 'todo', icon: Icons.CheckSquare, label: 'TO-DO' }, { id: 'stats', icon: Icons.BarChart, label: 'Situazione' }, { id: 'clients', icon: Icons.Users, label: 'Clienti' }].map(item => (<button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 rounded-xl transition-all active:scale-95 ${view === item.id ? 'text-blue-600 scale-105' : 'text-gray-400'}`}><item.icon size={24} className="mb-0.5" /><span className="text-[10px] font-bold">{item.label}</span></button>))}</div></nav>
-                            {message.text && (<div className={`fixed top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-xl text-white font-bold text-sm z-50 ${message.type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`}>{message.text}</div>)}
-                            {showCleanModal && (<CleanDuplicatesModal groups={duplicatesData} onClose={() => setShowCleanModal(false)} onDelete={executeClean} />)}
+                            <nav className="border-t border-gray-300 p-3 bg-white shadow-2xl z-20"><div className="flex justify-around">{[{ id: 'dashboard', icon: Icons.LayoutDashboard, label: 'Home' }, { id: 'todo', icon: Icons.CheckSquare, label: 'TO-DO' }, { id: 'list', icon: Icons.ClipboardList, label: 'Storico' }, { id: 'clients', icon: Icons.Users, label: 'Clienti' }].map(item => (<button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 rounded-xl transition-all active:scale-95 ${view === item.id ? 'text-blue-600' : 'text-gray-400'}`}><item.icon size={24} className="mb-0.5" /><span className="text-[10px] font-bold">{item.label}</span></button>))}</div></nav>
+                            {message.text && (<div className={`fixed top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-2xl text-white font-bold text-sm z-50 bg-blue-500`}>{message.text}</div>)}
                         </div>
                     </div>
                 </CRMContext.Provider>
             );
         };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
