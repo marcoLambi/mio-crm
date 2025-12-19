@@ -489,6 +489,14 @@
             const selectedClientData = useMemo(() => clients.find(c => c.ragioneSociale === formData.client), [clients, formData.client]);
             const availableContacts = selectedClientData ? [selectedClientData.contact1, selectedClientData.contact2, selectedClientData.contact3, selectedClientData.contact4].filter(c => c?.nome) : [];
 
+            // Helper per durata
+            const getDuration = (type) => {
+                if (type === 'APPUNTAMENTO') return 60;
+                if (type === 'TELEFONATA') return 15;
+                if (type === 'PROMEMORIA') return 5;
+                return 60;
+            };
+
             return (
                 <div className="animate-fade-in pb-32">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica' : 'Nuovo'} Report</h2>
@@ -505,7 +513,7 @@
                             <div><label className="block text-sm font-bold text-gray-700 mb-2">Tipo Promemoria</label><div className="flex gap-2 mb-3">{['APPUNTAMENTO', 'PROMEMORIA', 'TELEFONATA'].map(type => (<button key={type} type="button" onClick={() => setFormData(p => ({ ...p, calendarEventType: type }))} className={`flex-1 py-3 text-xs font-bold rounded-lg border transition-all ${formData.calendarEventType === type ? 'bg-gray-600 text-white border-gray-600' : 'bg-white text-gray-600 border-gray-200'}`}>{type}</button>))}</div></div>
                             <TextArea label="Appunti Futuri" name="futureNotes" value={formData.futureNotes} onChange={handleChange} />
                             <div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="nextContactDate" value={formData.nextContactDate} onChange={handleChange} /><Input label="Ora" type="time" name="nextContactTime" value={formData.nextContactTime} onChange={handleChange} /></div>
-                            <CalendarButton title={`${formData.calendarEventType} - ${formData.client}`} details={formData.futureNotes} date={formData.nextContactDate} time={formData.nextContactTime} uid={formData.calendarUid} sequence={formData.calendarSequence} />
+                            <CalendarButton title={`${formData.calendarEventType} - ${formData.client}`} details={formData.futureNotes} date={formData.nextContactDate} time={formData.nextContactTime} uid={formData.calendarUid} sequence={formData.calendarSequence} duration={getDuration(formData.calendarEventType)} />
                         </SectionContainer>
                         <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-gray-600 text-white font-bold rounded-xl shadow-lg shadow-gray-200 flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
                     </form>
