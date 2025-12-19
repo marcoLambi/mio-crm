@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CRM WorkReport</title>
+    <title>CRM WorkReport v1.0</title>
     
     <!-- 1. Stile Grafico (Tailwind) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -307,8 +307,48 @@
                         <h1 className="text-xl font-bold text-gray-800">Manuale Utente</h1>
                     </div>
                     <div className="p-4 space-y-6">
-                        <SectionContainer title="Benvenuto" icon={Icons.BookOpen}><p className="text-sm text-gray-600">Benvenuto nel CRM WorkReport...</p></SectionContainer>
-                        {/* Altri contenuti manuale... */}
+                        <SectionContainer title="Benvenuto" icon={Icons.BookOpen}><p className="text-sm text-gray-600">Benvenuto nel CRM WorkReport Versione 1.0. Questa guida ti aiuterà a sfruttare al meglio tutte le funzionalità dell'applicazione.</p></SectionContainer>
+                        <SectionContainer title="Dashboard" icon={Icons.LayoutDashboard}>
+                            <p className="text-sm text-gray-600">La schermata principale offre accesso rapido alle funzioni principali:</p>
+                            <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1 mt-2">
+                                <li><strong>Report (Grigio):</strong> Crea e visualizza i report delle visite/contatti.</li>
+                                <li><strong>Offerte (Giallo):</strong> Gestisci le offerte inviate e i loro esiti.</li>
+                                <li><strong>Idee (Rosso):</strong> Appunta velocemente idee o progetti futuri.</li>
+                            </ul>
+                        </SectionContainer>
+
+                        <SectionContainer title="Colori e Stati" icon={Icons.Target}>
+                            <p className="text-sm text-gray-600">Il sistema usa un codice colori per identificare rapidamente il tipo di attività:</p>
+                            <div className="flex gap-2 mt-2">
+                                <div className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs font-bold border border-gray-200">Report</div>
+                                <div className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-bold border border-yellow-200">Offerte</div>
+                                <div className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold border border-red-200">Idee</div>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">Inoltre, le attività possono essere <strong>Da Fare</strong> (Rosso) o <strong>Completate</strong> (Verde).</p>
+                        </SectionContainer>
+
+                         <SectionContainer title="Lista TO-DO" icon={Icons.CheckSquare}>
+                            <p className="text-sm text-gray-600">La tab TO-DO raccoglie automaticamente:</p>
+                             <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1 mt-2">
+                                <li>Report con un prossimo contatto programmato.</li>
+                                <li>Offerte in attesa di riscontro.</li>
+                                <li>Idee non ancora realizzate.</li>
+                            </ul>
+                            <p className="text-sm text-gray-600 mt-2">Usa il pulsante di spunta per completare un'attività e rimuoverla dalla lista.</p>
+                        </SectionContainer>
+
+                        <SectionContainer title="Gestione Clienti" icon={Icons.Users}>
+                            <p className="text-sm text-gray-600">Nella sezione Clienti puoi gestire l'anagrafica completa. Se mancano dati importanti (es. Email, P.IVA), vedrai un avviso <strong>"Anagrafica Incompleta"</strong> sulla scheda del cliente.</p>
+                            <p className="text-sm text-gray-600 mt-2">Dalla scheda cliente, puoi creare rapidamente nuovi Report, Offerte o Idee già precompilati.</p>
+                        </SectionContainer>
+
+                        <SectionContainer title="Funzioni Avanzate" icon={Icons.Trash2}>
+                            <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1">
+                                <li><strong>Pulisci:</strong> Rileva ed elimina i report duplicati.</li>
+                                <li><strong>Backup/Importa:</strong> Salva i tuoi dati in Excel o ripristinali.</li>
+                                <li><strong>Calendario:</strong> Esporta eventi su Google Calendar o scarica il file .ics per Outlook/Apple. Le Idee hanno una durata preimpostata di 5 minuti.</li>
+                            </ul>
+                        </SectionContainer>
                     </div>
                 </div>
             );
@@ -519,16 +559,41 @@
         };
 
         const ClientsList = () => {
-            const { sortedClients, toggleSort, sortOrder, setClientForm, setView, setSelectedClient } = useContext(CRMContext);
+            const { sortedClients, toggleSort, sortOrder, setClientForm, setView, setSelectedClient, reports } = useContext(CRMContext);
             const [search, setSearch] = useState('');
             const filtered = useMemo(() => sortedClients.filter(c => (c.ragioneSociale || '').toLowerCase().includes(search.toLowerCase())), [sortedClients, search]);
             const isIncomplete = (c) => ['pIva', 'telefono', 'email', 'sedeLegale', 'pec', 'sdiCode'].some(f => !c[f]);
+
+            const getClientStatus = (clientName) => {
+                const clientReports = reports.filter(r => r.client === clientName);
+                if (clientReports.length === 0) return { label: 'FREDDO', color: 'bg-blue-100 text-blue-700 border-blue-200' };
+                
+                const lastReport = clientReports.reduce((latest, current) => new Date(current.date) > new Date(latest.date) ? current : latest);
+                const diffTime = new Date() - new Date(lastReport.date);
+                const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+                if (diffDays < 15) return { label: 'CALDO', color: 'bg-red-100 text-red-700 border-red-200' };
+                if (diffDays <= 30) return { label: 'TIEPIDO', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+                return { label: 'FREDDO', color: 'bg-blue-100 text-blue-700 border-blue-200' };
+            };
 
             return (
                 <div className="animate-fade-in pb-32">
                     <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold text-gray-800">Clienti</h2><div className="flex gap-2"><button onClick={() => toggleSort('clients')} className="flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-600"><Icons.ArrowUpDown size={14} /> {sortOrder.clients === 'desc' ? 'Z-A' : 'A-Z'}</button><button onClick={() => { setClientForm({}); setView('createClient'); }} className="bg-gray-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1"><Icons.Plus size={14} /> Nuovo</button></div></div>
                     <div className="mb-4 relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div><input type="text" placeholder="Cerca..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" />{search && <button onClick={() => setSearch('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"><Icons.X size={18} /></button>}</div>
-                    <div className="space-y-3">{filtered.length === 0 ? <div className="text-center py-8 text-gray-400 border border-dashed rounded-xl">Nessun cliente.</div> : filtered.map(c => (<div key={c.id} onClick={() => { setSelectedClient(c); setView('clientDetail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform relative"><h3 className="font-bold text-gray-800 text-lg">{c.ragioneSociale}</h3><div className="text-xs text-gray-500">{c.sedeOperativa || c.sedeLegale || 'Sede non spec.'}</div>{isIncomplete(c) && (<div className="mt-2 inline-block bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded border border-yellow-200 uppercase tracking-wide">⚠ Anagrafica Incompleta</div>)}</div>))}</div>
+                    <div className="space-y-3">{filtered.length === 0 ? <div className="text-center py-8 text-gray-400 border border-dashed rounded-xl">Nessun cliente.</div> : filtered.map(c => {
+                        const status = getClientStatus(c.ragioneSociale);
+                        return (
+                            <div key={c.id} onClick={() => { setSelectedClient(c); setView('clientDetail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform relative">
+                                <div className="flex justify-between items-start">
+                                    <h3 className="font-bold text-gray-800 text-lg pr-2">{c.ragioneSociale}</h3>
+                                    <span className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wide shrink-0 ${status.color}`}>{status.label}</span>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">{c.sedeOperativa || c.sedeLegale || 'Sede non spec.'}</div>
+                                {isIncomplete(c) && (<div className="mt-2 inline-block bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded border border-yellow-200 uppercase tracking-wide">⚠ Anagrafica Incompleta</div>)}
+                            </div>
+                        );
+                    })}</div>
                 </div>
             );
         };
@@ -819,28 +884,73 @@
             const handleLogin = (e) => { e.preventDefault(); const input = e.target.elements[0].value.trim(); if(input) { localStorage.setItem('crm_user_key', input); setUserKey(input); setIsLoggedIn(true); } };
             const handleLogout = () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); setView('dashboard'); };
             const handleImport = () => showMessage('Import simulato', 'info'); 
+            
+            // --- FUNZIONE EXPORT EXCEL AGGIORNATA ---
             const exportToExcel = () => {
                 if (!XLSX) { showMessage('Libreria Excel non caricata', 'error'); return; }
                 const wb = XLSX.utils.book_new();
-                const clientsData = clients.map(c => ({ "ID": c.id, "Ragione Sociale": c.ragioneSociale, "P.IVA": c.pIva, "Telefono": c.telefono, "Email": c.email, "Sede Legale": c.sedeLegale, "Sede Operativa": c.sedeOperativa, "Settore": c.sector === 'ALTRO' ? c.sectorOther : c.sector, "Pagamento": [c.paymentMethod1, c.paymentMethod2, c.paymentMethod3].filter(Boolean).join(' - '), "Fido": c.fido, "Note": c.note, "Valutazione": c.rating }));
+                
+                // 1. ANAGRAFICA CLIENTI COMPLETA
+                const clientsData = clients.map(c => ({ 
+                    "ID": c.id, 
+                    "Ragione Sociale": c.ragioneSociale, 
+                    "P.IVA": c.pIva, 
+                    "Telefono": c.telefono, 
+                    "Email": c.email, 
+                    "Sede Legale": c.sedeLegale, 
+                    "Sede Operativa": c.sedeOperativa,
+                    "Magazzino": c.magazzino, 
+                    "PEC": c.pec, 
+                    "Codice Univoco": c.sdiCode,
+                    "Settore": c.sector === 'ALTRO' ? c.sectorOther : c.sector, 
+                    "Aree Geografiche": (c.geoAreas || []).join(', '),
+                    "Regioni": (c.regions || []).join(', '),
+                    "Pagamento": [c.paymentMethod1, c.paymentMethod2, c.paymentMethod3].filter(Boolean).join(' - '), 
+                    "Fido": c.fido, 
+                    "Data Fido": c.fidoDate,
+                    "N. Operai": c.numeroOperai,
+                    "Abbigliamento": c.abbigliamento,
+                    "Cantieri Attivi": c.activeSites,
+                    "Note Cantieri": c.activeSitesNotes,
+                    "Sub-Appalti": c.subContracting,
+                    "Processi Decisionali": c.decisionProcess,
+                    "Brand": (c.brands || []).join(', '),
+                    "Altri Brand": c.brandsOther,
+                    "Prodotti": c.products,
+                    "Approvvigionamenti": c.supplies === 'ALTRO' ? c.suppliesOther : c.supplies,
+                    "Preferenza": c.preference,
+                    "Fornitori Abituali": c.suppliers,
+                    "Pagamenti Abituali": c.payments,
+                    "Note Interne": c.note, 
+                    "Comunicazioni": c.comunicazioni,
+                    "Note Generali": c.infoNotes,
+                    "Conclusione": c.conclusion,
+                    "Valutazione": c.rating,
+                    // Contatti
+                    "Contatto 1 Nome": c.contact1?.nome, "Contatto 1 Tel": c.contact1?.telefono, "Contatto 1 Mail": c.contact1?.mail,
+                    "Contatto 2 Nome": c.contact2?.nome, "Contatto 2 Tel": c.contact2?.telefono, "Contatto 2 Mail": c.contact2?.mail,
+                    "Contatto 3 Nome": c.contact3?.nome, "Contatto 3 Tel": c.contact3?.telefono, "Contatto 3 Mail": c.contact3?.mail,
+                    "Contatto 4 Nome": c.contact4?.nome, "Contatto 4 Tel": c.contact4?.telefono, "Contatto 4 Mail": c.contact4?.mail
+                }));
                 const wsClients = XLSX.utils.json_to_sheet(clientsData);
-                if (clientsData.length > 0) wsClients['!cols'] = [{wch:15}, {wch:30}, {wch:15}, {wch:15}, {wch:25}, {wch:30}, {wch:30}, {wch:20}, {wch:30}, {wch:10}, {wch:40}, {wch:10}];
+                // Imposta larghezza colonne per leggibilità
+                if (clientsData.length > 0) {
+                    wsClients['!cols'] = Array(Object.keys(clientsData[0]).length).fill({wch: 20});
+                }
                 XLSX.utils.book_append_sheet(wb, wsClients, "Anagrafica Clienti");
+                
+                // 2. REPORT
                 const reportsData = reports.map(r => ({ "ID": r.id, "Data": r.date, "Cliente": r.client, "Categoria": r.category, "Tipo": r.contactType, "Durata (h)": r.hours, "Descrizione": r.description, "Appunti Futuri": r.futureNotes, "Prox Contatto": r.nextContactDate ? `${r.nextContactDate} ${r.nextContactTime || ''}` : '' }));
                 const wsReports = XLSX.utils.json_to_sheet(reportsData);
                 if (reportsData.length > 0) wsReports['!cols'] = [{wch:15}, {wch:12}, {wch:25}, {wch:25}, {wch:15}, {wch:10}, {wch:50}, {wch:40}, {wch:20}];
                 XLSX.utils.book_append_sheet(wb, wsReports, "Report");
-                const offersData = followups.map(f => ({ "ID": f.id, "Cliente": f.client, "N. Offerta": f.offerNumber, "Importo": f.amount, "Data Riscontro": f.feedbackDate, "Note": f.notes, "Stato": f.completed ? "Completato" : "Da Fare" }));
-                const wsOffers = XLSX.utils.json_to_sheet(offersData);
-                if (offersData.length > 0) wsOffers['!cols'] = [{wch:15}, {wch:30}, {wch:15}, {wch:10}, {wch:15}, {wch:40}, {wch:10}];
-                XLSX.utils.book_append_sheet(wb, wsOffers, "Offerte");
-                const ideasData = ideas.map(i => ({ "ID": i.id, "Cliente": i.client, "Descrizione": i.text, "Scadenza": i.deadline, "Stato": i.completed ? "Completato" : "Da Fare" }));
-                const wsIdeas = XLSX.utils.json_to_sheet(ideasData);
-                if (ideasData.length > 0) wsIdeas['!cols'] = [{wch:15}, {wch:30}, {wch:50}, {wch:15}, {wch:10}];
-                XLSX.utils.book_append_sheet(wb, wsIdeas, "Idee");
+                
+                // NOTE: Offerte e Idee rimosse come richiesto
+                
                 XLSX.writeFile(wb, `Backup_CRM_${new Date().toISOString().slice(0,10)}.xlsx`);
                 showMessage('Backup Excel scaricato con successo!', 'success');
             };
+
             const [touchStart, setTouchStart] = useState(null);
             const onTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX);
             const onTouchEnd = (e) => { if(!touchStart) return; const diff = touchStart - e.changedTouches[0].clientX; const tabs = ['dashboard', 'todo', 'stats', 'clients']; const idx = tabs.indexOf(view); if(idx > -1 && Math.abs(diff) > 75) { if (diff > 0 && idx < tabs.length - 1) setView(tabs[idx + 1]); if (diff < 0 && idx > 0) setView(tabs[idx - 1]); } setTouchStart(null); };
@@ -849,7 +959,7 @@
 
             const contextValue = { db, userKey, view, setView, clients, reports, followups, ideas, sortedClients, sortOrder, toggleSort, selectedReport, setSelectedReport, selectedClient, setSelectedClient, reportForm: { ...emptyReport, ...reportForm }, setReportForm, clientForm: { ...clientForm }, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, saveReport, saveClient, saveFollowup, saveIdea, deleteItem, toggleTaskCompletion, fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout, formatDuration };
 
-            if (!isLoggedIn) return ( <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4"> <form onSubmit={handleLogin} className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center"> <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600"><Icons.Lock size={32}/></div> <h1 className="text-2xl font-bold mb-2">WorkReport CRM</h1> <input type="text" placeholder="Tua Chiave Segreta" className="w-full p-4 bg-gray-50 rounded-xl mb-4 text-center font-bold outline-none border focus:border-blue-500" autoFocus/> <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">Accedi</button> </form> </div> );
+            if (!isLoggedIn) return ( <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4"> <form onSubmit={handleLogin} className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center"> <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600"><Icons.Lock size={32}/></div> <h1 className="text-2xl font-bold mb-2">WorkReport CRM</h1> <input type="text" placeholder="Tua Chiave Segreta" className="w-full p-4 bg-gray-50 rounded-xl mb-4 text-center font-bold outline-none border focus:border-blue-500" autoFocus/> <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">Accedi</button> <p className="mt-4 text-xs text-gray-400 font-bold uppercase tracking-widest">v1.0</p> </form> </div> );
 
             // MODIFICATO BG PRINCIPALE E AGGIUNTA VISTA CLIENTREPORTS
             return (
