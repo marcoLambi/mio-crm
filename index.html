@@ -110,10 +110,11 @@
             </div>
         );
 
+        // MODIFICATO: Layout verticale per massima leggibilità su mobile, senza troncamento testo
         const InfoRow = ({ label, value }) => (
-            <div className="flex justify-between border-b border-gray-50 pb-2 last:border-0">
-                <span className="text-sm text-gray-500">{label}:</span>
-                <span className="text-sm font-semibold text-gray-800 text-right max-w-[60%] truncate">{value || '-'}</span>
+            <div className="border-b border-gray-50 pb-2 last:border-0">
+                <div className="text-xs text-gray-500 mb-1 uppercase tracking-wide">{label}</div>
+                <div className="text-sm font-semibold text-gray-800 break-words whitespace-normal">{value || '-'}</div>
             </div>
         );
 
@@ -740,7 +741,7 @@
                     <div className="px-4 space-y-4">
                         {/* Intestazione Cliente - ORA IN CARD BIANCA */}
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                            <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1">{selectedClient.ragioneSociale}</h1>
+                            <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1 break-words">{selectedClient.ragioneSociale}</h1>
                             <p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p>
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Icons.Phone size={14}/> Chiama</a>}
@@ -803,12 +804,14 @@
                                 <InfoRow label="Settore" value={selectedClient.sector === 'ALTRO' ? selectedClient.sectorOther : selectedClient.sector} />
                                 <InfoRow label="Aree Geografiche" value={(selectedClient.geoAreas || []).join(', ')} />
                                 <div className="col-span-1"><div className="text-sm font-medium text-gray-500 mb-1">Regioni:</div><div className="text-sm text-gray-800 bg-gray-50 p-2 rounded border border-gray-100 flex flex-wrap gap-1">{(selectedClient.regions || []).length > 0 ? (selectedClient.regions || []).map(r => (<span key={r} className="bg-white border border-gray-200 px-2 py-0.5 rounded text-xs">{r}</span>)) : '-'}</div></div>
-                                <div className="grid grid-cols-2 gap-4"><InfoRow label="Cantieri Attivi" value={selectedClient.activeSites} /><InfoRow label="Sub-Appalti" value={selectedClient.subContracting} /></div>
+                                {/* MODIFICATO: grid-cols-1 su mobile */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><InfoRow label="Cantieri Attivi" value={selectedClient.activeSites} /><InfoRow label="Sub-Appalti" value={selectedClient.subContracting} /></div>
                                 <SectionDisplay title="Note Cantieri" content={selectedClient.activeSitesNotes} small /><SectionDisplay title="Processi Decisionali" content={selectedClient.decisionProcess} small />
                                 <div className="col-span-1"><div className="text-sm font-medium text-gray-500 mb-1">Brand Utilizzati:</div><div className="text-sm text-gray-800">{(selectedClient.brands || []).join(', ')} {selectedClient.brandsOther && (selectedClient.brands?.length > 0 ? ', ' : '') + selectedClient.brandsOther}</div></div>
                                 <InfoRow label="Prodotti Più Utilizzati" value={selectedClient.products} /><InfoRow label="Approvvigionamenti" value={selectedClient.supplies === 'ALTRO' ? selectedClient.suppliesOther : selectedClient.supplies} />
                                 <SectionDisplay title="Note Generali" content={selectedClient.infoNotes} small />
-                                <div className="grid grid-cols-2 gap-4"><InfoRow label="Preferenza" value={selectedClient.preference} /><InfoRow label="Valutazione" value={`${selectedClient.rating} / 5`} /></div>
+                                {/* MODIFICATO: grid-cols-1 su mobile */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><InfoRow label="Preferenza" value={selectedClient.preference} /><InfoRow label="Valutazione" value={`${selectedClient.rating} / 5`} /></div>
                                 <InfoRow label="Fornitori Abituali" value={selectedClient.suppliers} /><InfoRow label="Pagamenti Abituali" value={selectedClient.payments} /><SectionDisplay title="Conclusione" content={selectedClient.conclusion} small />
                             </div>
                         </div>
