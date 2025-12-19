@@ -99,7 +99,8 @@
             ClipboardList: (p) => <IconBase {...p}><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></IconBase>,
             BarChart: (p) => <IconBase {...p}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></IconBase>,
             CheckSquare: (p) => <IconBase {...p}><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1-2-2h11"/></IconBase>,
-            BookOpen: (p) => <IconBase {...p}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></IconBase>
+            BookOpen: (p) => <IconBase {...p}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></IconBase>,
+            Mic: (p) => <IconBase {...p}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="23"/><line x1="8" x2="16" y1="23" y2="23"/></IconBase>
         };
 
         const InfoBox = ({ label, value, icon: Icon, color = 'text-gray-700' }) => (
@@ -124,13 +125,52 @@
             </div>
         );
 
-        const TextArea = ({ label, name, value, onChange, placeholder = '' }) => (
-            <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">{label}</label>
-                <textarea name={name} value={value ?? ''} onChange={onChange} placeholder={placeholder} rows="3" 
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-shadow" />
-            </div>
-        );
+        const TextArea = ({ label, name, value, onChange, placeholder = '', enableVoice = false }) => {
+            const [isListening, setIsListening] = useState(false);
+
+            const handleVoice = () => {
+                if (!('webkitSpeechRecognition' in window)) {
+                    alert("Riconoscimento vocale non supportato.");
+                    return;
+                }
+                const recognition = new window.webkitSpeechRecognition();
+                recognition.lang = 'it-IT';
+                recognition.continuous = false;
+                recognition.interimResults = false;
+
+                recognition.onstart = () => setIsListening(true);
+                recognition.onend = () => setIsListening(false);
+                recognition.onerror = () => setIsListening(false);
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    // Simple "fluent" correction: Capitalize first char
+                    const cleanText = transcript.charAt(0).toUpperCase() + transcript.slice(1);
+                    
+                    // Append if value exists
+                    const newValue = value ? `${value} ${cleanText}` : cleanText;
+                    
+                    onChange({ target: { name, value: newValue } });
+                };
+                
+                recognition.start();
+            };
+
+            return (
+                <div className="relative">
+                    <div className="flex justify-between items-center mb-1">
+                        <label className="block text-sm font-bold text-gray-700">{label}</label>
+                        {enableVoice && (
+                            <button type="button" onClick={handleVoice} className={`p-1 rounded-full transition-colors ${isListening ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`} title="Dettatura vocale">
+                                <Icons.Mic size={14} />
+                            </button>
+                        )}
+                    </div>
+                    <textarea name={name} value={value ?? ''} onChange={onChange} placeholder={placeholder} rows="3" 
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-shadow" />
+                </div>
+            );
+        };
         
         const SelectComponent = ({ label, name, value, onChange, options }) => (
             <div>
@@ -466,7 +506,7 @@
                             <div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="date" value={formData.date} onChange={handleChange} required /><TimeWheelPicker value={formData.hours} onChange={(val) => setFormData(prev => ({...prev, hours: val}))} /></div>
                             <div><label className="block text-sm font-bold text-gray-700 mb-1">Categoria</label><select name="category" value={formData.category} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option>MANTENIMENTO RAPPORTO</option><option>ORDINE</option><option>RICHIESTA DI OFFERTA</option><option>RISCONTRO OFFERTA</option><option>COMUNICAZIONE</option><option>INIZIO RAPPORTO FORNITURE</option><option>SOLLECITO INIZIO FORNITURA</option><option>APPUNTAMENTO</option><option>ALTRO</option></select></div>
                             <div><label className="block text-sm font-bold text-gray-700 mb-1">Tipo</label><select name="contactType" value={formData.contactType} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option>TELEFONICO</option><option>APPUNTAMENTO</option><option>VISITA</option><option>LINKEDIN</option><option>WHATSAPP</option><option>CANTIERE</option><option>ALTRO</option></select></div>
-                            <TextArea label="Descrizione" name="description" value={formData.description} onChange={handleChange} />
+                            <TextArea label="Descrizione" name="description" value={formData.description} onChange={handleChange} enableVoice={true} />
                         </SectionContainer>
                         <SectionContainer title="Follow-up" icon={Icons.AlarmCheck}>
                             <div><label className="block text-sm font-bold text-gray-700 mb-2">Tipo Promemoria</label><div className="flex gap-2 mb-3">{['APPUNTAMENTO', 'PROMEMORIA', 'TELEFONATA'].map(type => (<button key={type} type="button" onClick={() => setFormData(p => ({ ...p, calendarEventType: type }))} className={`flex-1 py-3 text-xs font-bold rounded-lg border transition-all ${formData.calendarEventType === type ? 'bg-gray-600 text-white border-gray-600' : 'bg-white text-gray-600 border-gray-200'}`}>{type}</button>))}</div></div>
@@ -518,7 +558,7 @@
                     <form onSubmit={(e) => { e.preventDefault(); saveIdea(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <SectionContainer title="Dettagli Progetto" icon={Icons.Lightbulb}>
                             <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
-                            <TextArea label="Descrizione Idea" name="text" value={formData.text} onChange={handleChange} placeholder="Descrivi la tua idea o progetto..." />
+                            <TextArea label="Descrizione Idea" name="text" value={formData.text} onChange={handleChange} placeholder="Descrivi la tua idea o progetto..." enableVoice={true} />
                             <Input label="Data Scadenza" type="date" name="deadline" value={formData.deadline} onChange={handleChange} required />
                             <CalendarButton title={`Idea: ${formData.client}`} details={formData.text} date={formData.deadline} duration={5} uid={formData.calendarUid} sequence={formData.calendarSequence} />
                         </SectionContainer>
@@ -884,73 +924,20 @@
             const handleLogin = (e) => { e.preventDefault(); const input = e.target.elements[0].value.trim(); if(input) { localStorage.setItem('crm_user_key', input); setUserKey(input); setIsLoggedIn(true); } };
             const handleLogout = () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); setView('dashboard'); };
             const handleImport = () => showMessage('Import simulato', 'info'); 
-            
-            // --- FUNZIONE EXPORT EXCEL AGGIORNATA ---
             const exportToExcel = () => {
                 if (!XLSX) { showMessage('Libreria Excel non caricata', 'error'); return; }
                 const wb = XLSX.utils.book_new();
-                
-                // 1. ANAGRAFICA CLIENTI COMPLETA
-                const clientsData = clients.map(c => ({ 
-                    "ID": c.id, 
-                    "Ragione Sociale": c.ragioneSociale, 
-                    "P.IVA": c.pIva, 
-                    "Telefono": c.telefono, 
-                    "Email": c.email, 
-                    "Sede Legale": c.sedeLegale, 
-                    "Sede Operativa": c.sedeOperativa,
-                    "Magazzino": c.magazzino, 
-                    "PEC": c.pec, 
-                    "Codice Univoco": c.sdiCode,
-                    "Settore": c.sector === 'ALTRO' ? c.sectorOther : c.sector, 
-                    "Aree Geografiche": (c.geoAreas || []).join(', '),
-                    "Regioni": (c.regions || []).join(', '),
-                    "Pagamento": [c.paymentMethod1, c.paymentMethod2, c.paymentMethod3].filter(Boolean).join(' - '), 
-                    "Fido": c.fido, 
-                    "Data Fido": c.fidoDate,
-                    "N. Operai": c.numeroOperai,
-                    "Abbigliamento": c.abbigliamento,
-                    "Cantieri Attivi": c.activeSites,
-                    "Note Cantieri": c.activeSitesNotes,
-                    "Sub-Appalti": c.subContracting,
-                    "Processi Decisionali": c.decisionProcess,
-                    "Brand": (c.brands || []).join(', '),
-                    "Altri Brand": c.brandsOther,
-                    "Prodotti": c.products,
-                    "Approvvigionamenti": c.supplies === 'ALTRO' ? c.suppliesOther : c.supplies,
-                    "Preferenza": c.preference,
-                    "Fornitori Abituali": c.suppliers,
-                    "Pagamenti Abituali": c.payments,
-                    "Note Interne": c.note, 
-                    "Comunicazioni": c.comunicazioni,
-                    "Note Generali": c.infoNotes,
-                    "Conclusione": c.conclusion,
-                    "Valutazione": c.rating,
-                    // Contatti
-                    "Contatto 1 Nome": c.contact1?.nome, "Contatto 1 Tel": c.contact1?.telefono, "Contatto 1 Mail": c.contact1?.mail,
-                    "Contatto 2 Nome": c.contact2?.nome, "Contatto 2 Tel": c.contact2?.telefono, "Contatto 2 Mail": c.contact2?.mail,
-                    "Contatto 3 Nome": c.contact3?.nome, "Contatto 3 Tel": c.contact3?.telefono, "Contatto 3 Mail": c.contact3?.mail,
-                    "Contatto 4 Nome": c.contact4?.nome, "Contatto 4 Tel": c.contact4?.telefono, "Contatto 4 Mail": c.contact4?.mail
-                }));
+                const clientsData = clients.map(c => ({ "ID": c.id, "Ragione Sociale": c.ragioneSociale, "P.IVA": c.pIva, "Telefono": c.telefono, "Email": c.email, "Sede Legale": c.sedeLegale, "Sede Operativa": c.sedeOperativa, "Magazzino": c.magazzino, "PEC": c.pec, "Codice Univoco": c.sdiCode, "Settore": c.sector === 'ALTRO' ? c.sectorOther : c.sector, "Aree Geografiche": (c.geoAreas || []).join(', '), "Regioni": (c.regions || []).join(', '), "Pagamento": [c.paymentMethod1, c.paymentMethod2, c.paymentMethod3].filter(Boolean).join(' - '), "Fido": c.fido, "Data Fido": c.fidoDate, "N. Operai": c.numeroOperai, "Abbigliamento": c.abbigliamento, "Cantieri Attivi": c.activeSites, "Note Cantieri": c.activeSitesNotes, "Sub-Appalti": c.subContracting, "Processi Decisionali": c.decisionProcess, "Brand": (c.brands || []).join(', '), "Altri Brand": c.brandsOther, "Prodotti": c.products, "Approvvigionamenti": c.supplies === 'ALTRO' ? c.suppliesOther : c.supplies, "Preferenza": c.preference, "Fornitori Abituali": c.suppliers, "Pagamenti Abituali": c.payments, "Note Interne": c.note, "Comunicazioni": c.comunicazioni, "Note Generali": c.infoNotes, "Conclusione": c.conclusion, "Valutazione": c.rating, "Contatto 1 Nome": c.contact1?.nome, "Contatto 1 Tel": c.contact1?.telefono, "Contatto 1 Mail": c.contact1?.mail, "Contatto 2 Nome": c.contact2?.nome, "Contatto 2 Tel": c.contact2?.telefono, "Contatto 2 Mail": c.contact2?.mail, "Contatto 3 Nome": c.contact3?.nome, "Contatto 3 Tel": c.contact3?.telefono, "Contatto 3 Mail": c.contact3?.mail, "Contatto 4 Nome": c.contact4?.nome, "Contatto 4 Tel": c.contact4?.telefono, "Contatto 4 Mail": c.contact4?.mail }));
                 const wsClients = XLSX.utils.json_to_sheet(clientsData);
-                // Imposta larghezza colonne per leggibilità
-                if (clientsData.length > 0) {
-                    wsClients['!cols'] = Array(Object.keys(clientsData[0]).length).fill({wch: 20});
-                }
+                if (clientsData.length > 0) wsClients['!cols'] = Array(Object.keys(clientsData[0]).length).fill({wch: 20});
                 XLSX.utils.book_append_sheet(wb, wsClients, "Anagrafica Clienti");
-                
-                // 2. REPORT
                 const reportsData = reports.map(r => ({ "ID": r.id, "Data": r.date, "Cliente": r.client, "Categoria": r.category, "Tipo": r.contactType, "Durata (h)": r.hours, "Descrizione": r.description, "Appunti Futuri": r.futureNotes, "Prox Contatto": r.nextContactDate ? `${r.nextContactDate} ${r.nextContactTime || ''}` : '' }));
                 const wsReports = XLSX.utils.json_to_sheet(reportsData);
                 if (reportsData.length > 0) wsReports['!cols'] = [{wch:15}, {wch:12}, {wch:25}, {wch:25}, {wch:15}, {wch:10}, {wch:50}, {wch:40}, {wch:20}];
                 XLSX.utils.book_append_sheet(wb, wsReports, "Report");
-                
-                // NOTE: Offerte e Idee rimosse come richiesto
-                
                 XLSX.writeFile(wb, `Backup_CRM_${new Date().toISOString().slice(0,10)}.xlsx`);
                 showMessage('Backup Excel scaricato con successo!', 'success');
             };
-
             const [touchStart, setTouchStart] = useState(null);
             const onTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX);
             const onTouchEnd = (e) => { if(!touchStart) return; const diff = touchStart - e.changedTouches[0].clientX; const tabs = ['dashboard', 'todo', 'stats', 'clients']; const idx = tabs.indexOf(view); if(idx > -1 && Math.abs(diff) > 75) { if (diff > 0 && idx < tabs.length - 1) setView(tabs[idx + 1]); if (diff < 0 && idx > 0) setView(tabs[idx - 1]); } setTouchStart(null); };
