@@ -399,7 +399,7 @@
             return (
                 <div className="space-y-6 animate-fade-in pb-32">
                     <header className="mb-6"><h1 className="text-2xl font-bold text-gray-800">Dashboard</h1></header>
-                    <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div onClick={() => setView('clients')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"><div className="flex items-center space-x-2 mb-2 text-blue-600"><Icons.Users size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Clienti</span></div><div className="text-3xl font-bold text-gray-800">{clients.length}</div></div>
                         <div onClick={() => setView('followups')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"><div className="flex items-center space-x-2 mb-2 text-yellow-600"><Icons.Target size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
                         <div onClick={() => setView('ideas')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"><div className="flex items-center space-x-2 mb-2 text-red-600"><Icons.Lightbulb size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Idee</span></div><div className="text-3xl font-bold text-gray-800">{ideas.length}</div></div>
