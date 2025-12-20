@@ -100,7 +100,8 @@
             BarChart: (p) => <IconBase {...p}><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></IconBase>,
             CheckSquare: (p) => <IconBase {...p}><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1-2-2h11"/></IconBase>,
             BookOpen: (p) => <IconBase {...p}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></IconBase>,
-            Mic: (p) => <IconBase {...p}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="23"/><line x1="8" x2="16" y1="23" y2="23"/></IconBase>
+            Mic: (p) => <IconBase {...p}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="23"/><line x1="8" x2="16" y1="23" y2="23"/></IconBase>,
+            ShoppingBag: (p) => <IconBase {...p}><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" x2="21" y1="6" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></IconBase>
         };
 
         const InfoBox = ({ label, value, icon: Icon, color = 'text-gray-700' }) => (
@@ -110,7 +111,6 @@
             </div>
         );
 
-        // MODIFICATO: Layout verticale per massima leggibilità su mobile, senza troncamento testo
         const InfoRow = ({ label, value }) => (
             <div className="border-b border-gray-50 pb-2 last:border-0">
                 <div className="text-xs text-gray-500 mb-1 uppercase tracking-wide">{label}</div>
@@ -145,12 +145,8 @@
 
                 recognition.onresult = (event) => {
                     const transcript = event.results[0][0].transcript;
-                    // Simple "fluent" correction: Capitalize first char
                     const cleanText = transcript.charAt(0).toUpperCase() + transcript.slice(1);
-                    
-                    // Append if value exists
                     const newValue = value ? `${value} ${cleanText}` : cleanText;
-                    
                     onChange({ target: { name, value: newValue } });
                 };
                 
@@ -182,7 +178,6 @@
             </div>
         );
 
-        // --- NEW COMPONENT: SEARCHABLE CLIENT SELECT ---
         const ClientSearchInput = ({ clients, value, onChange, required = false }) => {
             const [isOpen, setIsOpen] = useState(false);
             const sortedClients = useMemo(() => [...clients].sort((a, b) => (a.ragioneSociale || '').localeCompare(b.ragioneSociale || '')), [clients]);
@@ -223,7 +218,6 @@
             );
         };
 
-        // --- TIME WHEEL PICKER ---
         const TimeWheelPicker = ({ value, onChange }) => {
             const hVal = Math.floor(parseFloat(value) || 0);
             const mVal = Math.round(((parseFloat(value) || 0) - hVal) * 60);
@@ -396,10 +390,23 @@
         };
 
         const DashboardView = () => {
-            const { clients, reports, followups, ideas, setView, setFollowupForm, setIdeaForm, fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout } = useContext(CRMContext);
+            const { clients, reports, followups, ideas, orders, setView, setFollowupForm, setIdeaForm, setOrderForm, fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout } = useContext(CRMContext);
+            
+            const totalOrders = useMemo(() => orders.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0), [orders]);
+
             return (
                 <div className="space-y-6 animate-fade-in pb-32">
                     <header className="mb-6"><h1 className="text-2xl font-bold text-gray-800">Dashboard</h1></header>
+                    
+                    {/* MODIFICATO: Riquadro Cliccabile */}
+                    <div onClick={() => setView('ordersSummary')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center cursor-pointer active:scale-95 transition-transform hover:shadow-md">
+                        <div className="flex items-center space-x-2 text-blue-600">
+                            <Icons.ShoppingBag size={24} />
+                            <span className="text-xs font-bold uppercase text-gray-400">Totale Ordini</span>
+                        </div>
+                        <div className="text-3xl font-bold text-gray-800">€ {totalOrders.toFixed(2)}</div>
+                    </div>
+
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div onClick={() => setView('clients')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"><div className="flex items-center space-x-2 mb-2 text-blue-600"><Icons.Users size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Clienti</span></div><div className="text-3xl font-bold text-gray-800">{clients.length}</div></div>
                         <div onClick={() => setView('followups')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"><div className="flex items-center space-x-2 mb-2 text-yellow-600"><Icons.Target size={16} /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-400">Offerte</span></div><div className="text-3xl font-bold text-gray-800">{followups.length}</div></div>
@@ -410,6 +417,7 @@
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center gap-3">
                         <button onClick={() => setView('create')} className="w-full bg-gray-600 hover:bg-gray-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-gray-200 flex justify-center items-center gap-2 active:scale-95 transition-all text-lg"><Icons.Plus size={22} /> Nuovo Report</button>
                         <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-yellow-200 flex justify-center items-center gap-2 active:scale-95 transition-all text-lg"><Icons.Plus size={22} /> Nuova Offerta</button>
+                        <button onClick={() => { setOrderForm({}); setView('createOrder'); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 flex justify-center items-center gap-2 active:scale-95 transition-all text-lg"><Icons.ShoppingBag size={22} /> Nuovo Ordine</button>
                         <button onClick={() => { setIdeaForm({}); setView('createIdea'); }} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-red-200 flex justify-center items-center gap-2 active:scale-95 transition-all text-lg"><Icons.Plus size={22} /> Nuova Idea</button>
                     </div>
 
@@ -541,6 +549,27 @@
                             <CalendarButton title={`Riscontro Offerta - ${formData.client}`} details={`Importo: ${formData.amount} - ${formData.notes}`} date={formData.feedbackDate} uid={formData.calendarUid} sequence={formData.calendarSequence} />
                         </SectionContainer>
                         <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('followups')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-yellow-500 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
+                    </form>
+                </div>
+            );
+        };
+
+        const OrderForm = () => {
+            const { orderForm: initialData, saveOrder, setView, clients } = useContext(CRMContext);
+            const [formData, setFormData] = useState(initialData);
+            const handleChange = (e) => { const { name, value } = e.target; setFormData(prev => ({ ...prev, [name]: value })); };
+
+            return (
+                <div className="animate-fade-in pb-32">
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">Nuovo Ordine</h2>
+                    <form onSubmit={(e) => { e.preventDefault(); saveOrder(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <SectionContainer title="Dettagli Ordine" icon={Icons.ShoppingBag}>
+                            <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
+                            <Input label="Numero Offerta" name="offerNumber" value={formData.offerNumber} onChange={handleChange} required placeholder="Es. OFF-2024/001" />
+                            <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required placeholder="0.00" />
+                            <Input label="Provvigione (€)" type="number" step="0.01" name="commission" value={formData.commission} onChange={handleChange} placeholder="0.00" />
+                        </SectionContainer>
+                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
                     </form>
                 </div>
             );
@@ -725,10 +754,22 @@
         }
 
         const ClientDetailView = () => {
-            const { selectedClient, setView, setClientForm, setSelectedClient, setReportForm, setFollowupForm, setIdeaForm, deleteItem } = useContext(CRMContext);
+            const { selectedClient, setView, setClientForm, setSelectedClient, setReportForm, setFollowupForm, setIdeaForm, deleteItem, orders } = useContext(CRMContext);
             if (!selectedClient) return null;
             
             const getFullPaymentMethod = (client) => [client.paymentMethod1, client.paymentMethod2, client.paymentMethod3].filter(Boolean).join(' - ') || 'Non Specificato';
+
+            // Calcolo totale ordini e provvigioni per il cliente selezionato
+            const { totalOrders, totalCommissions } = useMemo(() => {
+                return orders
+                    .filter(o => o.client === selectedClient.ragioneSociale)
+                    .reduce((acc, curr) => ({
+                        totalOrders: acc.totalOrders + (parseFloat(curr.amount) || 0),
+                        totalCommissions: acc.totalCommissions + (parseFloat(curr.commission) || 0)
+                    }), { totalOrders: 0, totalCommissions: 0 });
+            }, [orders, selectedClient]);
+
+            const commissionPercentage = totalOrders > 0 ? ((totalCommissions / totalOrders) * 100).toFixed(1) : '0.0';
 
             const handleNewReport = () => { setReportForm({ client: selectedClient.ragioneSociale, date: new Date().toISOString().split('T')[0], category: 'MANTENIMENTO RAPPORTO', contactType: 'TELEFONICO', calendarEventType: 'APPUNTAMENTO' }); setView('create'); };
             const handleNewOffer = () => { setFollowupForm({ client: selectedClient.ragioneSociale }); setView('createFollowup'); };
@@ -751,6 +792,22 @@
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                             <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1 break-words">{selectedClient.ragioneSociale}</h1>
                             <p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p>
+                            
+                            {/* NUOVO BLOCCO TOTALI NELLA SCHEDA NOME */}
+                            <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
+                                <div>
+                                    <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Totale Ordini</div>
+                                    <div className="text-lg font-bold text-blue-600">€ {totalOrders.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                    <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Totale Provvigioni</div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-lg font-bold text-green-600">€ {totalCommissions.toFixed(2)}</div>
+                                        <div className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">{commissionPercentage}%</div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {selectedClient.telefono && <a href={`tel:${selectedClient.telefono}`} className="bg-green-50 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Icons.Phone size={14}/> Chiama</a>}
                                 {selectedClient.email && <a href={`mailto:${selectedClient.email}`} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><Icons.Mail size={14}/> Email</a>}
@@ -785,6 +842,7 @@
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                             <SectionTitle icon={<Icons.CreditCard size={16}/>} title="Dati Amministrativi" />
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {/* RIMOSSO TOTALE ORDINI DA QUI */}
                                 <InfoRow label="Codice Univoco" value={selectedClient.sdiCode} /><InfoRow label="PEC" value={selectedClient.pec} />
                                 <div className="col-span-1 sm:col-span-2"><InfoRow label="Metodo Pagamento" value={getFullPaymentMethod(selectedClient)} /></div>
                                 <InfoRow label="Fido (€)" value={selectedClient.fido} /><InfoRow label="Data Fido" value={selectedClient.fidoDate} /><InfoRow label="N. Operai" value={selectedClient.numeroOperai} />
@@ -883,6 +941,114 @@
             );
         };
 
+        const OrdersSummaryView = () => {
+            const { orders, reports, setView, formatDuration } = useContext(CRMContext);
+
+            const { globalTotalOrders, globalTotalCommissions, clientStats } = useMemo(() => {
+                let gOrders = 0;
+                let gCommissions = 0;
+                const stats = {};
+
+                // Process Orders
+                orders.forEach(o => {
+                    const amt = parseFloat(o.amount) || 0;
+                    const comm = parseFloat(o.commission) || 0;
+                    gOrders += amt;
+                    gCommissions += comm;
+
+                    if (!stats[o.client]) stats[o.client] = { orders: 0, commissions: 0, hours: 0 };
+                    stats[o.client].orders += amt;
+                    stats[o.client].commissions += comm;
+                });
+
+                // Process Reports for Hours
+                reports.forEach(r => {
+                    const hrs = parseFloat(r.hours) || 0;
+                    if (!stats[r.client]) stats[r.client] = { orders: 0, commissions: 0, hours: 0 }; 
+                    stats[r.client].hours += hrs;
+                });
+
+                // Convert to array and sort
+                const sortedStats = Object.entries(stats)
+                    .map(([name, data]) => ({
+                        name,
+                        ...data,
+                        percentage: data.orders > 0 ? ((data.commissions / data.orders) * 100).toFixed(1) : '0.0'
+                    }))
+                    .filter(c => c.orders > 0)
+                    .sort((a, b) => b.orders - a.orders);
+
+                return {
+                    globalTotalOrders: gOrders,
+                    globalTotalCommissions: gCommissions,
+                    clientStats: sortedStats
+                };
+            }, [orders, reports]);
+
+            const globalPercentage = globalTotalOrders > 0 ? ((globalTotalCommissions / globalTotalOrders) * 100).toFixed(1) : '0.0';
+
+            return (
+                <div className="animate-fade-in pb-32">
+                    <div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 mb-4 flex items-center border-b border-gray-200">
+                        <button onClick={() => setView('dashboard')} className="p-2 -ml-2 rounded-full hover:bg-gray-100 mr-2"><Icons.ChevronRight size={24} className="rotate-180" /></button>
+                        <h1 className="text-xl font-bold text-gray-800">Riepilogo Ordini</h1>
+                    </div>
+
+                    <div className="px-4 space-y-4">
+                        {/* Global Stats */}
+                        <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100">
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <div className="text-[10px] text-blue-400 uppercase font-bold tracking-wider mb-1">Totale Ordini</div>
+                                    <div className="text-2xl font-bold text-blue-700">€ {globalTotalOrders.toFixed(2)}</div>
+                                </div>
+                                <div>
+                                    <div className="text-[10px] text-blue-400 uppercase font-bold tracking-wider mb-1">Totale Provvigioni</div>
+                                    <div className="text-2xl font-bold text-green-600">€ {globalTotalCommissions.toFixed(2)}</div>
+                                </div>
+                            </div>
+                            <div className="pt-3 border-t border-blue-100 flex justify-between items-center">
+                                <span className="text-xs font-bold text-blue-500 uppercase">Marginalità Media</span>
+                                <span className="text-lg font-bold text-blue-800 bg-white px-3 py-1 rounded-lg border border-blue-100 shadow-sm">{globalPercentage}%</span>
+                            </div>
+                        </div>
+
+                        {/* Client List */}
+                        <div className="space-y-3">
+                            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide ml-1">Dettaglio Clienti</h3>
+                            {clientStats.map(c => (
+                                <div key={c.name} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <h3 className="font-bold text-gray-800 text-lg truncate pr-2 w-2/3">{c.name}</h3>
+                                        <div className="text-right">
+                                            <div className="text-xs text-gray-400 uppercase font-bold">Ordini</div>
+                                            <div className="text-base font-bold text-blue-600">€ {c.orders.toFixed(2)}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-3 gap-2 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                        <div>
+                                            <div className="text-[9px] text-gray-400 uppercase font-bold mb-0.5">Provvigioni</div>
+                                            <div className="text-sm font-bold text-green-600">€ {c.commissions.toFixed(2)}</div>
+                                        </div>
+                                        <div className="text-center border-x border-gray-200">
+                                            <div className="text-[9px] text-gray-400 uppercase font-bold mb-0.5">%</div>
+                                            <div className="text-sm font-bold text-gray-700">{c.percentage}%</div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-[9px] text-gray-400 uppercase font-bold mb-0.5">Ore Totali</div>
+                                            <div className="text-sm font-bold text-gray-700">{formatDuration(c.hours)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {clientStats.length === 0 && <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessun ordine registrato.</div>}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const App = () => {
             const [db, setDb] = useState(null);
             const [userKey, setUserKey] = useState(localStorage.getItem('crm_user_key') || '');
@@ -892,12 +1058,14 @@
             const [reports, setReports] = useState([]);
             const [followups, setFollowups] = useState([]);
             const [ideas, setIdeas] = useState([]);
+            const [orders, setOrders] = useState([]); 
             const [selectedReport, setSelectedReport] = useState(null);
             const [selectedClient, setSelectedClient] = useState(null);
             const [reportForm, setReportForm] = useState({});
             const [clientForm, setClientForm] = useState({});
             const [followupForm, setFollowupForm] = useState({});
             const [ideaForm, setIdeaForm] = useState({});
+            const [orderForm, setOrderForm] = useState({}); 
             const [sortOrder, setSortOrder] = useState({ reports: 'desc', clients: 'asc', followups: 'desc', ideas: 'desc' });
             const [message, setMessage] = useState({ text: '', type: '' });
             const [showCleanModal, setShowCleanModal] = useState(false);
@@ -908,7 +1076,13 @@
             useEffect(() => {
                 if (!db || !userKey) return;
                 const key = userKey.toLowerCase().replace(/\s/g, '');
-                const subs = [ onSnapshot(collection(db, `artifacts/${appId}/users/${key}/reports`), s => setReports(s.docs.map(d => ({ ...d.data(), id: d.id })))), onSnapshot(collection(db, `artifacts/${appId}/users/${key}/clients`), s => setClients(s.docs.map(d => ({ ...d.data(), id: d.id })))), onSnapshot(collection(db, `artifacts/${appId}/users/${key}/followups`), s => setFollowups(s.docs.map(d => ({ ...d.data(), id: d.id })))), onSnapshot(collection(db, `artifacts/${appId}/users/${key}/ideas`), s => setIdeas(s.docs.map(d => ({ ...d.data(), id: d.id })))) ];
+                const subs = [ 
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/reports`), s => setReports(s.docs.map(d => ({ ...d.data(), id: d.id })))), 
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/clients`), s => setClients(s.docs.map(d => ({ ...d.data(), id: d.id })))), 
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/followups`), s => setFollowups(s.docs.map(d => ({ ...d.data(), id: d.id })))), 
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/ideas`), s => setIdeas(s.docs.map(d => ({ ...d.data(), id: d.id })))),
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/orders`), s => setOrders(s.docs.map(d => ({ ...d.data(), id: d.id }))))
+                ];
                 return () => subs.forEach(unsub => unsub());
             }, [db, userKey]);
 
@@ -920,24 +1094,268 @@
             const saveClient = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); await setDoc(doc(db, `artifacts/${appId}/users/${key}/clients`, id), { ...data, id, updatedAt: new Date().toLocaleDateString('it-IT') }); showMessage('Cliente Salvato', 'success'); setView('clients'); };
             const saveFollowup = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); const calendarUid = data.calendarUid || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@crm.app`; const calendarSequence = (data.calendarSequence || 0) + 1; await setDoc(doc(db, `artifacts/${appId}/users/${key}/followups`, id), { ...data, id, calendarUid, calendarSequence, createdAt: data.createdAt || new Date().toISOString() }); showMessage('Offerta Salvata', 'success'); setView('followups'); };
             const saveIdea = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); const calendarUid = data.calendarUid || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@crm.app`; const calendarSequence = (data.calendarSequence || 0) + 1; await setDoc(doc(db, `artifacts/${appId}/users/${key}/ideas`, id), { ...data, id, calendarUid, calendarSequence, createdAt: data.createdAt || new Date().toISOString() }); showMessage('Idea Salvata', 'success'); setView('ideas'); };
+            const saveOrder = async (data) => {
+                const key = userKey.toLowerCase().replace(/\s/g, '');
+                const id = data.id || String(Date.now());
+                await setDoc(doc(db, `artifacts/${appId}/users/${key}/orders`, id), { 
+                    ...data, 
+                    id, 
+                    createdAt: data.createdAt || new Date().toISOString() 
+                });
+                showMessage('Ordine Salvato', 'success');
+                setView('dashboard');
+            };
+
             const deleteItem = async (collectionName, id) => { const key = userKey.toLowerCase().replace(/\s/g, ''); if (window.confirm("Sei sicuro di voler eliminare questo elemento?")) { await deleteDoc(doc(db, `artifacts/${appId}/users/${key}/${collectionName}`, id)); showMessage('Eliminato', 'success'); return true; } return false; };
             const toggleTaskCompletion = async (collectionName, id, currentStatus) => { const key = userKey.toLowerCase().replace(/\s/g, ''); await setDoc(doc(db, `artifacts/${appId}/users/${key}/${collectionName}`, id), { completed: !currentStatus }, { merge: true }); };
             const handleCleanDuplicates = () => { const groups = {}; reports.forEach(r => { const compositeKey = `${(r.client||'').trim().toLowerCase()}|${r.date}|${(r.category||'').trim()}|${(r.description||'').trim().toLowerCase()}`; if (!groups[compositeKey]) groups[compositeKey] = []; groups[compositeKey].push(r); }); const duplicateGroups = Object.values(groups).filter(g => g.length > 1); if (duplicateGroups.length === 0) { showMessage('Nessun duplicato trovato.', 'info'); return; } setDuplicatesData(duplicateGroups); setShowCleanModal(true); };
             const executeClean = async (idsToDelete) => { if (idsToDelete.length === 0) return; const key = userKey.toLowerCase().replace(/\s/g, ''); try { const deletePromises = idsToDelete.map(id => deleteDoc(doc(db, `artifacts/${appId}/users/${key}/reports`, id))); await Promise.all(deletePromises); showMessage(`Eliminati ${idsToDelete.length} duplicati.`, 'success'); setShowCleanModal(false); } catch (error) { console.error("Errore pulizia:", error); showMessage('Errore durante l\'eliminazione.', 'error'); } };
             const handleLogin = (e) => { e.preventDefault(); const input = e.target.elements[0].value.trim(); if(input) { localStorage.setItem('crm_user_key', input); setUserKey(input); setIsLoggedIn(true); } };
             const handleLogout = () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); setView('dashboard'); };
-            const handleImport = () => showMessage('Import simulato', 'info'); 
+            
+            const handleImport = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                if (!XLSX) { showMessage('Libreria Excel non caricata', 'error'); return; }
+
+                const reader = new FileReader();
+                reader.onload = async (evt) => {
+                    const bstr = evt.target.result;
+                    const wb = XLSX.read(bstr, { type: 'binary' });
+                    const key = userKey.toLowerCase().replace(/\s/g, '');
+                    let importCount = 0;
+
+                    try {
+                        // 1. IMPORT CLIENTI
+                        if (wb.SheetNames.includes("Anagrafica Clienti")) {
+                            const ws = wb.Sheets["Anagrafica Clienti"];
+                            const data = XLSX.utils.sheet_to_json(ws);
+                            for (const row of data) {
+                                if (!row.ID) continue;
+                                const payParts = (row['Pagamento'] || '').split(' - ');
+                                const clientDoc = {
+                                    id: row['ID'].toString(),
+                                    ragioneSociale: row['Ragione Sociale'],
+                                    pIva: row['P.IVA'],
+                                    telefono: row['Telefono'],
+                                    email: row['Email'],
+                                    sedeLegale: row['Sede Legale'],
+                                    sedeOperativa: row['Sede Operativa'],
+                                    magazzino: row['Magazzino'],
+                                    pec: row['PEC'],
+                                    sdiCode: row['Codice Univoco'],
+                                    sector: row['Settore'], // Logica base, se era custom andrebbe gestita ma manteniamo semplice come richiesto
+                                    geoAreas: (row['Aree Geografiche'] || '').split(', ').filter(Boolean),
+                                    regions: (row['Regioni'] || '').split(', ').filter(Boolean),
+                                    paymentMethod1: payParts[0] || '',
+                                    paymentMethod2: payParts[1] || '',
+                                    paymentMethod3: payParts[2] || '',
+                                    fido: row['Fido'],
+                                    fidoDate: row['Data Fido'],
+                                    numeroOperai: row['N. Operai'],
+                                    abbigliamento: row['Abbigliamento'],
+                                    activeSites: row['Cantieri Attivi'],
+                                    activeSitesNotes: row['Note Cantieri'],
+                                    subContracting: row['Sub-Appalti'],
+                                    decisionProcess: row['Processi Decisionali'],
+                                    brands: (row['Brand'] || '').split(', ').filter(Boolean),
+                                    brandsOther: row['Altri Brand'],
+                                    products: row['Prodotti'],
+                                    supplies: row['Approvvigionamenti'], // Logica base
+                                    preference: row['Preferenza'],
+                                    suppliers: row['Fornitori Abituali'],
+                                    payments: row['Pagamenti Abituali'],
+                                    note: row['Note Interne'],
+                                    comunicazioni: row['Comunicazioni'],
+                                    infoNotes: row['Note Generali'],
+                                    conclusion: row['Conclusione'],
+                                    rating: row['Valutazione'],
+                                    contact1: { nome: row['Contatto 1 Nome'], telefono: row['Contatto 1 Tel'], mail: row['Contatto 1 Mail'] },
+                                    contact2: { nome: row['Contatto 2 Nome'], telefono: row['Contatto 2 Tel'], mail: row['Contatto 2 Mail'] },
+                                    contact3: { nome: row['Contatto 3 Nome'], telefono: row['Contatto 3 Tel'], mail: row['Contatto 3 Mail'] },
+                                    contact4: { nome: row['Contatto 4 Nome'], telefono: row['Contatto 4 Tel'], mail: row['Contatto 4 Mail'] },
+                                    updatedAt: new Date().toISOString()
+                                };
+                                await setDoc(doc(db, `artifacts/${appId}/users/${key}/clients`, clientDoc.id), clientDoc);
+                                importCount++;
+                            }
+                        }
+
+                        // 2. IMPORT REPORT
+                        if (wb.SheetNames.includes("Report")) {
+                            const ws = wb.Sheets["Report"];
+                            const data = XLSX.utils.sheet_to_json(ws);
+                            for (const row of data) {
+                                if (!row.ID) continue;
+                                const contactParts = (row['Prox Contatto'] || '').split(' ');
+                                const reportDoc = {
+                                    id: row['ID'].toString(),
+                                    date: row['Data'],
+                                    client: row['Cliente'],
+                                    category: row['Categoria'],
+                                    contactType: row['Tipo'],
+                                    hours: row['Durata (h)'],
+                                    description: row['Descrizione'],
+                                    futureNotes: row['Appunti Futuri'],
+                                    nextContactDate: contactParts[0] || '',
+                                    nextContactTime: contactParts[1] || '',
+                                    // Campi opzionali o default
+                                    title: `${row['Categoria']} - ${row['Data']}`,
+                                    createdAt: new Date().toISOString()
+                                };
+                                await setDoc(doc(db, `artifacts/${appId}/users/${key}/reports`, reportDoc.id), reportDoc);
+                                importCount++;
+                            }
+                        }
+
+                        // 3. IMPORT OFFERTE
+                        if (wb.SheetNames.includes("Offerte")) {
+                            const ws = wb.Sheets["Offerte"];
+                            const data = XLSX.utils.sheet_to_json(ws);
+                            for (const row of data) {
+                                if (!row.ID) continue;
+                                const offerDoc = {
+                                    id: row['ID'].toString(),
+                                    client: row['Cliente'],
+                                    offerNumber: row['N. Offerta'],
+                                    amount: row['Importo'],
+                                    feedbackDate: row['Data Riscontro'],
+                                    notes: row['Note'],
+                                    completed: row['Stato'] === 'Completato',
+                                    createdAt: new Date().toISOString()
+                                };
+                                await setDoc(doc(db, `artifacts/${appId}/users/${key}/followups`, offerDoc.id), offerDoc);
+                                importCount++;
+                            }
+                        }
+
+                        // 4. IMPORT IDEE
+                        if (wb.SheetNames.includes("Idee")) {
+                            const ws = wb.Sheets["Idee"];
+                            const data = XLSX.utils.sheet_to_json(ws);
+                            for (const row of data) {
+                                if (!row.ID) continue;
+                                const ideaDoc = {
+                                    id: row['ID'].toString(),
+                                    client: row['Cliente'],
+                                    text: row['Descrizione'],
+                                    deadline: row['Scadenza'],
+                                    completed: row['Stato'] === 'Completato',
+                                    createdAt: new Date().toISOString()
+                                };
+                                await setDoc(doc(db, `artifacts/${appId}/users/${key}/ideas`, ideaDoc.id), ideaDoc);
+                                importCount++;
+                            }
+                        }
+
+                        // 5. IMPORT ORDINI
+                        if (wb.SheetNames.includes("Ordini")) {
+                            const ws = wb.Sheets["Ordini"];
+                            const data = XLSX.utils.sheet_to_json(ws);
+                            for (const row of data) {
+                                if (!row.ID) continue;
+                                const orderDoc = {
+                                    id: row['ID'].toString(),
+                                    client: row['Cliente'],
+                                    offerNumber: row['N. Offerta'],
+                                    amount: row['Importo'],
+                                    commission: row['Provvigione'],
+                                    createdAt: new Date().toISOString() // O parsa row['Data Inserimento'] se necessario
+                                };
+                                await setDoc(doc(db, `artifacts/${appId}/users/${key}/orders`, orderDoc.id), orderDoc);
+                                importCount++;
+                            }
+                        }
+
+                        showMessage(`Importazione completata: ${importCount} elementi ripristinati.`, 'success');
+                    } catch (error) {
+                        console.error("Errore importazione:", error);
+                        showMessage('Errore durante l\'importazione del file.', 'error');
+                    }
+                    
+                    // Reset input
+                    e.target.value = '';
+                };
+                reader.readAsBinaryString(file);
+            };
+
             const exportToExcel = () => {
                 if (!XLSX) { showMessage('Libreria Excel non caricata', 'error'); return; }
                 const wb = XLSX.utils.book_new();
-                const clientsData = clients.map(c => ({ "ID": c.id, "Ragione Sociale": c.ragioneSociale, "P.IVA": c.pIva, "Telefono": c.telefono, "Email": c.email, "Sede Legale": c.sedeLegale, "Sede Operativa": c.sedeOperativa, "Magazzino": c.magazzino, "PEC": c.pec, "Codice Univoco": c.sdiCode, "Settore": c.sector === 'ALTRO' ? c.sectorOther : c.sector, "Aree Geografiche": (c.geoAreas || []).join(', '), "Regioni": (c.regions || []).join(', '), "Pagamento": [c.paymentMethod1, c.paymentMethod2, c.paymentMethod3].filter(Boolean).join(' - '), "Fido": c.fido, "Data Fido": c.fidoDate, "N. Operai": c.numeroOperai, "Abbigliamento": c.abbigliamento, "Cantieri Attivi": c.activeSites, "Note Cantieri": c.activeSitesNotes, "Sub-Appalti": c.subContracting, "Processi Decisionali": c.decisionProcess, "Brand": (c.brands || []).join(', '), "Altri Brand": c.brandsOther, "Prodotti": c.products, "Approvvigionamenti": c.supplies === 'ALTRO' ? c.suppliesOther : c.supplies, "Preferenza": c.preference, "Fornitori Abituali": c.suppliers, "Pagamenti Abituali": c.payments, "Note Interne": c.note, "Comunicazioni": c.comunicazioni, "Note Generali": c.infoNotes, "Conclusione": c.conclusion, "Valutazione": c.rating, "Contatto 1 Nome": c.contact1?.nome, "Contatto 1 Tel": c.contact1?.telefono, "Contatto 1 Mail": c.contact1?.mail, "Contatto 2 Nome": c.contact2?.nome, "Contatto 2 Tel": c.contact2?.telefono, "Contatto 2 Mail": c.contact2?.mail, "Contatto 3 Nome": c.contact3?.nome, "Contatto 3 Tel": c.contact3?.telefono, "Contatto 3 Mail": c.contact3?.mail, "Contatto 4 Nome": c.contact4?.nome, "Contatto 4 Tel": c.contact4?.telefono, "Contatto 4 Mail": c.contact4?.mail }));
+                
+                const clientsData = clients.map(c => ({
+                    "ID": c.id,
+                    "Ragione Sociale": c.ragioneSociale,
+                    "P.IVA": c.pIva,
+                    "Telefono": c.telefono,
+                    "Email": c.email,
+                    "Sede Legale": c.sedeLegale,
+                    "Sede Operativa": c.sedeOperativa,
+                    "Magazzino": c.magazzino,
+                    "PEC": c.pec,
+                    "Codice Univoco": c.sdiCode,
+                    "Settore": c.sector === 'ALTRO' ? c.sectorOther : c.sector,
+                    "Aree Geografiche": (c.geoAreas || []).join(', '),
+                    "Regioni": (c.regions || []).join(', '),
+                    "Pagamento": [c.paymentMethod1, c.paymentMethod2, c.paymentMethod3].filter(Boolean).join(' - '),
+                    "Fido": c.fido,
+                    "Data Fido": c.fidoDate,
+                    "N. Operai": c.numeroOperai,
+                    "Abbigliamento": c.abbigliamento,
+                    "Cantieri Attivi": c.activeSites,
+                    "Note Cantieri": c.activeSitesNotes,
+                    "Sub-Appalti": c.subContracting,
+                    "Processi Decisionali": c.decisionProcess,
+                    "Brand": (c.brands || []).join(', '),
+                    "Altri Brand": c.brandsOther,
+                    "Prodotti": c.products,
+                    "Approvvigionamenti": c.supplies === 'ALTRO' ? c.suppliesOther : c.supplies,
+                    "Preferenza": c.preference,
+                    "Fornitori Abituali": c.suppliers,
+                    "Pagamenti Abituali": c.payments,
+                    "Note Interne": c.note,
+                    "Comunicazioni": c.comunicazioni,
+                    "Note Generali": c.infoNotes,
+                    "Conclusione": c.conclusion,
+                    "Valutazione": c.rating,
+                    "Contatto 1 Nome": c.contact1 ? c.contact1.nome : '',
+                    "Contatto 1 Tel": c.contact1 ? c.contact1.telefono : '',
+                    "Contatto 1 Mail": c.contact1 ? c.contact1.mail : '',
+                    "Contatto 2 Nome": c.contact2 ? c.contact2.nome : '',
+                    "Contatto 2 Tel": c.contact2 ? c.contact2.telefono : '',
+                    "Contatto 2 Mail": c.contact2 ? c.contact2.mail : '',
+                    "Contatto 3 Nome": c.contact3 ? c.contact3.nome : '',
+                    "Contatto 3 Tel": c.contact3 ? c.contact3.telefono : '',
+                    "Contatto 3 Mail": c.contact3 ? c.contact3.mail : '',
+                    "Contatto 4 Nome": c.contact4 ? c.contact4.nome : '',
+                    "Contatto 4 Tel": c.contact4 ? c.contact4.telefono : '',
+                    "Contatto 4 Mail": c.contact4 ? c.contact4.mail : ''
+                }));
                 const wsClients = XLSX.utils.json_to_sheet(clientsData);
                 if (clientsData.length > 0) wsClients['!cols'] = Array(Object.keys(clientsData[0]).length).fill({wch: 20});
                 XLSX.utils.book_append_sheet(wb, wsClients, "Anagrafica Clienti");
+                
                 const reportsData = reports.map(r => ({ "ID": r.id, "Data": r.date, "Cliente": r.client, "Categoria": r.category, "Tipo": r.contactType, "Durata (h)": r.hours, "Descrizione": r.description, "Appunti Futuri": r.futureNotes, "Prox Contatto": r.nextContactDate ? `${r.nextContactDate} ${r.nextContactTime || ''}` : '' }));
                 const wsReports = XLSX.utils.json_to_sheet(reportsData);
                 if (reportsData.length > 0) wsReports['!cols'] = [{wch:15}, {wch:12}, {wch:25}, {wch:25}, {wch:15}, {wch:10}, {wch:50}, {wch:40}, {wch:20}];
                 XLSX.utils.book_append_sheet(wb, wsReports, "Report");
+                
+                const offersData = followups.map(f => ({ "ID": f.id, "Cliente": f.client, "N. Offerta": f.offerNumber, "Importo": f.amount, "Data Riscontro": f.feedbackDate, "Note": f.notes, "Stato": f.completed ? "Completato" : "Da Fare" }));
+                const wsOffers = XLSX.utils.json_to_sheet(offersData);
+                if (offersData.length > 0) wsOffers['!cols'] = [{wch:15}, {wch:30}, {wch:15}, {wch:10}, {wch:15}, {wch:40}, {wch:10}];
+                XLSX.utils.book_append_sheet(wb, wsOffers, "Offerte");
+                
+                const ideasData = ideas.map(i => ({ "ID": i.id, "Cliente": i.client, "Descrizione": i.text, "Scadenza": i.deadline, "Stato": i.completed ? "Completato" : "Da Fare" }));
+                const wsIdeas = XLSX.utils.json_to_sheet(ideasData);
+                if (ideasData.length > 0) wsIdeas['!cols'] = [{wch:15}, {wch:30}, {wch:50}, {wch:15}, {wch:10}];
+                XLSX.utils.book_append_sheet(wb, wsIdeas, "Idee");
+                
+                const ordersData = orders.map(o => ({ "ID": o.id, "Cliente": o.client, "N. Offerta": o.offerNumber, "Importo": o.amount, "Provvigione": o.commission, "Data Inserimento": o.createdAt ? new Date(o.createdAt).toLocaleDateString('it-IT') : '' }));
+                const wsOrders = XLSX.utils.json_to_sheet(ordersData);
+                if (ordersData.length > 0) wsOrders['!cols'] = [{wch:15}, {wch:30}, {wch:15}, {wch:15}, {wch:15}, {wch:20}];
+                XLSX.utils.book_append_sheet(wb, wsOrders, "Ordini");
+                
                 XLSX.writeFile(wb, `Backup_CRM_${new Date().toISOString().slice(0,10)}.xlsx`);
                 showMessage('Backup Excel scaricato con successo!', 'success');
             };
@@ -947,11 +1365,20 @@
             const formatDuration = (val) => { const num = parseFloat(val) || 0; const h = Math.floor(num); const m = Math.round((num - h) * 60); if (h === 0 && m === 0) return '0m'; if (h > 0 && m > 0) return `${h}h ${m}m`; if (h > 0) return `${h}h`; return `${m}m`; };
             const emptyReport = { date: new Date().toISOString().split('T')[0], hours: '', category: 'MANTENIMENTO RAPPORTO', contactType: 'TELEFONICO', calendarEventType: 'APPUNTAMENTO' };
 
-            const contextValue = { db, userKey, view, setView, clients, reports, followups, ideas, sortedClients, sortOrder, toggleSort, selectedReport, setSelectedReport, selectedClient, setSelectedClient, reportForm: { ...emptyReport, ...reportForm }, setReportForm, clientForm: { ...clientForm }, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, saveReport, saveClient, saveFollowup, saveIdea, deleteItem, toggleTaskCompletion, fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout, formatDuration };
+            const contextValue = { 
+                db, userKey, view, setView, clients, reports, followups, ideas, orders,
+                sortedClients, sortOrder, toggleSort, selectedReport, setSelectedReport, selectedClient, setSelectedClient, 
+                reportForm: { ...emptyReport, ...reportForm }, setReportForm, 
+                clientForm: { ...clientForm }, setClientForm, 
+                followupForm, setFollowupForm, 
+                ideaForm, setIdeaForm, 
+                orderForm, setOrderForm,
+                saveReport, saveClient, saveFollowup, saveIdea, saveOrder,
+                deleteItem, toggleTaskCompletion, fileInputRef, handleImport, exportToExcel, handleCleanDuplicates, handleLogout, formatDuration 
+            };
 
             if (!isLoggedIn) return ( <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4"> <form onSubmit={handleLogin} className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center"> <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600"><Icons.Lock size={32}/></div> <h1 className="text-2xl font-bold mb-2">WorkReport CRM</h1> <input type="text" placeholder="Tua Chiave Segreta" className="w-full p-4 bg-gray-50 rounded-xl mb-4 text-center font-bold outline-none border focus:border-blue-500" autoFocus/> <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">Accedi</button> <p className="mt-4 text-xs text-gray-400 font-bold uppercase tracking-widest">v1.0</p> </form> </div> );
 
-            // MODIFICATO BG PRINCIPALE E AGGIUNTA VISTA CLIENTREPORTS
             return (
                 <CRMContext.Provider value={contextValue}>
                     <div className="min-h-screen bg-gray-100 flex justify-center pt-0 sm:pt-6">
@@ -965,9 +1392,11 @@
                                 {view === 'createClient' && <ClientForm />}
                                 {view === 'clientDetail' && <ClientDetailView />}
                                 {view === 'clientReports' && <ClientReportsView />}
+                                {view === 'ordersSummary' && <OrdersSummaryView />}
                                 {view === 'detail' && <ReportDetailView />}
                                 {view === 'followups' && <FollowupsList />}
                                 {view === 'createFollowup' && <FollowupForm />}
+                                {view === 'createOrder' && <OrderForm />}
                                 {view === 'ideas' && <IdeasList />}
                                 {view === 'createIdea' && <IdeaForm />}
                                 {view === 'stats' && <StatsView />}
