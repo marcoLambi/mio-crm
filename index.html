@@ -585,7 +585,7 @@
                             <Input label="Provvigione (€)" type="number" step="0.01" name="commission" value={formData.commission} onChange={handleChange} placeholder="0.00" />
                         </SectionContainer>
                         <div className="pt-2 flex gap-3">
-                            <button type="button" onClick={() => setView('ordersList')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button>
+                            <button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button>
                             <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button>
                         </div>
                     </form>
@@ -1001,20 +1001,104 @@
         };
 
         const StatsView = () => {
-            const { reports, formatDuration } = useContext(CRMContext);
-            const data = useMemo(() => { const map = {}; reports.forEach(r => { const c = r.client || 'N/A'; const h = parseFloat(r.hours) || 0; map[c] = (map[c] || 0) + h; }); const arr = Object.entries(map).map(([name, value]) => ({ name, value })); arr.sort((a, b) => b.value - a.value); return arr; }, [reports]);
-            const maxValue = Math.max(...data.map(d => d.value), 0);
+            const { reports, formatDuration, orders, clientStats } = useContext(CRMContext);
+            const [filterType, setFilterType] = useState('orders'); // 'hours', 'orders', 'commissions'
+            const [filterOrder, setFilterOrder] = useState('desc'); // 'asc', 'desc'
+
+            const data = useMemo(() => {
+                 const stats = {};
+
+                 // Init with clients from reports
+                 reports.forEach(r => {
+                     if (!stats[r.client]) stats[r.client] = { name: r.client, hours: 0, orders: 0, commissions: 0 };
+                     stats[r.client].hours += parseFloat(r.hours) || 0;
+                 });
+
+                 // Add order data
+                 orders.forEach(o => {
+                     if (!stats[o.client]) stats[o.client] = { name: o.client, hours: 0, orders: 0, commissions: 0 };
+                     stats[o.client].orders += parseFloat(o.amount) || 0;
+                     stats[o.client].commissions += parseFloat(o.commission) || 0;
+                 });
+
+                 const arr = Object.values(stats);
+                 
+                 // Sort
+                 arr.sort((a, b) => {
+                     let valA = a[filterType];
+                     let valB = b[filterType];
+                     return filterOrder === 'asc' ? valA - valB : valB - valA;
+                 });
+
+                 return arr;
+            }, [reports, orders, filterType, filterOrder]);
+
+            const maxHours = Math.max(...data.map(d => d.hours), 1);
+            const maxOrders = Math.max(...data.map(d => d.orders), 1);
+            const maxCommissions = Math.max(...data.map(d => d.commissions), 1);
+
             const formatHours = (val) => { const h = Math.floor(val); const m = Math.round((val - h) * 60); if (h > 0 && m > 0) return `${h}h ${m}m`; if (h > 0) return `${h}h`; return `${m}m`; }
+
+            const toggleFilter = (type) => {
+                if (filterType === type) {
+                    setFilterOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+                } else {
+                    setFilterType(type);
+                    setFilterOrder('desc');
+                }
+            };
 
             return (
                 <div className="animate-fade-in pb-32">
                     <header className="mb-6"><h1 className="text-2xl font-bold text-gray-800">Situazione</h1></header>
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100"><h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Icons.BarChart size={20} className="text-blue-600"/> Ore per Cliente</h3><div className="space-y-4">{data.map(d => (<div key={d.name}><div className="flex justify-between text-sm mb-1"><span className="font-medium text-gray-700 truncate w-3/4">{d.name}</span><span className="font-bold text-blue-600">{formatHours(d.value)}</span></div><div className="w-full bg-gray-100 rounded-full h-2.5"><div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${maxValue > 0 ? (d.value / maxValue) * 100 : 0}%` }}></div></div></div>))}{data.length === 0 && <div className="text-center text-gray-400 text-sm italic py-4">Nessun dato disponibile nei report.</div>}</div></div>
+                    
+                    <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                        <button onClick={() => toggleFilter('hours')} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${filterType === 'hours' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>Ore {filterType === 'hours' && (filterOrder === 'desc' ? '↓' : '↑')}</button>
+                        <button onClick={() => toggleFilter('orders')} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${filterType === 'orders' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>Ordini {filterType === 'orders' && (filterOrder === 'desc' ? '↓' : '↑')}</button>
+                        <button onClick={() => toggleFilter('commissions')} className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${filterType === 'commissions' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>Provvigioni {filterType === 'commissions' && (filterOrder === 'desc' ? '↓' : '↑')}</button>
+                    </div>
+
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <div className="space-y-6">
+                            {data.map(d => (
+                                <div key={d.name} className="border-b border-gray-50 pb-4 last:border-0 last:pb-0">
+                                    <div className="font-bold text-gray-800 mb-2 truncate">{d.name}</div>
+                                    
+                                    {/* Ore */}
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="w-16 text-[10px] font-bold text-gray-400 uppercase">Ore</div>
+                                        <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                                            <div className="bg-gray-400 h-full rounded-full" style={{ width: `${(d.hours / maxHours) * 100}%` }}></div>
+                                        </div>
+                                        <div className="w-12 text-right text-[10px] font-bold text-gray-600">{formatHours(d.hours)}</div>
+                                    </div>
+
+                                    {/* Ordini */}
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="w-16 text-[10px] font-bold text-blue-400 uppercase">Ordini</div>
+                                        <div className="flex-1 bg-blue-50 rounded-full h-1.5 overflow-hidden">
+                                            <div className="bg-blue-500 h-full rounded-full" style={{ width: `${(d.orders / maxOrders) * 100}%` }}></div>
+                                        </div>
+                                        <div className="w-12 text-right text-[10px] font-bold text-blue-600">€{d.orders > 999 ? (d.orders/1000).toFixed(1)+'k' : d.orders.toFixed(0)}</div>
+                                    </div>
+
+                                    {/* Provvigioni */}
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-16 text-[10px] font-bold text-green-400 uppercase">Provv.</div>
+                                        <div className="flex-1 bg-green-50 rounded-full h-1.5 overflow-hidden">
+                                            <div className="bg-green-500 h-full rounded-full" style={{ width: `${(d.commissions / maxCommissions) * 100}%` }}></div>
+                                        </div>
+                                        <div className="w-12 text-right text-[10px] font-bold text-green-600">€{d.commissions > 999 ? (d.commissions/1000).toFixed(1)+'k' : d.commissions.toFixed(0)}</div>
+                                    </div>
+                                </div>
+                            ))}
+                            {data.length === 0 && <div className="text-center text-gray-400 text-sm italic py-4">Nessun dato disponibile.</div>}
+                        </div>
+                    </div>
                 </div>
             );
         };
 
-        // MODIFICATO: Rinominato e aggiornato per mostrare la LISTA degli ordini invece del riepilogo clienti
         const OrdersListView = () => {
             const { orders, setView, setOrderForm } = useContext(CRMContext);
 
@@ -1139,7 +1223,7 @@
                     createdAt: data.createdAt || new Date().toISOString() 
                 });
                 showMessage('Ordine Salvato', 'success');
-                setView('dashboard');
+                setView('ordersList'); // Torna alla lista ordini generale dopo salvataggio
             };
 
             const deleteItem = async (collectionName, id) => { const key = userKey.toLowerCase().replace(/\s/g, ''); if (window.confirm("Sei sicuro di voler eliminare questo elemento?")) { await deleteDoc(doc(db, `artifacts/${appId}/users/${key}/${collectionName}`, id)); showMessage('Eliminato', 'success'); return true; } return false; };
@@ -1211,6 +1295,7 @@
                                 {view === 'clientReports' && <ClientReportsView />}
                                 {view === 'clientOrders' && <ClientOrdersView />}
                                 {view === 'ordersList' && <OrdersListView />} {/* CORRETTO: Collegato alla vista giusta */}
+                                {view === 'ordersSummary' && <OrdersSummaryView />} {/* RIPRISTINATO */}
                                 {view === 'detail' && <ReportDetailView />}
                                 {view === 'followups' && <FollowupsList />}
                                 {view === 'createFollowup' && <FollowupForm />}
