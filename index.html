@@ -555,14 +555,28 @@
 
         const OrderForm = () => {
             const { orderForm: initialData, saveOrder, setView, clients, deleteItem } = useContext(CRMContext);
-            const [formData, setFormData] = useState(initialData);
+            const [formData, setFormData] = useState({
+                ...initialData,
+                createdAt: initialData.createdAt || new Date().toISOString()
+            });
+            const [orderDate, setOrderDate] = useState(formData.createdAt.split('T')[0]);
+
             const handleChange = (e) => { const { name, value } = e.target; setFormData(prev => ({ ...prev, [name]: value })); };
+            
+            const handleDateChange = (e) => {
+                const newDate = e.target.value;
+                setOrderDate(newDate);
+                const d = new Date(newDate);
+                const now = new Date();
+                d.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+                setFormData(prev => ({ ...prev, createdAt: d.toISOString() }));
+            };
 
             const handleDelete = async (e) => {
                 e.preventDefault(); 
                 e.stopPropagation();
                 if(await deleteItem('orders', formData.id)) {
-                     setView('ordersList'); // Torna alla lista ordini generale
+                     setView('ordersList'); 
                 }
             };
 
@@ -580,6 +594,7 @@
                     <form onSubmit={(e) => { e.preventDefault(); saveOrder(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <SectionContainer title="Dettagli Ordine" icon={Icons.ShoppingBag}>
                             <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
+                            <Input label="Data Ordine" type="date" name="orderDate" value={orderDate} onChange={handleDateChange} required />
                             <Input label="Numero Offerta" name="offerNumber" value={formData.offerNumber} onChange={handleChange} required placeholder="Es. OFF-2024/001" />
                             <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required placeholder="0.00" />
                             <Input label="Provvigione (€)" type="number" step="0.01" name="commission" value={formData.commission} onChange={handleChange} placeholder="0.00" />
@@ -1102,14 +1117,42 @@
         const OrdersListView = () => {
             const { orders, setView, setOrderForm } = useContext(CRMContext);
 
-            const { globalTotalOrders, globalTotalCommissions } = useMemo(() => {
-                return orders.reduce((acc, o) => ({
-                    globalTotalOrders: acc.globalTotalOrders + (parseFloat(o.amount) || 0),
-                    globalTotalCommissions: acc.globalTotalCommissions + (parseFloat(o.commission) || 0)
-                }), { globalTotalOrders: 0, globalTotalCommissions: 0 });
+            const { globalTotalOrders, globalTotalCommissions, monthlyData } = useMemo(() => {
+                let gOrders = 0;
+                let gCommissions = 0;
+                const mData = new Array(12).fill(0);
+                const currentYear = new Date().getFullYear();
+
+                orders.forEach(o => {
+                    const amt = parseFloat(o.amount) || 0;
+                    gOrders += amt;
+                    gCommissions += (parseFloat(o.commission) || 0);
+
+                    // Monthly calc
+                    if (o.createdAt) {
+                        const d = new Date(o.createdAt);
+                        // Filter by current year? User said "tutti i mesi dell'anno da gennaio a dicembre". 
+                        // Usually implies current year context in dashboards. I'll stick to current year to avoid mixing data.
+                        if (d.getFullYear() === currentYear) {
+                            mData[d.getMonth()] += amt;
+                        }
+                    }
+                });
+
+                return { globalTotalOrders: gOrders, globalTotalCommissions: gCommissions, monthlyData: mData };
             }, [orders]);
 
             const globalPercentage = globalTotalOrders > 0 ? ((globalTotalCommissions / globalTotalOrders) * 100).toFixed(1) : '0.0';
+            const months = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+            const maxMonth = Math.max(...monthlyData, 1);
+
+            // Funzione per il colore della barra
+            const getBarColor = (val) => {
+                if (val > 30000) return 'bg-red-500';
+                if (val > 20000) return 'bg-orange-400';
+                if (val > 10000) return 'bg-yellow-400';
+                return 'bg-blue-400';
+            };
 
             return (
                 <div className="animate-fade-in pb-32">
@@ -1137,8 +1180,25 @@
                             </div>
                         </div>
 
+                        {/* Monthly Trends */}
+                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Andamento Mensile {new Date().getFullYear()}</h3>
+                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-y-4 gap-x-2">
+                                {months.map((m, i) => (
+                                    <div key={i} className="flex flex-col items-center">
+                                        <div className="h-16 w-full flex items-end justify-center bg-gray-50 rounded-lg relative overflow-hidden">
+                                             <div className={`w-full opacity-80 rounded-t-lg transition-all duration-500 ${getBarColor(monthlyData[i])}`} style={{ height: `${(monthlyData[i] / maxMonth) * 100}%` }}></div>
+                                        </div>
+                                        <div className="text-[10px] font-bold text-gray-600 mt-1">{m}</div>
+                                        <div className={`text-[9px] font-bold ${monthlyData[i] > 0 ? 'text-gray-800' : 'text-gray-400'}`}>{monthlyData[i] > 0 ? '€'+Math.round(monthlyData[i]/1000)+'k' : '-'}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Lista Ordini Completa */}
                         <div className="space-y-3">
+                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Lista Dettagliata</h3>
                             {orders.length === 0 ? (
                                 <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">Nessun ordine registrato.</div>
                             ) : (
@@ -1191,6 +1251,14 @@
             const [showCleanModal, setShowCleanModal] = useState(false);
             const [duplicatesData, setDuplicatesData] = useState([]);
             const fileInputRef = useRef(null);
+            const mainContentRef = useRef(null); // Reference for main content scrolling
+
+            // Scroll to top on view change
+            useEffect(() => {
+                if (mainContentRef.current) {
+                    mainContentRef.current.scrollTop = 0;
+                }
+            }, [view]);
             
             useEffect(() => { const app = initializeApp(firebaseConfig); const auth = getAuth(app); const dbInst = getFirestore(app); setDb(dbInst); onAuthStateChanged(auth, u => !u && signInAnonymously(auth)); }, []);
             useEffect(() => {
@@ -1223,7 +1291,7 @@
                     createdAt: data.createdAt || new Date().toISOString() 
                 });
                 showMessage('Ordine Salvato', 'success');
-                setView('ordersList'); // Torna alla lista ordini generale dopo salvataggio
+                setView('ordersList'); 
             };
 
             const deleteItem = async (collectionName, id) => { const key = userKey.toLowerCase().replace(/\s/g, ''); if (window.confirm("Sei sicuro di voler eliminare questo elemento?")) { await deleteDoc(doc(db, `artifacts/${appId}/users/${key}/${collectionName}`, id)); showMessage('Eliminato', 'success'); return true; } return false; };
@@ -1284,7 +1352,7 @@
                 <CRMContext.Provider value={contextValue}>
                     <div className="min-h-screen bg-gray-100 flex justify-center pt-0 sm:pt-6">
                         <div className="w-full max-w-7xl bg-gray-100 h-dvh sm:rounded-[2.5rem] sm:shadow-2xl overflow-hidden flex flex-col ring-8 ring-gray-900/5">
-                            <div className="flex-1 overflow-y-auto scrollbar-hide p-6" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+                            <div className="flex-1 overflow-y-auto scrollbar-hide p-6" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} ref={mainContentRef}>
                                 {view === 'dashboard' && <DashboardView />}
                                 {view === 'todo' && <TodoView />}
                                 {view === 'list' && <ReportList />}
