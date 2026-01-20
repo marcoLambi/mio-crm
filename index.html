@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -1156,9 +1156,12 @@
 
             return (
                 <div className="animate-fade-in pb-32">
-                    <div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 mb-4 flex items-center border-b border-gray-200">
-                        <button onClick={() => setView('dashboard')} className="p-2 -ml-2 rounded-full hover:bg-gray-100 mr-2"><Icons.ChevronRight size={24} className="rotate-180" /></button>
-                        <h1 className="text-xl font-bold text-gray-800">Tutti gli Ordini</h1>
+                    <div className="sticky top-0 bg-white/95 backdrop-blur z-10 p-4 mb-4 flex items-center justify-between border-b border-gray-200">
+                        <div className="flex items-center">
+                            <button onClick={() => setView('dashboard')} className="p-2 -ml-2 rounded-full hover:bg-gray-100 mr-2"><Icons.ChevronRight size={24} className="rotate-180" /></button>
+                            <h1 className="text-xl font-bold text-gray-800">Tutti gli Ordini</h1>
+                        </div>
+                        <button onClick={() => { setOrderForm({}); setView('createOrder'); }} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm"><Icons.Plus size={16} /> Nuovo</button>
                     </div>
 
                     <div className="px-4 space-y-4">
