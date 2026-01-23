@@ -563,7 +563,7 @@
 
             const handleChange = (e) => { const { name, value } = e.target; setFormData(prev => ({ ...prev, [name]: value })); };
             
-            const handleDateChange = (e) => {
+            const handleOrderDateChange = (e) => {
                 const newDate = e.target.value;
                 setOrderDate(newDate);
                 const d = new Date(newDate);
@@ -594,7 +594,7 @@
                     <form onSubmit={(e) => { e.preventDefault(); saveOrder(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <SectionContainer title="Dettagli Ordine" icon={Icons.ShoppingBag}>
                             <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
-                            <Input label="Data Ordine" type="date" name="orderDate" value={orderDate} onChange={handleDateChange} required />
+                            <Input label="Data Ordine" type="date" name="orderDate" value={orderDate} onChange={handleOrderDateChange} required />
                             <Input label="Numero Offerta" name="offerNumber" value={formData.offerNumber} onChange={handleChange} required placeholder="Es. OFF-2024/001" />
                             <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required placeholder="0.00" />
                             <Input label="Provvigione (€)" type="number" step="0.01" name="commission" value={formData.commission} onChange={handleChange} placeholder="0.00" />
@@ -665,7 +665,14 @@
             const { sortedClients, toggleSort, sortOrder, setClientForm, setView, setSelectedClient, reports } = useContext(CRMContext);
             const [search, setSearch] = useState('');
             const filtered = useMemo(() => sortedClients.filter(c => (c.ragioneSociale || '').toLowerCase().includes(search.toLowerCase())), [sortedClients, search]);
-            const isIncomplete = (c) => ['pIva', 'telefono', 'email', 'sedeLegale', 'pec', 'sdiCode'].some(f => !c[f]);
+            
+            // Calcolo completamento anagrafica
+            const getAnagraficaStats = (c) => {
+                const fields = ['pIva', 'telefono', 'email', 'sedeLegale', 'pec', 'sdiCode'];
+                const filled = fields.filter(f => c[f] && c[f].toString().trim() !== '').length;
+                const percentage = Math.round((filled / fields.length) * 100);
+                return { isComplete: filled === fields.length, percentage };
+            };
 
             const getClientStatus = (clientName) => {
                 const clientReports = reports.filter(r => r.client === clientName);
@@ -686,6 +693,7 @@
                     <div className="mb-4 relative"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><Icons.Search size={18} /></div><input type="text" placeholder="Cerca..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" />{search && <button onClick={() => setSearch('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400"><Icons.X size={18} /></button>}</div>
                     <div className="space-y-3">{filtered.length === 0 ? <div className="text-center py-8 text-gray-400 border border-dashed rounded-xl">Nessun cliente.</div> : filtered.map(c => {
                         const status = getClientStatus(c.ragioneSociale);
+                        const anagrafica = getAnagraficaStats(c);
                         return (
                             <div key={c.id} onClick={() => { setSelectedClient(c); setView('clientDetail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform relative">
                                 <div className="flex justify-between items-start">
@@ -693,7 +701,16 @@
                                     <span className={`text-[10px] font-bold px-2 py-1 rounded border uppercase tracking-wide shrink-0 ${status.color}`}>{status.label}</span>
                                 </div>
                                 <div className="text-xs text-gray-500 mt-1">{c.sedeOperativa || c.sedeLegale || 'Sede non spec.'}</div>
-                                {isIncomplete(c) && (<div className="mt-2 inline-block bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded border border-yellow-200 uppercase tracking-wide">⚠ Anagrafica Incompleta</div>)}
+                                
+                                {anagrafica.isComplete ? (
+                                    <div className="mt-2 inline-block bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded border border-green-200 uppercase tracking-wide">
+                                        ✔ Anagrafica Completa
+                                    </div>
+                                ) : (
+                                    <div className="mt-2 inline-block bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded border border-yellow-200 uppercase tracking-wide">
+                                        ⚠ Anagrafica Incompleta ({anagrafica.percentage}%)
+                                    </div>
+                                )}
                             </div>
                         );
                     })}</div>
@@ -740,11 +757,9 @@
             );
         };
         
-        // --- NUOVA VISTA: LISTA REPORT FILTRATA PER CLIENTE ---
         const ClientReportsView = () => {
             const { selectedClient, reports, setView, setSelectedReport, formatDuration } = useContext(CRMContext);
 
-            // Filtra solo i report del cliente selezionato
             const clientReports = useMemo(() => 
                 reports
                     .filter(r => r.client === selectedClient?.ragioneSociale)
@@ -786,7 +801,6 @@
             );
         }
 
-        // --- NUOVO COMPONENTE: LISTA ORDINI PER CLIENTE ---
         const ClientOrdersView = () => {
             const { selectedClient, orders, setView, setOrderForm } = useContext(CRMContext);
             const clientOrders = useMemo(() => 
@@ -835,7 +849,6 @@
             
             const getFullPaymentMethod = (client) => [client.paymentMethod1, client.paymentMethod2, client.paymentMethod3].filter(Boolean).join(' - ') || 'Non Specificato';
 
-            // Calcolo totale ordini e provvigioni per il cliente selezionato
             const { totalOrders, totalCommissions } = useMemo(() => {
                 return orders
                     .filter(o => o.client === selectedClient.ragioneSociale)
@@ -853,7 +866,6 @@
             const handleNewOrder = () => { setOrderForm({ client: selectedClient.ragioneSociale }); setView('createOrder'); };
             const handleDelete = async () => { const confirmed = await deleteItem('clients', selectedClient.id); if (confirmed) setView('clients'); };
 
-            // Modificato BG in gray-100 e organizzato contenuti in Card
             return (
                 <div className="animate-fade-in pb-32 bg-gray-100 min-h-full">
                     <div className="sticky top-0 bg-gray-100/95 backdrop-blur z-10 p-4 mb-2 flex justify-between items-center border-b border-gray-200">
@@ -865,12 +877,10 @@
                     </div>
                     
                     <div className="px-4 space-y-4">
-                        {/* Intestazione Cliente - ORA IN CARD BIANCA */}
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                             <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-1 break-words">{selectedClient.ragioneSociale}</h1>
                             <p className="text-sm text-gray-500">P.IVA: {selectedClient.pIva || '-'}</p>
                             
-                            {/* NUOVO BLOCCO TOTALI NELLA SCHEDA NOME */}
                             <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
                                 <div>
                                     <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Totale Ordini</div>
@@ -891,20 +901,17 @@
                             </div>
                         </div>
 
-                        {/* AZIONI RAPIDE */}
                         <div className="grid grid-cols-2 gap-3">
                             <button onClick={handleNewReport} className="flex flex-col items-center justify-center p-4 bg-white border border-gray-100 rounded-2xl shadow-sm active:scale-95 transition-transform">
                                 <div className="bg-blue-50 p-2 rounded-full mb-1 text-blue-600"><Icons.FileText size={20} /></div>
                                 <span className="text-xs font-bold text-gray-800">Nuovo Report</span>
                             </button>
                             
-                            {/* --- NUOVO PULSANTE: REPORT CLIENTE --- */}
                             <button onClick={() => setView('clientReports')} className="flex flex-col items-center justify-center p-4 bg-white border border-gray-100 rounded-2xl shadow-sm active:scale-95 transition-transform">
                                 <div className="bg-gray-100 p-2 rounded-full mb-1 text-gray-600"><Icons.ClipboardList size={20} /></div>
                                 <span className="text-xs font-bold text-gray-800">Storico Report</span>
                             </button>
 
-                             {/* --- NUOVI PULSANTI ORDINI --- */}
                              <button onClick={handleNewOrder} className="flex flex-col items-center justify-center p-4 bg-white border border-gray-100 rounded-2xl shadow-sm active:scale-95 transition-transform">
                                 <div className="bg-blue-50 p-2 rounded-full mb-1 text-blue-600"><Icons.ShoppingBag size={20} /></div>
                                 <span className="text-xs font-bold text-gray-800">Nuovo Ordine</span>
@@ -926,11 +933,9 @@
                             </button>
                         </div>
 
-                        {/* SEZIONI DATI - ORA IN CARD BIANCHE */}
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                             <SectionTitle icon={<Icons.CreditCard size={16}/>} title="Dati Amministrativi" />
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {/* RIMOSSO TOTALE ORDINI DA QUI */}
                                 <InfoRow label="Codice Univoco" value={selectedClient.sdiCode} /><InfoRow label="PEC" value={selectedClient.pec} />
                                 <div className="col-span-1 sm:col-span-2"><InfoRow label="Metodo Pagamento" value={getFullPaymentMethod(selectedClient)} /></div>
                                 <InfoRow label="Fido (€)" value={selectedClient.fido} /><InfoRow label="Data Fido" value={selectedClient.fidoDate} /><InfoRow label="N. Operai" value={selectedClient.numeroOperai} />
@@ -958,13 +963,11 @@
                                 <InfoRow label="Settore" value={selectedClient.sector === 'ALTRO' ? selectedClient.sectorOther : selectedClient.sector} />
                                 <InfoRow label="Aree Geografiche" value={(selectedClient.geoAreas || []).join(', ')} />
                                 <div className="col-span-1"><div className="text-sm font-medium text-gray-500 mb-1">Regioni:</div><div className="text-sm text-gray-800 bg-gray-50 p-2 rounded border border-gray-100 flex flex-wrap gap-1">{(selectedClient.regions || []).length > 0 ? (selectedClient.regions || []).map(r => (<span key={r} className="bg-white border border-gray-200 px-2 py-0.5 rounded text-xs">{r}</span>)) : '-'}</div></div>
-                                {/* MODIFICATO: grid-cols-1 su mobile */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><InfoRow label="Cantieri Attivi" value={selectedClient.activeSites} /><InfoRow label="Sub-Appalti" value={selectedClient.subContracting} /></div>
                                 <SectionDisplay title="Note Cantieri" content={selectedClient.activeSitesNotes} small /><SectionDisplay title="Processi Decisionali" content={selectedClient.decisionProcess} small />
                                 <div className="col-span-1"><div className="text-sm font-medium text-gray-500 mb-1">Brand Utilizzati:</div><div className="text-sm text-gray-800">{(selectedClient.brands || []).join(', ')} {selectedClient.brandsOther && (selectedClient.brands?.length > 0 ? ', ' : '') + selectedClient.brandsOther}</div></div>
                                 <InfoRow label="Prodotti Più Utilizzati" value={selectedClient.products} /><InfoRow label="Approvvigionamenti" value={selectedClient.supplies === 'ALTRO' ? selectedClient.suppliesOther : selectedClient.supplies} />
                                 <SectionDisplay title="Note Generali" content={selectedClient.infoNotes} small />
-                                {/* MODIFICATO: grid-cols-1 su mobile */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><InfoRow label="Preferenza" value={selectedClient.preference} /><InfoRow label="Valutazione" value={`${selectedClient.rating} / 5`} /></div>
                                 <InfoRow label="Fornitori Abituali" value={selectedClient.suppliers} /><InfoRow label="Pagamenti Abituali" value={selectedClient.payments} /><SectionDisplay title="Conclusione" content={selectedClient.conclusion} small />
                             </div>
@@ -1023,13 +1026,11 @@
             const data = useMemo(() => {
                  const stats = {};
 
-                 // Init with clients from reports
                  reports.forEach(r => {
                      if (!stats[r.client]) stats[r.client] = { name: r.client, hours: 0, orders: 0, commissions: 0 };
                      stats[r.client].hours += parseFloat(r.hours) || 0;
                  });
 
-                 // Add order data
                  orders.forEach(o => {
                      if (!stats[o.client]) stats[o.client] = { name: o.client, hours: 0, orders: 0, commissions: 0 };
                      stats[o.client].orders += parseFloat(o.amount) || 0;
@@ -1038,7 +1039,6 @@
 
                  const arr = Object.values(stats);
                  
-                 // Sort
                  arr.sort((a, b) => {
                      let valA = a[filterType];
                      let valB = b[filterType];
@@ -1079,7 +1079,6 @@
                                 <div key={d.name} className="border-b border-gray-50 pb-4 last:border-0 last:pb-0">
                                     <div className="font-bold text-gray-800 mb-2 truncate">{d.name}</div>
                                     
-                                    {/* Ore */}
                                     <div className="flex items-center gap-2 mb-1">
                                         <div className="w-16 text-[10px] font-bold text-gray-400 uppercase">Ore</div>
                                         <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
@@ -1088,7 +1087,6 @@
                                         <div className="w-12 text-right text-[10px] font-bold text-gray-600">{formatHours(d.hours)}</div>
                                     </div>
 
-                                    {/* Ordini */}
                                     <div className="flex items-center gap-2 mb-1">
                                         <div className="w-16 text-[10px] font-bold text-blue-400 uppercase">Ordini</div>
                                         <div className="flex-1 bg-blue-50 rounded-full h-1.5 overflow-hidden">
@@ -1097,7 +1095,6 @@
                                         <div className="w-12 text-right text-[10px] font-bold text-blue-600">€{d.orders > 999 ? (d.orders/1000).toFixed(1)+'k' : d.orders.toFixed(0)}</div>
                                     </div>
 
-                                    {/* Provvigioni */}
                                     <div className="flex items-center gap-2">
                                         <div className="w-16 text-[10px] font-bold text-green-400 uppercase">Provv.</div>
                                         <div className="flex-1 bg-green-50 rounded-full h-1.5 overflow-hidden">
@@ -1128,11 +1125,8 @@
                     gOrders += amt;
                     gCommissions += (parseFloat(o.commission) || 0);
 
-                    // Monthly calc
                     if (o.createdAt) {
                         const d = new Date(o.createdAt);
-                        // Filter by current year? User said "tutti i mesi dell'anno da gennaio a dicembre". 
-                        // Usually implies current year context in dashboards. I'll stick to current year to avoid mixing data.
                         if (d.getFullYear() === currentYear) {
                             mData[d.getMonth()] += amt;
                         }
@@ -1146,7 +1140,6 @@
             const months = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
             const maxMonth = Math.max(...monthlyData, 1);
 
-            // Funzione per il colore della barra
             const getBarColor = (val) => {
                 if (val > 30000) return 'bg-red-500';
                 if (val > 20000) return 'bg-orange-400';
@@ -1165,7 +1158,6 @@
                     </div>
 
                     <div className="px-4 space-y-4">
-                        {/* Global Stats */}
                         <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100">
                             <div className="grid grid-cols-2 gap-4 mb-4">
                                 <div>
@@ -1183,7 +1175,6 @@
                             </div>
                         </div>
 
-                        {/* Monthly Trends */}
                         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
                             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Andamento Mensile {new Date().getFullYear()}</h3>
                             <div className="grid grid-cols-4 sm:grid-cols-6 gap-y-4 gap-x-2">
@@ -1199,7 +1190,6 @@
                             </div>
                         </div>
 
-                        {/* Lista Ordini Completa */}
                         <div className="space-y-3">
                             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Lista Dettagliata</h3>
                             {orders.length === 0 ? (
@@ -1254,9 +1244,8 @@
             const [showCleanModal, setShowCleanModal] = useState(false);
             const [duplicatesData, setDuplicatesData] = useState([]);
             const fileInputRef = useRef(null);
-            const mainContentRef = useRef(null); // Reference for main content scrolling
+            const mainContentRef = useRef(null);
 
-            // Scroll to top on view change
             useEffect(() => {
                 if (mainContentRef.current) {
                     mainContentRef.current.scrollTop = 0;
@@ -1350,7 +1339,6 @@
 
             if (!isLoggedIn) return ( <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4"> <form onSubmit={handleLogin} className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center"> <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600"><Icons.Lock size={32}/></div> <h1 className="text-2xl font-bold mb-2">WorkReport CRM</h1> <input type="text" placeholder="Tua Chiave Segreta" className="w-full p-4 bg-gray-50 rounded-xl mb-4 text-center font-bold outline-none border focus:border-blue-500" autoFocus/> <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">Accedi</button> <p className="mt-4 text-xs text-gray-400 font-bold uppercase tracking-widest">v1.0</p> </form> </div> );
 
-            // MODIFICATO BG PRINCIPALE E AGGIUNTA VISTA CLIENTREPORTS
             return (
                 <CRMContext.Provider value={contextValue}>
                     <div className="min-h-screen bg-gray-100 flex justify-center pt-0 sm:pt-6">
@@ -1365,8 +1353,7 @@
                                 {view === 'clientDetail' && <ClientDetailView />}
                                 {view === 'clientReports' && <ClientReportsView />}
                                 {view === 'clientOrders' && <ClientOrdersView />}
-                                {view === 'ordersList' && <OrdersListView />} {/* CORRETTO: Collegato alla vista giusta */}
-                                {view === 'ordersSummary' && <OrdersSummaryView />} {/* RIPRISTINATO */}
+                                {view === 'ordersList' && <OrdersListView />}
                                 {view === 'detail' && <ReportDetailView />}
                                 {view === 'followups' && <FollowupsList />}
                                 {view === 'createFollowup' && <FollowupForm />}
