@@ -595,7 +595,7 @@
                         <SectionContainer title="Dettagli Ordine" icon={Icons.ShoppingBag}>
                             <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
                             <Input label="Data Ordine" type="date" name="orderDate" value={orderDate} onChange={handleOrderDateChange} required />
-                            <Input label="Numero Offerta" name="offerNumber" value={formData.offerNumber} onChange={handleChange} required placeholder="Es. OFF-2024/001" />
+                            <Input label="NUMERO ORDINE" name="offerNumber" value={formData.offerNumber} onChange={handleChange} required placeholder="Es. ORD-2024/001" />
                             <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required placeholder="0.00" />
                             <Input label="Provvigione (€)" type="number" step="0.01" name="commission" value={formData.commission} onChange={handleChange} placeholder="0.00" />
                         </SectionContainer>
@@ -1359,7 +1359,7 @@
                 const wsIdeas = XLSX.utils.json_to_sheet(ideasData);
                 if (ideasData.length > 0) wsIdeas['!cols'] = [{wch:15}, {wch:30}, {wch:50}, {wch:15}, {wch:10}];
                 XLSX.utils.book_append_sheet(wb, wsIdeas, "Idee");
-                const ordersData = orders.map(o => ({ "ID": o.id, "Cliente": o.client, "N. Offerta": o.offerNumber, "Importo": o.amount, "Provvigione": o.commission, "Data Inserimento": o.createdAt ? new Date(o.createdAt).toLocaleDateString('it-IT') : '' }));
+                const ordersData = orders.map(o => ({ "ID": o.id, "Cliente": o.client, "NUMERO ORDINE": o.offerNumber, "Importo": o.amount, "Provvigione": o.commission, "Data Inserimento": o.createdAt ? new Date(o.createdAt).toLocaleDateString('it-IT') : '' }));
                 const wsOrders = XLSX.utils.json_to_sheet(ordersData);
                 if (ordersData.length > 0) wsOrders['!cols'] = [{wch:15}, {wch:30}, {wch:15}, {wch:15}, {wch:15}, {wch:20}];
                 XLSX.utils.book_append_sheet(wb, wsOrders, "Ordini");
