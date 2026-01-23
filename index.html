@@ -1003,7 +1003,7 @@
                             <label className="block text-sm font-bold text-gray-700 mb-1">Settore</label><select name="sector" value={formData.sector} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-2">{sectorsList.map(s => <option key={s} value={s}>{s}</option>)}</select>{formData.sector === 'ALTRO' && <input type="text" name="sectorOther" value={formData.sectorOther || ''} onChange={handleChange} placeholder="Specifica settore..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />}
                             <label className="block text-sm font-bold text-gray-700 mt-4 mb-2">Aree Geografiche</label><div className="flex gap-4 mb-4">{['ITALIA','ESTERO'].map(a=><label key={a} className="flex gap-2 text-sm cursor-pointer"><input type="checkbox" value={a} checked={(formData.geoAreas||[]).includes(a)} onChange={e=>handleMulti(e,'geoAreas')}/>{a}</label>)}</div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">Regioni Operative</label><div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">{regionsList.map(reg => (<label key={reg} className="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100"><input type="checkbox" value={reg} checked={(formData.regions || []).includes(reg)} onChange={(e) => handleMulti(e, 'regions')} className="w-3.5 h-3.5" /><span className="truncate">{reg}</span></label>))}</div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-bold text-gray-700 mb-1">Cantieri Attivi</label><select name="activeSites" value={formData.activeSites} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none">{[...Array(50).keys()].map(i => <option key={i+1} value={i+1}>{i+1}</option>)}<option value="OLTRE 50">OLTRE 50</option></select></div><Input label="Note Cantieri" name="activeSitesNotes" value={formData.activeSitesNotes} onChange={handleChange} /></div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-bold text-gray-700 mb-1">Cantieri Attivi</label><select name="activeSites" value={formData.activeSites} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-2">{[...Array(50).keys()].map(i => <option key={i+1} value={i+1}>{i+1}</option>)}<option value="OLTRE 50">OLTRE 50</option></select></div><Input label="Note Cantieri" name="activeSitesNotes" value={formData.activeSitesNotes} onChange={handleChange} /></div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"><div><label className="block text-sm font-bold text-gray-700 mb-1">Sub-Appalti</label><select name="subContracting" value={formData.subContracting} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="SI">SI</option><option value="NO">NO</option></select></div><Input label="Processi Decisionali" name="decisionProcess" value={formData.decisionProcess} onChange={handleChange} /></div>
                             <label className="block text-sm font-bold text-gray-700 mt-4 mb-2">Brand</label><div className="flex flex-wrap gap-2 mb-2">{brandsList.map(b=><label key={b} className="flex gap-2 text-xs bg-white p-2 border rounded cursor-pointer"><input type="checkbox" value={b} checked={(formData.brands||[]).includes(b)} onChange={e=>handleMulti(e,'brands')}/>{b}</label>)}</div><Input label="Altri Brand" name="brandsOther" value={formData.brandsOther} onChange={handleChange} /><Input label="Prodotti Più Utilizzati" name="products" value={formData.products} onChange={handleChange} />
                             <div className="mt-4"><label className="block text-sm font-bold text-gray-700 mb-1">Approvvigionamenti</label><select name="supplies" value={formData.supplies} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none mb-2">{suppliesList.map(s => <option key={s} value={s}>{s}</option>)}</select>{formData.supplies === 'ALTRO' && <input type="text" name="suppliesOther" value={formData.suppliesOther || ''} onChange={handleChange} placeholder="Specifica..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />}</div>
@@ -1227,6 +1227,7 @@
             const [userKey, setUserKey] = useState(localStorage.getItem('crm_user_key') || '');
             const [isLoggedIn, setIsLoggedIn] = useState(!!userKey);
             const [view, setView] = useState('dashboard');
+            const [history, setHistory] = useState(['dashboard']); // Navigazione gestita con stack
             const [clients, setClients] = useState([]);
             const [reports, setReports] = useState([]);
             const [followups, setFollowups] = useState([]);
@@ -1245,6 +1246,24 @@
             const [duplicatesData, setDuplicatesData] = useState([]);
             const fileInputRef = useRef(null);
             const mainContentRef = useRef(null);
+
+            // Navigazione custom per gestire la cronologia
+            const navigateTo = (newView) => {
+                if (newView !== view) {
+                    setHistory(prev => [...prev, newView]);
+                    setView(newView);
+                }
+            };
+
+            const goBack = () => {
+                if (history.length > 1) {
+                    const newHistory = [...history];
+                    newHistory.pop(); // Rimuovi vista corrente
+                    const prevView = newHistory[newHistory.length - 1];
+                    setHistory(newHistory);
+                    setView(prevView);
+                }
+            };
 
             useEffect(() => {
                 if (mainContentRef.current) {
@@ -1270,10 +1289,10 @@
             const showMessage = (text, type='info') => { setMessage({text, type}); setTimeout(() => setMessage({text:'', type:''}), 3000); };
             const toggleSort = (k) => setSortOrder(p => ({ ...p, [k]: p[k] === 'desc' ? 'asc' : 'desc' }));
             
-            const saveReport = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); const title = data.title || `${data.category} - ${data.date}`; const calendarUid = data.calendarUid || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@crm.app`; const calendarSequence = (data.calendarSequence || 0) + 1; await setDoc(doc(db, `artifacts/${appId}/users/${key}/reports`, id), { ...data, id, title, calendarUid, calendarSequence, createdAt: data.createdAt || new Date().toISOString() }); showMessage('Report Salvato', 'success'); setView('list'); };
-            const saveClient = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); await setDoc(doc(db, `artifacts/${appId}/users/${key}/clients`, id), { ...data, id, updatedAt: new Date().toLocaleDateString('it-IT') }); showMessage('Cliente Salvato', 'success'); setView('clients'); };
-            const saveFollowup = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); const calendarUid = data.calendarUid || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@crm.app`; const calendarSequence = (data.calendarSequence || 0) + 1; await setDoc(doc(db, `artifacts/${appId}/users/${key}/followups`, id), { ...data, id, calendarUid, calendarSequence, createdAt: data.createdAt || new Date().toISOString() }); showMessage('Offerta Salvata', 'success'); setView('followups'); };
-            const saveIdea = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); const calendarUid = data.calendarUid || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@crm.app`; const calendarSequence = (data.calendarSequence || 0) + 1; await setDoc(doc(db, `artifacts/${appId}/users/${key}/ideas`, id), { ...data, id, calendarUid, calendarSequence, createdAt: data.createdAt || new Date().toISOString() }); showMessage('Idea Salvata', 'success'); setView('ideas'); };
+            const saveReport = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); const title = data.title || `${data.category} - ${data.date}`; const calendarUid = data.calendarUid || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@crm.app`; const calendarSequence = (data.calendarSequence || 0) + 1; await setDoc(doc(db, `artifacts/${appId}/users/${key}/reports`, id), { ...data, id, title, calendarUid, calendarSequence, createdAt: data.createdAt || new Date().toISOString() }); showMessage('Report Salvato', 'success'); navigateTo('list'); };
+            const saveClient = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); await setDoc(doc(db, `artifacts/${appId}/users/${key}/clients`, id), { ...data, id, updatedAt: new Date().toLocaleDateString('it-IT') }); showMessage('Cliente Salvato', 'success'); navigateTo('clients'); };
+            const saveFollowup = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); const calendarUid = data.calendarUid || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@crm.app`; const calendarSequence = (data.calendarSequence || 0) + 1; await setDoc(doc(db, `artifacts/${appId}/users/${key}/followups`, id), { ...data, id, calendarUid, calendarSequence, createdAt: data.createdAt || new Date().toISOString() }); showMessage('Offerta Salvata', 'success'); navigateTo('followups'); };
+            const saveIdea = async (data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); const calendarUid = data.calendarUid || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@crm.app`; const calendarSequence = (data.calendarSequence || 0) + 1; await setDoc(doc(db, `artifacts/${appId}/users/${key}/ideas`, id), { ...data, id, calendarUid, calendarSequence, createdAt: data.createdAt || new Date().toISOString() }); showMessage('Idea Salvata', 'success'); navigateTo('ideas'); };
             const saveOrder = async (data) => {
                 const key = userKey.toLowerCase().replace(/\s/g, '');
                 const id = data.id || String(Date.now());
@@ -1283,7 +1302,7 @@
                     createdAt: data.createdAt || new Date().toISOString() 
                 });
                 showMessage('Ordine Salvato', 'success');
-                setView('ordersList'); 
+                navigateTo('ordersList'); 
             };
 
             const deleteItem = async (collectionName, id) => { const key = userKey.toLowerCase().replace(/\s/g, ''); if (window.confirm("Sei sicuro di voler eliminare questo elemento?")) { await deleteDoc(doc(db, `artifacts/${appId}/users/${key}/${collectionName}`, id)); showMessage('Eliminato', 'success'); return true; } return false; };
@@ -1291,7 +1310,7 @@
             const handleCleanDuplicates = () => { const groups = {}; reports.forEach(r => { const compositeKey = `${(r.client||'').trim().toLowerCase()}|${r.date}|${(r.category||'').trim()}|${(r.description||'').trim().toLowerCase()}`; if (!groups[compositeKey]) groups[compositeKey] = []; groups[compositeKey].push(r); }); const duplicateGroups = Object.values(groups).filter(g => g.length > 1); if (duplicateGroups.length === 0) { showMessage('Nessun duplicato trovato.', 'info'); return; } setDuplicatesData(duplicateGroups); setShowCleanModal(true); };
             const executeClean = async (idsToDelete) => { if (idsToDelete.length === 0) return; const key = userKey.toLowerCase().replace(/\s/g, ''); try { const deletePromises = idsToDelete.map(id => deleteDoc(doc(db, `artifacts/${appId}/users/${key}/reports`, id))); await Promise.all(deletePromises); showMessage(`Eliminati ${idsToDelete.length} duplicati.`, 'success'); setShowCleanModal(false); } catch (error) { console.error("Errore pulizia:", error); showMessage('Errore durante l\'eliminazione.', 'error'); } };
             const handleLogin = (e) => { e.preventDefault(); const input = e.target.elements[0].value.trim(); if(input) { localStorage.setItem('crm_user_key', input); setUserKey(input); setIsLoggedIn(true); } };
-            const handleLogout = () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); setView('dashboard'); };
+            const handleLogout = () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); navigateTo('dashboard'); };
             const handleImport = () => showMessage('Import simulato', 'info'); 
             const exportToExcel = () => {
                 if (!XLSX) { showMessage('Libreria Excel non caricata', 'error'); return; }
@@ -1319,14 +1338,41 @@
                 XLSX.writeFile(wb, `Backup_CRM_${new Date().toISOString().slice(0,10)}.xlsx`);
                 showMessage('Backup Excel scaricato con successo!', 'success');
             };
-            const [touchStart, setTouchStart] = useState(null);
-            const onTouchStart = (e) => setTouchStart(e.targetTouches[0].clientX);
-            const onTouchEnd = (e) => { if(!touchStart) return; const diff = touchStart - e.changedTouches[0].clientX; const tabs = ['dashboard', 'todo', 'stats', 'clients']; const idx = tabs.indexOf(view); if(idx > -1 && Math.abs(diff) > 75) { if (diff > 0 && idx < tabs.length - 1) setView(tabs[idx + 1]); if (diff < 0 && idx > 0) setView(tabs[idx - 1]); } setTouchStart(null); };
+            
+            // Gesture logic
+            const [touchStartX, setTouchStartX] = useState(null);
+            
+            const onTouchStart = (e) => {
+                const x = e.targetTouches[0].clientX;
+                setTouchStartX(x);
+            };
+
+            const onTouchEnd = (e) => {
+                if (touchStartX === null) return;
+                const endX = e.changedTouches[0].clientX;
+                const diff = touchStartX - endX;
+
+                // 1. Gesture: Swipe dal bordo sinistro verso destra per tornare INDIETRO
+                if (touchStartX < 40 && diff < -60) {
+                    goBack();
+                } 
+                // 2. Gesture: Swipe normale per cambio tab
+                else {
+                    const tabs = ['dashboard', 'todo', 'stats', 'clients'];
+                    const idx = tabs.indexOf(view);
+                    if (idx > -1 && Math.abs(diff) > 75) {
+                        if (diff > 0 && idx < tabs.length - 1) navigateTo(tabs[idx + 1]);
+                        if (diff < 0 && idx > 0) navigateTo(tabs[idx - 1]);
+                    }
+                }
+                setTouchStartX(null);
+            };
+
             const formatDuration = (val) => { const num = parseFloat(val) || 0; const h = Math.floor(num); const m = Math.round((num - h) * 60); if (h === 0 && m === 0) return '0m'; if (h > 0 && m > 0) return `${h}h ${m}m`; if (h > 0) return `${h}h`; return `${m}m`; };
             const emptyReport = { date: new Date().toISOString().split('T')[0], hours: '', category: 'MANTENIMENTO RAPPORTO', contactType: 'TELEFONICO', calendarEventType: 'APPUNTAMENTO' };
 
             const contextValue = { 
-                db, userKey, view, setView, clients, reports, followups, ideas, orders,
+                db, userKey, view, setView: navigateTo, clients, reports, followups, ideas, orders,
                 sortedClients, sortOrder, toggleSort, selectedReport, setSelectedReport, selectedClient, setSelectedClient, 
                 reportForm: { ...emptyReport, ...reportForm }, setReportForm, 
                 clientForm: { ...clientForm }, setClientForm, 
@@ -1363,7 +1409,7 @@
                                 {view === 'stats' && <StatsView />}
                                 {view === 'manual' && <ManualView />}
                             </div>
-                            <nav className="border-t border-gray-200 p-3 bg-white z-20"><div className="flex justify-around">{[{ id: 'dashboard', icon: Icons.LayoutDashboard, label: 'Home' }, { id: 'todo', icon: Icons.CheckSquare, label: 'TO-DO' }, { id: 'stats', icon: Icons.BarChart, label: 'Situazione' }, { id: 'clients', icon: Icons.Users, label: 'Clienti' }].map(item => (<button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 rounded-xl transition-all active:scale-95 ${view === item.id ? 'text-blue-600 scale-105' : 'text-gray-400'}`}><item.icon size={24} className="mb-0.5" /><span className="text-[10px] font-bold">{item.label}</span></button>))}</div></nav>
+                            <nav className="border-t border-gray-200 p-3 bg-white z-20"><div className="flex justify-around">{[{ id: 'dashboard', icon: Icons.LayoutDashboard, label: 'Home' }, { id: 'todo', icon: Icons.CheckSquare, label: 'TO-DO' }, { id: 'stats', icon: Icons.BarChart, label: 'Situazione' }, { id: 'clients', icon: Icons.Users, label: 'Clienti' }].map(item => (<button key={item.id} onClick={() => navigateTo(item.id)} className={`flex flex-col items-center p-2 rounded-xl transition-all active:scale-95 ${view === item.id ? 'text-blue-600 scale-105' : 'text-gray-400'}`}><item.icon size={24} className="mb-0.5" /><span className="text-[10px] font-bold">{item.label}</span></button>))}</div></nav>
                             {message.text && (<div className={`fixed top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-xl text-white font-bold text-sm z-50 ${message.type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`}>{message.text}</div>)}
                             {showCleanModal && (<CleanDuplicatesModal groups={duplicatesData} onClose={() => setShowCleanModal(false)} onDelete={executeClean} />)}
                         </div>
