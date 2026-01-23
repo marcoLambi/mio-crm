@@ -59,6 +59,10 @@
 
         const { useState, useEffect, useMemo, useRef, useContext, createContext, useCallback } = React;
 
+        // --- 0. UTILS ---
+        // Funzione per normalizzare il testo ignorando punteggiatura e spazi per la ricerca
+        const normalizeForSearch = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
         // --- 1. CONTEXT (Il cervello dell'app) ---
         const CRMContext = createContext();
 
@@ -181,7 +185,10 @@
         const ClientSearchInput = ({ clients, value, onChange, required = false }) => {
             const [isOpen, setIsOpen] = useState(false);
             const sortedClients = useMemo(() => [...clients].sort((a, b) => (a.ragioneSociale || '').localeCompare(b.ragioneSociale || '')), [clients]);
-            const filteredOptions = sortedClients.filter(c => (c.ragioneSociale || '').toLowerCase().includes((value || '').toLowerCase()));
+            
+            const filteredOptions = sortedClients.filter(c => 
+                normalizeForSearch(c.ragioneSociale).includes(normalizeForSearch(value))
+            );
 
             return (
                 <div className="relative">
@@ -442,7 +449,17 @@
                  ideas.forEach(i => { if (i.deadline && !i.completed) items.push({ type: 'idea', date: new Date(i.deadline), data: i, label: 'Scadenza Idea', icon: Icons.Lightbulb, collection: 'ideas' }); });
                  return items.sort((a, b) => a.date - b.date);
              }, [reports, followups, ideas]);
-             const filteredTodos = useMemo(() => { if (!search) return todos; return todos.filter(item => { const s = search.toLowerCase(); return (item.data.client || '').toLowerCase().includes(s) || (item.data.description || item.data.notes || item.data.text || item.data.futureNotes || '').toLowerCase().includes(s); }); }, [todos, search]);
+
+             const filteredTodos = useMemo(() => { 
+                if (!search) return todos; 
+                const sNorm = normalizeForSearch(search);
+                return todos.filter(item => {
+                    const clientNorm = normalizeForSearch(item.data.client);
+                    const descNorm = (item.data.description || item.data.notes || item.data.text || item.data.futureNotes || '').toLowerCase();
+                    return clientNorm.includes(sNorm) || descNorm.includes(search.toLowerCase()); 
+                }); 
+             }, [todos, search]);
+
              const handleItemClick = (item) => {
                  if (item.type === 'report') { setSelectedReport(item.data); setView('detail'); } 
                  else if (item.type === 'offer') { setFollowupForm(item.data); setView('createFollowup'); } 
@@ -635,7 +652,13 @@
             const { followups, toggleSort, sortOrder, setFollowupForm, setView, deleteItem, toggleTaskCompletion } = useContext(CRMContext);
             const [search, setSearch] = useState('');
             const sorted = useMemo(() => [...followups].sort((a,b) => sortOrder.followups === 'desc' ? new Date(b.feedbackDate) - new Date(a.feedbackDate) : new Date(a.feedbackDate) - new Date(b.feedbackDate)), [followups, sortOrder.followups]);
-            const filtered = sorted.filter(i => (i.client||'').toLowerCase().includes(search.toLowerCase()) || (i.notes||'').toLowerCase().includes(search.toLowerCase()));
+            
+            const filtered = sorted.filter(i => {
+                const sNorm = normalizeForSearch(search);
+                const clientNorm = normalizeForSearch(i.client);
+                const notesNorm = (i.notes || '').toLowerCase();
+                return clientNorm.includes(sNorm) || notesNorm.includes(search.toLowerCase());
+            });
 
             return (
                 <div className="animate-fade-in pb-32">
@@ -650,7 +673,13 @@
             const { ideas, toggleSort, sortOrder, setIdeaForm, setView, deleteItem, toggleTaskCompletion } = useContext(CRMContext);
             const [search, setSearch] = useState('');
             const sorted = useMemo(() => [...ideas].sort((a,b) => sortOrder.ideas === 'desc' ? new Date(b.deadline) - new Date(a.deadline) : new Date(a.deadline) - new Date(b.deadline)), [ideas, sortOrder.ideas]);
-            const filtered = sorted.filter(i => (i.client||'').toLowerCase().includes(search.toLowerCase()) || (i.text||'').toLowerCase().includes(search.toLowerCase()));
+            
+            const filtered = sorted.filter(i => {
+                const sNorm = normalizeForSearch(search);
+                const clientNorm = normalizeForSearch(i.client);
+                const textNorm = (i.text || '').toLowerCase();
+                return clientNorm.includes(sNorm) || textNorm.includes(search.toLowerCase());
+            });
 
             return (
                 <div className="animate-fade-in pb-32">
@@ -664,7 +693,13 @@
         const ClientsList = () => {
             const { sortedClients, toggleSort, sortOrder, setClientForm, setView, setSelectedClient, reports } = useContext(CRMContext);
             const [search, setSearch] = useState('');
-            const filtered = useMemo(() => sortedClients.filter(c => (c.ragioneSociale || '').toLowerCase().includes(search.toLowerCase())), [sortedClients, search]);
+            
+            const filtered = useMemo(() => {
+                const sNorm = normalizeForSearch(search);
+                return sortedClients.filter(c => 
+                    normalizeForSearch(c.ragioneSociale).includes(sNorm)
+                );
+            }, [sortedClients, search]);
             
             // Calcolo completamento anagrafica
             const getAnagraficaStats = (c) => {
@@ -721,7 +756,15 @@
         const ReportList = () => {
              const { reports, toggleSort, sortOrder, setReportForm, setView, setSelectedReport, formatDuration, toggleTaskCompletion } = useContext(CRMContext);
              const [search, setSearch] = useState('');
-             const filtered = useMemo(() => reports.filter(r => (r.client||'').toLowerCase().includes(search.toLowerCase()) || (r.description||'').toLowerCase().includes(search.toLowerCase())), [reports, search]);
+             
+             const filtered = useMemo(() => {
+                const sNorm = normalizeForSearch(search);
+                return reports.filter(r => 
+                    normalizeForSearch(r.client).includes(sNorm) || 
+                    (r.description || '').toLowerCase().includes(search.toLowerCase())
+                );
+             }, [reports, search]);
+
              const sorted = useMemo(() => [...filtered].sort((a,b) => {
                  const dateA = new Date(a.date).getTime(); const dateB = new Date(b.date).getTime();
                  const createdA = new Date(a.createdAt || 0).getTime(); const createdB = new Date(b.createdAt || 0).getTime();
