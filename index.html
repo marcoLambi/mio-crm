@@ -1003,7 +1003,7 @@
                             <label className="block text-sm font-bold text-gray-700 mb-1">Settore</label><select name="sector" value={formData.sector} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-2">{sectorsList.map(s => <option key={s} value={s}>{s}</option>)}</select>{formData.sector === 'ALTRO' && <input type="text" name="sectorOther" value={formData.sectorOther || ''} onChange={handleChange} placeholder="Specifica settore..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />}
                             <label className="block text-sm font-bold text-gray-700 mt-4 mb-2">Aree Geografiche</label><div className="flex gap-4 mb-4">{['ITALIA','ESTERO'].map(a=><label key={a} className="flex gap-2 text-sm cursor-pointer"><input type="checkbox" value={a} checked={(formData.geoAreas||[]).includes(a)} onChange={e=>handleMulti(e,'geoAreas')}/>{a}</label>)}</div>
                             <label className="block text-sm font-bold text-gray-700 mb-2">Regioni Operative</label><div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">{regionsList.map(reg => (<label key={reg} className="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100"><input type="checkbox" value={reg} checked={(formData.regions || []).includes(reg)} onChange={(e) => handleMulti(e, 'regions')} className="w-3.5 h-3.5" /><span className="truncate">{reg}</span></label>))}</div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-bold text-gray-700 mb-1">Cantieri Attivi</label><select name="activeSites" value={formData.activeSites} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none mb-2">{[...Array(50).keys()].map(i => <option key={i+1} value={i+1}>{i+1}</option>)}<option value="OLTRE 50">OLTRE 50</option></select></div><Input label="Note Cantieri" name="activeSitesNotes" value={formData.activeSitesNotes} onChange={handleChange} /></div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-bold text-gray-700 mb-1">Cantieri Attivi</label><select name="activeSites" value={formData.activeSites} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none">{[...Array(50).keys()].map(i => <option key={i+1} value={i+1}>{i+1}</option>)}<option value="OLTRE 50">OLTRE 50</option></select></div><Input label="Note Cantieri" name="activeSitesNotes" value={formData.activeSitesNotes} onChange={handleChange} /></div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"><div><label className="block text-sm font-bold text-gray-700 mb-1">Sub-Appalti</label><select name="subContracting" value={formData.subContracting} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="SI">SI</option><option value="NO">NO</option></select></div><Input label="Processi Decisionali" name="decisionProcess" value={formData.decisionProcess} onChange={handleChange} /></div>
                             <label className="block text-sm font-bold text-gray-700 mt-4 mb-2">Brand</label><div className="flex flex-wrap gap-2 mb-2">{brandsList.map(b=><label key={b} className="flex gap-2 text-xs bg-white p-2 border rounded cursor-pointer"><input type="checkbox" value={b} checked={(formData.brands||[]).includes(b)} onChange={e=>handleMulti(e,'brands')}/>{b}</label>)}</div><Input label="Altri Brand" name="brandsOther" value={formData.brandsOther} onChange={handleChange} /><Input label="Prodotti Più Utilizzati" name="products" value={formData.products} onChange={handleChange} />
                             <div className="mt-4"><label className="block text-sm font-bold text-gray-700 mb-1">Approvvigionamenti</label><select name="supplies" value={formData.supplies} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none mb-2">{suppliesList.map(s => <option key={s} value={s}>{s}</option>)}</select>{formData.supplies === 'ALTRO' && <input type="text" name="suppliesOther" value={formData.suppliesOther || ''} onChange={handleChange} placeholder="Specifica..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none" />}</div>
@@ -1247,9 +1247,13 @@
             const fileInputRef = useRef(null);
             const mainContentRef = useRef(null);
 
-            // Navigazione custom per gestire la cronologia
-            const navigateTo = (newView) => {
+            // 1. Gestione Navigazione con History API (Sincronizzazione Chrome)
+            const navigateTo = (newView, skipHistory = false) => {
                 if (newView !== view) {
+                    if (!skipHistory) {
+                        // Notifica al browser che siamo su una "nuova pagina"
+                        window.history.pushState({ view: newView }, '');
+                    }
                     setHistory(prev => [...prev, newView]);
                     setView(newView);
                 }
@@ -1264,6 +1268,30 @@
                     setView(prevView);
                 }
             };
+
+            // Listener per il tasto indietro nativo del browser/telefono
+            useEffect(() => {
+                const handlePopState = (event) => {
+                    // Se l'evento ha uno stato salvato, usiamolo per cambiare vista
+                    if (event.state && event.state.view) {
+                        setView(event.state.view);
+                        setHistory(prev => {
+                            const newHistory = [...prev];
+                            newHistory.pop();
+                            return newHistory;
+                        });
+                    }
+                };
+
+                window.addEventListener('popstate', handlePopState);
+                
+                // Stato iniziale per la home
+                if (!window.history.state) {
+                    window.history.replaceState({ view: 'dashboard' }, '');
+                }
+
+                return () => window.removeEventListener('popstate', handlePopState);
+            }, []);
 
             useEffect(() => {
                 if (mainContentRef.current) {
@@ -1353,10 +1381,11 @@
                 const diff = touchStartX - endX;
 
                 // 1. Gesture: Swipe dal bordo sinistro verso destra per tornare INDIETRO
+                // Se lo swipe è dal bordo ed è abbastanza lungo, simuliamo il back del browser
                 if (touchStartX < 40 && diff < -60) {
-                    goBack();
+                    window.history.back(); // Questo attiverà l'event listener PopState
                 } 
-                // 2. Gesture: Swipe normale per cambio tab
+                // 2. Gesture: Swipe normale per cambio tab rapido
                 else {
                     const tabs = ['dashboard', 'todo', 'stats', 'clients'];
                     const idx = tabs.indexOf(view);
