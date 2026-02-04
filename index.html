@@ -267,6 +267,38 @@
             );
         };
 
+        // --- CLEAN DUPLICATES MODAL ---
+        const CleanDuplicatesModal = ({ groups, onClose, onDelete }) => {
+            const [selectedIds, setSelectedIds] = useState(new Set());
+            const toggleSelection = (key) => {
+                const newSet = new Set(selectedIds);
+                if (newSet.has(key)) newSet.delete(key); else newSet.add(key);
+                setSelectedIds(newSet);
+            };
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+                        <div className="p-4 border-b flex justify-between items-center"><h2 className="text-lg font-bold">Pulizia Duplicati</h2><button onClick={onClose}><Icons.X size={24}/></button></div>
+                        <div className="p-4 overflow-y-auto flex-1 space-y-4">
+                            {groups.map((group, gidx) => (
+                                <div key={gidx} className="border rounded-xl p-2 space-y-2">
+                                    <div className="text-xs font-bold text-gray-400 uppercase">{group[0].client || group[0].ragioneSociale} <span className="text-gray-300">({group[0]._sourceCollection})</span></div>
+                                    {group.map(item => (
+                                        <div key={item.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                                            <input type="checkbox" onChange={() => toggleSelection(`${item._sourceCollection}|${item.id}`)} className="w-5 h-5 accent-red-600" />
+                                            <div className="text-sm truncate flex-1">{item._displayLabel || item.category || item.offerNumber || 'Dettaglio'}</div>
+                                            <div className="text-xs text-gray-400">{new Date(item.createdAt || item.date).toLocaleDateString()}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="p-4 border-t flex gap-3"><button onClick={onClose} className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold">Annulla</button><button onClick={() => onDelete(Array.from(selectedIds).map(k => ({collection: k.split('|')[0], id: k.split('|')[1]})))} className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold">Elimina Selezionati</button></div>
+                    </div>
+                </div>
+            );
+        };
+
         // --- LISTE DATI ---
         const sectorsList = ['PUBBLICO', 'PRIVATO', 'INFRASTRUTTURE', 'EDILIZIA INDUSTRIALE', 'IMPIANTISTICA', 'ALTRO'];
         const regionsList = ['Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche', 'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana', 'Trentino-Alto Adige', 'Umbria', 'Valle d\'Aosta', 'Veneto'];
@@ -780,7 +812,13 @@
             const { orders, setView, setOrderForm } = useContext(CRMContext);
             
             const { groups, grandTotal, sortedMonths } = useMemo(() => {
-                const sorted = [...orders].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                // Modifica ordinamento: per numero ordine decrescente
+                const sorted = [...orders].sort((a, b) => {
+                    const valA = a.offerNumber || '';
+                    const valB = b.offerNumber || '';
+                    return valB.localeCompare(valA, undefined, { numeric: true, sensitivity: 'base' });
+                });
+
                 const g = {};
                 const months = [];
                 let tot = 0;
@@ -803,7 +841,7 @@
                 return { groups: g, grandTotal: tot, sortedMonths: months };
             }, [orders]);
 
-            // Data for chart: reverse sortedMonths to show Old -> New
+            // Data for chart
             const chartData = [...sortedMonths].reverse().map(m => ({ label: m.split(' ')[0].substring(0, 3), value: groups[m].total }));
 
             return (
@@ -854,7 +892,14 @@
             const { groups, grandTotal, sortedMonths } = useMemo(() => {
                 if (!selectedClient) return { groups: {}, grandTotal: 0, sortedMonths: [] };
                 const filtered = orders.filter(o => o.client === selectedClient.ragioneSociale);
-                const sorted = [...filtered].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                
+                // Modifica ordinamento: per numero ordine decrescente
+                const sorted = [...filtered].sort((a, b) => {
+                    const valA = a.offerNumber || '';
+                    const valB = b.offerNumber || '';
+                    return valB.localeCompare(valA, undefined, { numeric: true, sensitivity: 'base' });
+                });
+
                 const g = {};
                 const months = [];
                 let tot = 0;
@@ -970,10 +1015,42 @@
 
             const handleCleanDuplicates = () => {
                 const groups = [];
-                const rMap = {};
-                reports.forEach(r => { const k = `${r.client}|${r.date}`; if(!rMap[k]) rMap[k]=[]; rMap[k].push({...r, _sourceCollection: 'reports'}); });
-                Object.values(rMap).forEach(g => { if(g.length > 1) groups.push(g); });
-                if(groups.length > 0) { setDuplicatesData(groups); setShowCleanModal(true); } else { showMsg('Nessun duplicato.'); }
+                
+                // Helper for grouping
+                const findDupes = (data, collectionName, keyFn, labelFn) => {
+                    const map = {};
+                    data.forEach(item => {
+                        const k = keyFn(item);
+                        if (!k) return;
+                        if (!map[k]) map[k] = [];
+                        map[k].push({ ...item, _sourceCollection: collectionName, _displayLabel: labelFn(item) });
+                    });
+                    Object.values(map).forEach(g => {
+                        if (g.length > 1) groups.push(g);
+                    });
+                };
+
+                // 1. Clienti (Ragione Sociale)
+                findDupes(clients, 'clients', c => normalizeForSearch(c.ragioneSociale), c => c.ragioneSociale);
+
+                // 2. Report (Cliente + Data + Categoria)
+                findDupes(reports, 'reports', r => `${r.client}|${r.date}|${r.category}`, r => `${new Date(r.date).toLocaleDateString()} - ${r.category}`);
+
+                // 3. Ordini (Cliente + Numero o Importo)
+                findDupes(orders, 'orders', o => `${o.client}|${o.offerNumber || o.amount}`, o => `Ordine ${o.offerNumber || ''} - €${o.amount}`);
+
+                // 4. Offerte/Followup (Cliente + Numero)
+                findDupes(followups, 'followups', f => `${f.client}|${f.offerNumber}`, f => `Offerta ${f.offerNumber}`);
+
+                // 5. Idee (Cliente + Testo)
+                findDupes(ideas, 'ideas', i => `${i.client}|${(i.text || '').substring(0, 20)}`, i => i.text);
+
+                if (groups.length > 0) {
+                    setDuplicatesData(groups);
+                    setShowCleanModal(true);
+                } else {
+                    showMsg('Nessun duplicato trovato.');
+                }
             };
 
             const executeClean = async (items) => {
@@ -1025,6 +1102,7 @@
                                 {[{ id: 'dashboard', icon: Icons.LayoutDashboard, label: 'Home' }, { id: 'todo', icon: Icons.CheckSquare, label: 'TO-DO' }, { id: 'stats', icon: Icons.BarChart, label: 'Situazione' }, { id: 'clients', icon: Icons.Users, label: 'Clienti' }].map(item => (<button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 transition-colors ${view === item.id || (view.startsWith('client') && item.id === 'clients') ? 'text-blue-600' : 'text-gray-400'}`}><item.icon size={24} /><span className="text-[10px] font-bold">{item.label}</span></button>))}
                             </nav>
                             {message.text && (<div className="fixed top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-xl text-white font-bold text-sm z-50 bg-blue-500 animate-fade-in">{message.text}</div>)}
+                            {showCleanModal && <CleanDuplicatesModal groups={duplicatesData} onClose={() => setShowCleanModal(false)} onDelete={executeClean} />}
                         </div>
                     </div>
                 </CRMContext.Provider>
