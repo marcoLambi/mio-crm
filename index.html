@@ -775,14 +775,37 @@
 
         const OrderForm = () => {
             const { orderForm: initialData, saveOrder, setView, clients } = useContext(CRMContext);
-            const [formData, setFormData] = useState(initialData);
+            
+            // Initialize with date handling
+            const [formData, setFormData] = useState(() => {
+                const defaultDate = initialData.createdAt 
+                    ? new Date(initialData.createdAt).toISOString().split('T')[0] 
+                    : new Date().toISOString().split('T')[0];
+                return { ...initialData, dateInput: defaultDate };
+            });
+
             const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
+            
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                // Ensure the createdAt timestamp matches the selected date
+                const finalData = {
+                    ...formData,
+                    createdAt: new Date(formData.dateInput).toISOString() 
+                };
+                delete finalData.dateInput;
+                saveOrder(finalData);
+            };
+
             return (
                 <div className="animate-fade-in pb-32">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica Ordine' : 'Nuovo Ordine'}</h2>
-                    <form onSubmit={(e) => { e.preventDefault(); saveOrder(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <form onSubmit={handleSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
-                        <Input label="N. Ordine" name="offerNumber" value={formData.offerNumber} onChange={handleChange} required />
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input label="Data" type="date" name="dateInput" value={formData.dateInput} onChange={handleChange} required />
+                            <Input label="N. Ordine" name="offerNumber" value={formData.offerNumber} onChange={handleChange} required />
+                        </div>
                         <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required />
                         <Input label="Provvigione (€)" type="number" step="0.01" name="commission" value={formData.commission} onChange={handleChange} />
                         <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('ordersList')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
