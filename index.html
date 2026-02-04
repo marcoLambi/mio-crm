@@ -1059,6 +1059,19 @@
                 setShowCleanModal(false); showMsg('Pulizia completata!');
             };
 
+            const exportToExcel = () => {
+                if (!window.XLSX) { showMsg("Libreria Export non caricata"); return; }
+                const wb = XLSX.utils.book_new();
+                const addSheet = (name, data) => { if(data.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), name); };
+                addSheet('Clienti', clients);
+                addSheet('Report', reports);
+                addSheet('Ordini', orders);
+                addSheet('Offerte', followups);
+                addSheet('Idee', ideas);
+                XLSX.writeFile(wb, `CRM_Backup_${new Date().toISOString().slice(0,10)}.xlsx`);
+                showMsg('Backup scaricato!');
+            };
+
             const contextValue = { 
                 db, userKey, view, setView, clients, reports, followups, ideas, orders,
                 selectedReport, setSelectedReport, selectedClient, setSelectedClient, 
@@ -1069,7 +1082,7 @@
                 saveIdea: d => { saveItem('ideas', d); setView('dashboard'); }, 
                 saveOrder: d => { saveItem('orders', d); setView('dashboard'); },
                 deleteItem, toggleTaskCompletion, handleLogout: () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); },
-                fileInputRef, exportToExcel: () => showMsg('Backup in corso...'), handleCleanDuplicates
+                fileInputRef, exportToExcel, handleCleanDuplicates
             };
 
             if (!isLoggedIn) return ( <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4"><form onSubmit={(e) => { e.preventDefault(); const val = e.target.elements[0].value.trim(); if(val) { localStorage.setItem('crm_user_key', val); setUserKey(val); setIsLoggedIn(true); } }} className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center"><Icons.Lock className="mx-auto mb-4 text-blue-600" size={48}/><h1 className="text-2xl font-bold mb-4">WorkReport CRM</h1><input type="text" placeholder="Chiave Segreta" className="w-full p-4 bg-gray-50 rounded-xl mb-4 text-center font-bold outline-none border focus:border-blue-500"/><button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Accedi</button></form></div> );
