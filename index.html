@@ -785,7 +785,7 @@
                         <Input label="N. Ordine" name="offerNumber" value={formData.offerNumber} onChange={handleChange} required />
                         <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required />
                         <Input label="Provvigione (€)" type="number" step="0.01" name="commission" value={formData.commission} onChange={handleChange} />
-                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
+                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('ordersList')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
                     </form>
                 </div>
             );
@@ -1085,7 +1085,7 @@
                 saveClient: d => { saveItem('clients', d); setView('clients'); }, 
                 saveFollowup: d => { saveItem('followups', d); setView('dashboard'); }, 
                 saveIdea: d => { saveItem('ideas', d); setView('dashboard'); }, 
-                saveOrder: d => { saveItem('orders', d); setView('dashboard'); },
+                saveOrder: d => { saveItem('orders', d); setView('ordersList'); },
                 deleteItem, toggleTaskCompletion, handleLogout: () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); },
                 fileInputRef, exportToExcel, handleCleanDuplicates
             };
