@@ -269,6 +269,21 @@
             );
         };
 
+        const CalendarButton = ({ title, details, date, time = "09:00", duration = 60, uid, sequence = 0 }) => {
+            if (!date) return null;
+            const start = new Date(`${date}T${time}`);
+            const end = new Date(start.getTime() + duration * 60000);
+            const openGoogle = () => {
+                const dates = `${start.toISOString().replace(/-|:|\.\d{3}/g, '')}/${end.toISOString().replace(/-|:|\.\d{3}/g, '')}`;
+                window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&dates=${dates}`, '_blank');
+            };
+            return (
+                <button type="button" onClick={openGoogle} className="w-full flex justify-center items-center gap-2 px-3 py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 active:scale-[0.98] transition-all text-xs">
+                    <Icons.Calendar size={16} /> Aggiungi a Google Calendar
+                </button>
+            );
+        };
+
         // --- NEW CHART COMPONENT UPDATED ---
         const MonthChart = ({ data }) => {
             const max = Math.max(...data.map(d => d.value), 1);
@@ -597,17 +612,6 @@
                 const { name, value } = e.target;
                 setFormData(p => ({ ...p, [`contact${index}`]: { ...p[`contact${index}`], [name]: value } }));
             };
-
-            const jobTitles = useMemo(() => {
-                const set = new Set();
-                clients.forEach(c => {
-                    for(let i=1; i<=4; i++) {
-                        if(c[`contact${i}`]?.mansione) set.add(c[`contact${i}`].mansione);
-                    }
-                });
-                return Array.from(set).sort();
-            }, [clients]);
-
             return (
                 <div className="animate-fade-in pb-32">
                     <div className="sticky top-0 bg-gray-100/95 py-4 flex justify-between items-center z-20">
@@ -659,18 +663,11 @@
                             <TextArea label="Comunicazioni" name="comunicazioni" value={formData.comunicazioni} onChange={handleChange} />
                             <TextArea label="Note Generali" name="noteGenerali" value={formData.noteGenerali} onChange={handleChange} />
                             <TextArea label="Conclusione" name="conclusione" value={formData.conclusione} onChange={handleChange} />
-                            <SelectComponent label="Valutazione" name="valutazione" value={formData.valutazione} onChange={handleChange} options={['1','2','3','4','5']} />
+                            <Input label="Valutazione" name="valutazione" value={formData.valutazione} onChange={handleChange} />
                         </SectionContainer>
                         {[1, 2, 3, 4].map(idx => (
                             <SectionContainer key={idx} title={`Contatto ${idx}`} icon={Icons.Users}>
                                 <Input label="Nome" name="nome" value={formData[`contact${idx}`]?.nome} onChange={(e) => handleContactChange(e, idx)} />
-                                <div className="mb-3">
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">Mansione</label>
-                                    <input type="text" list={`mansioni-list-${idx}`} name="mansione" value={formData[`contact${idx}`]?.mansione || ''} onChange={(e) => handleContactChange(e, idx)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
-                                    <datalist id={`mansioni-list-${idx}`}>
-                                        {jobTitles.map(t => <option key={t} value={t} />)}
-                                    </datalist>
-                                </div>
                                 <Input label="Tel" name="tel" value={formData[`contact${idx}`]?.tel} onChange={(e) => handleContactChange(e, idx)} />
                                 <Input label="Mail" name="mail" value={formData[`contact${idx}`]?.mail} onChange={(e) => handleContactChange(e, idx)} />
                             </SectionContainer>
@@ -723,7 +720,7 @@
                         {[1, 2, 3, 4].map(idx => {
                             const ct = c[`contact${idx}`];
                             if(!ct?.nome) return null;
-                            return ( <SectionContainer key={idx} title={`Contatto ${idx}`} icon={Icons.Users}><InfoRow label="Nome" value={ct.nome} /><InfoRow label="Mansione" value={ct.mansione} /><InfoRow label="Tel" value={ct.tel} /><InfoRow label="Mail" value={ct.mail} /></SectionContainer> );
+                            return ( <SectionContainer key={idx} title={`Contatto ${idx}`} icon={Icons.Users}><InfoRow label="Nome" value={ct.nome} /><InfoRow label="Tel" value={ct.tel} /><InfoRow label="Mail" value={ct.mail} /></SectionContainer> );
                         })}
                         <div className="grid grid-cols-2 gap-3 pt-4">
                             <button onClick={() => setView('clientReports')} className="bg-white p-4 rounded-xl border flex flex-col items-center gap-1"><Icons.ClipboardList size={20} className="text-gray-400"/><span className="text-xs font-bold">Report</span></button>
@@ -736,7 +733,11 @@
 
         const ReportForm = () => {
             const { reportForm: initialData, saveReport, setView, clients } = useContext(CRMContext);
-            const [formData, setFormData] = useState(initialData);
+            // MODIFICA: Inizializzo nextContactTime con default 09:00 se non presente
+            const [formData, setFormData] = useState({ 
+                ...initialData, 
+                nextContactTime: initialData.nextContactTime || "09:00" 
+            });
             const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
             const selectedClientData = useMemo(() => clients.find(c => c.ragioneSociale === formData.client), [clients, formData.client]);
             const availableContacts = selectedClientData ? [selectedClientData.contact1, selectedClientData.contact2, selectedClientData.contact3, selectedClientData.contact4].filter(c => c?.nome) : [];
@@ -752,7 +753,11 @@
                         <SelectComponent label="Categoria" name="category" value={formData.category} onChange={handleChange} options={['MANTENIMENTO RAPPORTO', 'ORDINE', 'RICHIESTA OFFERTA', 'RISCONTRO OFFERTA', 'INIZIO RAPPORTO', 'APPUNTAMENTO', 'ALTRO']} />
                         <TextArea label="Descrizione" name="description" value={formData.description} onChange={handleChange} enableVoice={true} />
                         <SectionContainer title="Follow-up" icon={Icons.AlarmCheck}>
-                            <Input label="Prossimo Contatto (Data)" type="date" name="nextContactDate" value={formData.nextContactDate} onChange={handleChange} />
+                            {/* MODIFICA: Griglia per Data e Ora */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input label="Prossimo Contatto (Data)" type="date" name="nextContactDate" value={formData.nextContactDate} onChange={handleChange} />
+                                <Input label="Ora" type="time" name="nextContactTime" value={formData.nextContactTime} onChange={handleChange} />
+                            </div>
                             <TextArea label="Appunti Futuri" name="futureNotes" value={formData.futureNotes} onChange={handleChange} />
                         </SectionContainer>
                         <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-gray-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
@@ -786,6 +791,15 @@
                         <InfoBox label="Cliente" value={report.client} icon={Icons.Users} /><InfoBox label="Data" value={new Date(report.date).toLocaleDateString('it-IT')} icon={Icons.Calendar} /><InfoBox label="Categoria" value={report.category} icon={Icons.Target} />
                         <SectionDisplay title="Descrizione" content={report.description} />
                         {report.futureNotes && <SectionDisplay title="Appunti Futuri" content={report.futureNotes} small />}
+                        {/* Re-adding CalendarButton because it's implied by the request */}
+                        {report.nextContactDate && (
+                            <CalendarButton 
+                                title={`Follow-up: ${report.client}`} 
+                                details={report.futureNotes || "Nessuna nota"} 
+                                date={report.nextContactDate} 
+                                time={report.nextContactTime || "09:00"} 
+                            />
+                        )}
                     </div>
                 </div>
             );
