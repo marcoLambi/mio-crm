@@ -395,7 +395,7 @@
         };
 
         const TodoView = () => {
-            const { reports, followups, ideas, setSelectedReport, setFollowupForm, setIdeaForm, setView, toggleTaskCompletion } = useContext(CRMContext);
+            const { reports, followups, ideas, setSelectedReport, setSelectedFollowup, setSelectedIdea, setView, toggleTaskCompletion } = useContext(CRMContext);
             const items = useMemo(() => {
                 const arr = [];
                 reports.forEach(r => r.nextContactDate && !r.completed && arr.push({ ...r, type: 'report', label: 'Report', date: r.nextContactDate, icon: Icons.ClipboardList }));
@@ -408,11 +408,17 @@
                     <h1 className="text-2xl font-bold mb-6">Da Fare</h1>
                     <div className="space-y-3">
                         {items.length === 0 ? <div className="text-center py-10 text-gray-400">Tutto fatto!</div> : items.map((item, idx) => (
-                            <div key={idx} onClick={() => { 
-                                if(item.type === 'report') { setSelectedReport(item); setView('detail'); }
-                                else if(item.type === 'offer') { setFollowupForm(item); setView('createFollowup'); }
-                                else if(item.type === 'idea') { setIdeaForm(item); setView('createIdea'); }
-                            }} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer active:scale-95 transition-transform">
+                            <div key={idx} className="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer active:scale-95 transition-transform"
+                                // MODIFICA: Navigazione al dettaglio/modifica cliccando sul ToDo con parametro di ritorno
+                                onClick={() => { 
+                                    // Remove UI-only props before setting form state
+                                    const { icon, label, type, date, ...cleanItem } = item;
+                                    const itemWithReturn = { ...cleanItem, _returnView: 'todo' };
+                                    if(item.type === 'report') { setSelectedReport(itemWithReturn); setView('detail'); }
+                                    else if(item.type === 'offer') { setSelectedFollowup(itemWithReturn); setView('followupDetail'); }
+                                    else if(item.type === 'idea') { setSelectedIdea(itemWithReturn); setView('ideaDetail'); }
+                                }}
+                            >
                                 <div>
                                     <div className="flex items-center gap-2 text-xs font-bold uppercase text-gray-400 mb-1"><item.icon size={12}/> {item.label}</div>
                                     <div className="font-bold text-gray-800">{item.client}</div>
@@ -424,6 +430,52 @@
                     </div>
                 </div>
             );
+        };
+        
+        // --- NUOVI COMPONENTI DI DETTAGLIO ---
+        
+        const FollowupDetailView = () => {
+             const { selectedFollowup: item, setView, setFollowupForm, deleteItem } = useContext(CRMContext);
+             if (!item) return null;
+             return (
+                 <div className="animate-fade-in pb-32">
+                     <div className="flex justify-between items-center mb-6">
+                        <button onClick={() => setView(item._returnView || 'followupsList')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button>
+                        <div className="flex gap-2">
+                            <button onClick={() => { setFollowupForm(item); setView('createFollowup'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button>
+                            <button onClick={async () => { if(await deleteItem('followups', item.id)) setView(item._returnView || 'followupsList'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button>
+                        </div>
+                     </div>
+                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                        <InfoBox label="Cliente" value={item.client} icon={Icons.Users} />
+                        <InfoBox label="N. Offerta" value={item.offerNumber} icon={Icons.FileText} />
+                        <InfoBox label="Importo" value={`€ ${parseFloat(item.amount).toFixed(2)}`} icon={Icons.CreditCard} />
+                        <InfoBox label="Data Riscontro" value={new Date(item.feedbackDate).toLocaleDateString('it-IT')} icon={Icons.Calendar} />
+                        <SectionDisplay title="Note" content={item.notes} />
+                     </div>
+                 </div>
+             );
+        };
+
+        const IdeaDetailView = () => {
+             const { selectedIdea: item, setView, setIdeaForm, deleteItem } = useContext(CRMContext);
+             if (!item) return null;
+             return (
+                 <div className="animate-fade-in pb-32">
+                     <div className="flex justify-between items-center mb-6">
+                        <button onClick={() => setView(item._returnView || 'ideasList')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button>
+                        <div className="flex gap-2">
+                            <button onClick={() => { setIdeaForm(item); setView('createIdea'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button>
+                            <button onClick={async () => { if(await deleteItem('ideas', item.id)) setView(item._returnView || 'ideasList'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button>
+                        </div>
+                     </div>
+                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                        <InfoBox label="Cliente" value={item.client} icon={Icons.Users} />
+                        <InfoBox label="Scadenza" value={new Date(item.deadline).toLocaleDateString('it-IT')} icon={Icons.Calendar} />
+                        <SectionDisplay title="Idea" content={item.text} />
+                     </div>
+                 </div>
+             );
         };
 
         const ClientCompletedTodosView = () => {
@@ -814,8 +866,19 @@
                                 <Input label="Ora" type="time" name="nextContactTime" value={formData.nextContactTime} onChange={handleChange} />
                             </div>
                             <TextArea label="Appunti Futuri" name="futureNotes" value={formData.futureNotes} onChange={handleChange} />
+                            {/* MODIFICA: Aggiunto pulsante Google Calendar nel form */}
+                            {formData.nextContactDate && (
+                                <div className="pt-2">
+                                    <CalendarButton 
+                                        title={`Follow-up: ${formData.client || 'Cliente'}`} 
+                                        details={formData.futureNotes || ""} 
+                                        date={formData.nextContactDate} 
+                                        time={formData.nextContactTime || "09:00"} 
+                                    />
+                                </div>
+                            )}
                         </SectionContainer>
-                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-gray-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
+                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView(formData._returnView || 'dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-gray-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
                     </form>
                 </div>
             );
@@ -855,7 +918,7 @@
             if (!report) return null;
             return (
                 <div className="animate-fade-in pb-32">
-                    <div className="flex justify-between items-center mb-6"><button onClick={() => setView('list')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => { setReportForm(report); setView('create'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button><button onClick={async () => { if(await deleteItem('reports', report.id)) setView('list'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button></div></div>
+                    <div className="flex justify-between items-center mb-6"><button onClick={() => setView(report._returnView || 'list')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => { setReportForm(report); setView('create'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button><button onClick={async () => { if(await deleteItem('reports', report.id)) setView(report._returnView || 'list'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button></div></div>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                         <InfoBox label="Cliente" value={report.client} icon={Icons.Users} /><InfoBox label="Data" value={new Date(report.date).toLocaleDateString('it-IT')} icon={Icons.Calendar} />
                         {/* MODIFICA: Visualizzazione Tipo Contatto */}
@@ -916,7 +979,7 @@
                         <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required />
                         <Input label="Data Riscontro" type="date" name="feedbackDate" value={formData.feedbackDate} onChange={handleChange} required />
                         <TextArea label="Note" name="notes" value={formData.notes} onChange={handleChange} />
-                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-yellow-500 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
+                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView(formData._returnView || 'dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-yellow-500 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
                     </form>
                 </div>
             );
@@ -974,7 +1037,7 @@
                         <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
                         <TextArea label="Testo Idea" name="text" value={formData.text} onChange={handleChange} required enableVoice={true} />
                         <Input label="Scadenza" type="date" name="deadline" value={formData.deadline} onChange={handleChange} required />
-                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('ideas')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
+                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView(formData._returnView || 'ideas')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
                     </form>
                 </div>
             );
@@ -1167,6 +1230,8 @@
             const [orders, setOrders] = useState([]); 
             const [selectedReport, setSelectedReport] = useState(null);
             const [selectedClient, setSelectedClient] = useState(null);
+            const [selectedFollowup, setSelectedFollowup] = useState(null); // NUOVO STATO
+            const [selectedIdea, setSelectedIdea] = useState(null); // NUOVO STATO
             const [reportForm, setReportForm] = useState({});
             const [clientForm, setClientForm] = useState({});
             const [followupForm, setFollowupForm] = useState({});
@@ -1258,11 +1323,13 @@
             const contextValue = { 
                 db, userKey, view, setView, clients, reports, followups, ideas, orders,
                 selectedReport, setSelectedReport, selectedClient, setSelectedClient, 
+                selectedFollowup, setSelectedFollowup, selectedIdea, setSelectedIdea, // AGGIUNTI
                 reportForm, setReportForm, clientForm, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, orderForm, setOrderForm,
-                saveReport: d => { saveItem('reports', d); setView('dashboard'); }, 
+                // MODIFICA: save functions support _returnView
+                saveReport: d => { saveItem('reports', d); setView(d._returnView || 'dashboard'); }, 
                 saveClient: d => { saveItem('clients', d); setView('clients'); }, 
-                saveFollowup: d => { saveItem('followups', d); setView('dashboard'); }, 
-                saveIdea: d => { saveItem('ideas', d); setView('dashboard'); }, 
+                saveFollowup: d => { saveItem('followups', d); setView(d._returnView || 'dashboard'); }, 
+                saveIdea: d => { saveItem('ideas', d); setView(d._returnView || 'dashboard'); }, 
                 saveOrder: d => { saveItem('orders', d); setView('ordersList'); },
                 deleteItem, toggleTaskCompletion, handleLogout: () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); },
                 fileInputRef, exportToExcel, handleCleanDuplicates, setFollowupForm, setIdeaForm, setReportForm // Added missing export
@@ -1285,6 +1352,8 @@
                                 {view === 'create' && <ReportForm />}
                                 {view === 'list' && <ReportList />}
                                 {view === 'detail' && <ReportDetailView />}
+                                {view === 'followupDetail' && <FollowupDetailView />} {/* NUOVA VISTA */}
+                                {view === 'ideaDetail' && <IdeaDetailView />} {/* NUOVA VISTA */}
                                 {view === 'createFollowup' && <FollowupForm />}
                                 {view === 'createOrder' && <OrderForm />}
                                 {view === 'createIdea' && <IdeaForm />}
