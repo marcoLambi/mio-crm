@@ -856,6 +856,7 @@
                             <div><label className="block text-sm font-bold text-gray-700 mb-1">Referente</label><select name="contactRef" value={formData.contactRef} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="">Seleziona...</option>{availableContacts.map((c, idx) => (<option key={idx} value={c.nome}>{c.nome}</option>))}</select></div>
                         )}
                         <div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="date" value={formData.date} onChange={handleChange} required /><TimeWheelPicker value={formData.hours} onChange={(val) => setFormData(prev => ({...prev, hours: val}))} /></div>
+                        {/* MODIFICA: Aggiunto campo Tipo Contatto */}
                         <SelectComponent label="Tipo Contatto" name="contactType" value={formData.contactType} onChange={handleChange} options={contactTypesList} />
                         <SelectComponent label="Categoria" name="category" value={formData.category} onChange={handleChange} options={['MANTENIMENTO RAPPORTO', 'ORDINE', 'RICHIESTA OFFERTA', 'RISCONTRO OFFERTA', 'INIZIO RAPPORTO', 'APPUNTAMENTO', 'ALTRO']} />
                         <TextArea label="Descrizione" name="description" value={formData.description} onChange={handleChange} enableVoice={true} />
@@ -874,6 +875,7 @@
                                         details={formData.futureNotes || ""} 
                                         date={formData.nextContactDate} 
                                         time={formData.nextContactTime || "09:00"} 
+                                        followupType={formData.followupType}
                                     />
                                 </div>
                             )}
@@ -921,6 +923,7 @@
                     <div className="flex justify-between items-center mb-6"><button onClick={() => setView(report._returnView || 'list')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => { setReportForm(report); setView('create'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button><button onClick={async () => { if(await deleteItem('reports', report.id)) setView(report._returnView || 'list'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button></div></div>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                         <InfoBox label="Cliente" value={report.client} icon={Icons.Users} /><InfoBox label="Data" value={new Date(report.date).toLocaleDateString('it-IT')} icon={Icons.Calendar} />
+                        {/* MODIFICA: Visualizzazione Tipo Contatto */}
                         <InfoBox label="Tipo Contatto" value={report.contactType} icon={Icons.Phone} />
                         <InfoBox label="Categoria" value={report.category} icon={Icons.Target} />
                         <SectionDisplay title="Descrizione" content={report.description} />
@@ -938,7 +941,8 @@
                                             title={report.followupType === 'TELEFONATA' ? `Promemoria: Telefonare a ${report.client}` : (report.followupType === 'APPUNTAMENTO' ? `Appuntamento con ${report.client}` : `Follow-up: ${report.client}`)} 
                                             details={report.futureNotes || "Nessuna nota"} 
                                             date={report.nextContactDate} 
-                                            time={report.nextContactTime || "09:00"} 
+                                            time={report.nextContactTime || "09:00"}
+                                            followupType={report.followupType} 
                                         />
                                     </div>
                                 </>
@@ -1329,6 +1333,36 @@
                 XLSX.writeFile(wb, `CRM_Backup_${new Date().toISOString().slice(0,10)}.xlsx`);
                 showMsg('Backup scaricato!');
             };
+
+            // GESTIONE CRONOLOGIA BROWSER
+            const isPopping = useRef(false);
+
+            useEffect(() => {
+                const handlePopState = (e) => {
+                    if (e.state && e.state.view) {
+                        isPopping.current = true;
+                        setView(e.state.view);
+                    }
+                };
+                
+                window.addEventListener('popstate', handlePopState);
+                
+                if (!window.history.state) {
+                    window.history.replaceState({ view: 'dashboard' }, '');
+                }
+
+                return () => window.removeEventListener('popstate', handlePopState);
+            }, []);
+
+            useEffect(() => {
+                if (isPopping.current) {
+                    isPopping.current = false;
+                    return;
+                }
+                if (view !== (window.history.state?.view)) {
+                    window.history.pushState({ view }, '');
+                }
+            }, [view]);
 
             const contextValue = { 
                 db, userKey, view, setView, clients, reports, followups, ideas, orders,
