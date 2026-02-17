@@ -22,8 +22,17 @@
         body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
         .animate-fade-in { animation: fadeIn 0.2s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Scrollbar nascosta di default */
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Barra di scorrimento personalizzata per le liste */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
+        .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+
         .h-dvh { height: 100dvh; }
         input, textarea, select { font-size: 16px !important; }
 
@@ -459,7 +468,7 @@
                      <div className="flex justify-between items-center mb-6">
                         <button onClick={() => setView(item._returnView || 'followupsList')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button>
                         <div className="flex gap-2">
-                            <button onClick={() => toggleTaskCompletion('followups', item.id, item.completed)} className="p-2 text-green-600 bg-green-50 rounded-full"><Icons.Check size={20}/></button>
+                            <button onClick={() => { toggleTaskCompletion('followups', item.id, item.completed); setView(item._returnView || 'followupsList'); }} className="p-2 text-green-600 bg-green-50 rounded-full"><Icons.Check size={20}/></button>
                             <button onClick={() => { setFollowupForm(item); setView('createFollowup'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button>
                             <button onClick={async () => { if(await deleteItem('followups', item.id)) setView(item._returnView || 'followupsList'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button>
                         </div>
@@ -483,7 +492,7 @@
                      <div className="flex justify-between items-center mb-6">
                         <button onClick={() => setView(item._returnView || 'ideasList')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button>
                         <div className="flex gap-2">
-                            <button onClick={() => toggleTaskCompletion('ideas', item.id, item.completed)} className="p-2 text-green-600 bg-green-50 rounded-full"><Icons.Check size={20}/></button>
+                            <button onClick={() => { toggleTaskCompletion('ideas', item.id, item.completed); setView(item._returnView || 'ideasList'); }} className="p-2 text-green-600 bg-green-50 rounded-full"><Icons.Check size={20}/></button>
                             <button onClick={() => { setIdeaForm(item); setView('createIdea'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button>
                             <button onClick={async () => { if(await deleteItem('ideas', item.id)) setView(item._returnView || 'ideasList'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button>
                         </div>
@@ -1404,7 +1413,8 @@
                 <CRMContext.Provider value={contextValue}>
                     <div className="min-h-screen bg-gray-100 flex justify-center">
                         <div className="w-full max-w-7xl h-dvh overflow-hidden flex flex-col bg-white sm:shadow-2xl sm:rounded-3xl relative">
-                            <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+                            {/* MODIFICA: Logica per la barra di scorrimento laterale su liste specifiche */}
+                            <div className={`flex-1 overflow-y-auto p-6 ${['clients', 'ordersList', 'list'].includes(view) ? 'custom-scrollbar' : 'scrollbar-hide'}`}>
                                 {view === 'dashboard' && <DashboardView />}
                                 {view === 'todo' && <TodoView />}
                                 {view === 'stats' && <StatsView />}
