@@ -42,7 +42,7 @@
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // CONFIGURAZIONE
         const appId = "miocrm-0001";
@@ -98,7 +98,8 @@
             Mic: (p) => <IconBase {...p}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="23"/><line x1="8" x2="16" y1="23" y2="23"/></IconBase>,
             ShoppingBag: (p) => <IconBase {...p}><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" x2="21" y1="6" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></IconBase>,
             AlertTriangle: (p) => <IconBase {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconBase>,
-            Phone: (p) => <IconBase {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></IconBase>
+            Phone: (p) => <IconBase {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></IconBase>,
+            UserMinus: (p) => <IconBase {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" x2="17" y1="11" y2="11"/></IconBase>
         };
 
         // --- UI COMPONENTS ---
@@ -270,17 +271,33 @@
             );
         };
 
-        const CalendarButton = ({ title, details, date, time = "09:00", duration = 60, uid, sequence = 0 }) => {
+        const CalendarButton = ({ title, details, date, time = "09:00", followupType, uid, sequence = 0 }) => {
+            const [isClicked, setIsClicked] = useState(false);
+
             if (!date) return null;
+            
+            // LOGICA RICHIESTA:
+            // Se TELEFONATA -> durata 0 (simula attività/promemoria puntuale)
+            // Se APPUNTAMENTO (o altro) -> durata 60 min (evento normale)
+            const duration = followupType === 'APPUNTAMENTO' ? 60 : 0;
+
             const start = new Date(`${date}T${time}`);
             const end = new Date(start.getTime() + duration * 60000);
+            
             const openGoogle = () => {
-                const dates = `${start.toISOString().replace(/-|:|\.\d{3}/g, '')}/${end.toISOString().replace(/-|:|\.\d{3}/g, '')}`;
+                setIsClicked(true); // Cambia stato a "cliccato" (diventa rosso)
+                const formatDate = (d) => d.toISOString().replace(/-|:|\.\d{3}/g, '');
+                const dates = `${formatDate(start)}/${formatDate(end)}`;
                 window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&dates=${dates}`, '_blank');
             };
+            
             return (
-                <button type="button" onClick={openGoogle} className="w-full flex justify-center items-center gap-2 px-3 py-3 bg-indigo-50 text-indigo-600 font-bold rounded-xl border border-indigo-100 active:scale-[0.98] transition-all text-xs">
-                    <Icons.Calendar size={16} /> Aggiungi a Google Calendar
+                <button 
+                    type="button" 
+                    onClick={openGoogle} 
+                    className={`w-full flex justify-center items-center gap-2 px-3 py-3 font-bold rounded-xl border active:scale-[0.98] transition-all text-xs ${isClicked ? 'bg-red-600 text-white border-red-600' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}
+                >
+                    <Icons.Calendar size={16} /> {isClicked ? 'Aggiunto a Calendar' : 'Aggiungi a Google Calendar'}
                 </button>
             );
         };
@@ -435,13 +452,14 @@
         // --- NUOVI COMPONENTI DI DETTAGLIO ---
         
         const FollowupDetailView = () => {
-             const { selectedFollowup: item, setView, setFollowupForm, deleteItem } = useContext(CRMContext);
+             const { selectedFollowup: item, setView, setFollowupForm, deleteItem, toggleTaskCompletion } = useContext(CRMContext);
              if (!item) return null;
              return (
                  <div className="animate-fade-in pb-32">
                      <div className="flex justify-between items-center mb-6">
                         <button onClick={() => setView(item._returnView || 'followupsList')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button>
                         <div className="flex gap-2">
+                            <button onClick={() => toggleTaskCompletion('followups', item.id, item.completed)} className="p-2 text-green-600 bg-green-50 rounded-full"><Icons.Check size={20}/></button>
                             <button onClick={() => { setFollowupForm(item); setView('createFollowup'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button>
                             <button onClick={async () => { if(await deleteItem('followups', item.id)) setView(item._returnView || 'followupsList'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button>
                         </div>
@@ -458,13 +476,14 @@
         };
 
         const IdeaDetailView = () => {
-             const { selectedIdea: item, setView, setIdeaForm, deleteItem } = useContext(CRMContext);
+             const { selectedIdea: item, setView, setIdeaForm, deleteItem, toggleTaskCompletion } = useContext(CRMContext);
              if (!item) return null;
              return (
                  <div className="animate-fade-in pb-32">
                      <div className="flex justify-between items-center mb-6">
                         <button onClick={() => setView(item._returnView || 'ideasList')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button>
                         <div className="flex gap-2">
+                            <button onClick={() => toggleTaskCompletion('ideas', item.id, item.completed)} className="p-2 text-green-600 bg-green-50 rounded-full"><Icons.Check size={20}/></button>
                             <button onClick={() => { setIdeaForm(item); setView('createIdea'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button>
                             <button onClick={async () => { if(await deleteItem('ideas', item.id)) setView(item._returnView || 'ideasList'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button>
                         </div>
@@ -587,6 +606,10 @@
             const filtered = clients
                 .filter(c => normalizeForSearch(c.ragioneSociale || '').includes(normalizeForSearch(search)))
                 .sort((a, b) => (a.ragioneSociale || '').localeCompare(b.ragioneSociale || ''));
+
+            // ... active/discarded separation ...
+            const activeClients = filtered.filter(c => !c.status || c.status !== 'discarded');
+            const discardedClients = filtered.filter(c => c.status === 'discarded');
             
             const getStatusBadge = (clientName) => {
                 const clientReports = reports.filter(r => r.client === clientName).sort((a,b) => new Date(b.date) - new Date(a.date));
@@ -604,6 +627,19 @@
 
             const isIncomplete = (c) => !c.telefono || !c.email || !c.pIva;
 
+            const renderClientCard = (c) => (
+                <div key={c.id} onClick={() => { setSelectedClient(c); setView('clientDetail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform flex flex-col gap-2">
+                    <div className="flex justify-between items-start">
+                        <div className="font-bold text-gray-800 flex items-center gap-2">
+                            {c.ragioneSociale}
+                            {isIncomplete(c) && <Icons.AlertTriangle size={14} className="text-orange-500" />}
+                        </div>
+                        {getStatusBadge(c.ragioneSociale)}
+                    </div>
+                    <div className="text-xs text-gray-400">{c.sedeOperativa || c.sedeLegale || '-'}</div>
+                </div>
+            );
+
             return (
                 <div className="animate-fade-in pb-32">
                     <div className="flex justify-between items-center mb-6">
@@ -611,19 +647,19 @@
                         <button onClick={() => { setClientForm({}); setView('createClient'); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1"><Icons.Plus size={16}/> Nuovo</button>
                     </div>
                     <div className="mb-4 relative"><div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><Icons.Search size={18}/></div><input type="text" placeholder="Cerca cliente..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" /></div>
+                    
                     <div className="space-y-3">
-                        {filtered.length === 0 ? <div className="text-center py-10 text-gray-400">Nessun cliente trovato.</div> : filtered.map(c => (
-                            <div key={c.id} onClick={() => { setSelectedClient(c); setView('clientDetail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform flex flex-col gap-2">
-                                <div className="flex justify-between items-start">
-                                    <div className="font-bold text-gray-800 flex items-center gap-2">
-                                        {c.ragioneSociale}
-                                        {isIncomplete(c) && <Icons.AlertTriangle size={14} className="text-orange-500" />}
-                                    </div>
-                                    {getStatusBadge(c.ragioneSociale)}
+                        {activeClients.length === 0 && discardedClients.length === 0 && <div className="text-center py-10 text-gray-400">Nessun cliente trovato.</div>}
+                        {activeClients.map(renderClientCard)}
+                        
+                        {discardedClients.length > 0 && (
+                            <div className="mt-8">
+                                <div className="text-sm font-bold text-red-600 border-b border-red-100 pb-2 mb-4 uppercase">CLIENTI SCARTATI</div>
+                                <div className="space-y-3">
+                                    {discardedClients.map(renderClientCard)}
                                 </div>
-                                <div className="text-xs text-gray-400">{c.sedeOperativa || c.sedeLegale || '-'}</div>
                             </div>
-                        ))}
+                        )}
                     </div>
                 </div>
             );
@@ -785,13 +821,20 @@
         };
 
         const ClientDetailView = () => {
-            const { selectedClient: c, setView, setClientForm, deleteItem, orders } = useContext(CRMContext);
+            const { selectedClient: c, setView, setClientForm, deleteItem, orders, discardClient } = useContext(CRMContext);
             if (!c) return null;
             const clientOrders = orders.filter(o => o.client === c.ragioneSociale);
             const totalOrders = clientOrders.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
             return (
                 <div className="animate-fade-in pb-32">
-                    <div className="flex justify-between items-center mb-6"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => { setClientForm(c); setView('createClient'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button><button onClick={async () => { if(await deleteItem('clients', c.id)) setView('clients'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button></div></div>
+                    <div className="flex justify-between items-center mb-6">
+                        <button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button>
+                        <div className="flex gap-2">
+                            <button onClick={() => { setClientForm(c); setView('createClient'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button>
+                            <button onClick={async () => { if(confirm("Scartare cliente?")) await discardClient(c.id); }} className="p-2 text-orange-500 bg-orange-50 rounded-full"><Icons.UserMinus size={20}/></button>
+                            <button onClick={async () => { if(await deleteItem('clients', c.id)) setView('clients'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button>
+                        </div>
+                    </div>
                     <div className="space-y-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border">
                             <h1 className="text-2xl font-bold text-gray-900 mb-1">{c.ragioneSociale}</h1>
@@ -802,6 +845,11 @@
                             </div>
                         </div>
                         
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={() => setView('clientReports')} className="bg-white p-4 rounded-xl border flex flex-col items-center gap-1"><Icons.ClipboardList size={20} className="text-gray-400"/><span className="text-xs font-bold">Report</span></button>
+                            <button onClick={() => setView('clientOrders')} className="bg-white p-4 rounded-xl border flex flex-col items-center gap-1"><Icons.ShoppingBag size={20} className="text-blue-500"/><span className="text-xs font-bold">Ordini</span></button>
+                        </div>
+
                         <button onClick={() => setView('clientCompletedTodos')} className="w-full py-3 bg-green-50 text-green-600 font-bold rounded-xl flex items-center justify-center gap-2"><Icons.CheckSquare size={16}/> TO-DO Completati</button>
 
                         <SectionContainer title="Anagrafica" icon={Icons.Building2}>
@@ -828,10 +876,6 @@
                             if(!ct?.nome) return null;
                             return ( <SectionContainer key={idx} title={`Contatto ${idx}`} icon={Icons.Users}><InfoRow label="Nome" value={ct.nome} /><InfoRow label="Mansione" value={ct.mansione} /><InfoRow label="Tel" value={ct.tel} /><InfoRow label="Mail" value={ct.mail} /></SectionContainer> );
                         })}
-                        <div className="grid grid-cols-2 gap-3 pt-4">
-                            <button onClick={() => setView('clientReports')} className="bg-white p-4 rounded-xl border flex flex-col items-center gap-1"><Icons.ClipboardList size={20} className="text-gray-400"/><span className="text-xs font-bold">Report</span></button>
-                            <button onClick={() => setView('clientOrders')} className="bg-white p-4 rounded-xl border flex flex-col items-center gap-1"><Icons.ShoppingBag size={20} className="text-blue-500"/><span className="text-xs font-bold">Ordini</span></button>
-                        </div>
                     </div>
                 </div>
             );
@@ -916,11 +960,13 @@
         };
 
         const ReportDetailView = () => {
-            const { selectedReport: report, setView, setReportForm, deleteItem } = useContext(CRMContext);
+            const { selectedReport: report, setView, setReportForm, deleteItem, toggleTaskCompletion } = useContext(CRMContext);
             if (!report) return null;
             return (
                 <div className="animate-fade-in pb-32">
-                    <div className="flex justify-between items-center mb-6"><button onClick={() => setView(report._returnView || 'list')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => { setReportForm(report); setView('create'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button><button onClick={async () => { if(await deleteItem('reports', report.id)) setView(report._returnView || 'list'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button></div></div>
+                    <div className="flex justify-between items-center mb-6"><button onClick={() => setView(report._returnView || 'list')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2">
+                    <button onClick={() => toggleTaskCompletion('reports', report.id, report.completed)} className="p-2 text-green-600 bg-green-50 rounded-full"><Icons.Check size={20}/></button>
+                    <button onClick={() => { setReportForm(report); setView('create'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button><button onClick={async () => { if(await deleteItem('reports', report.id)) setView(report._returnView || 'list'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button></div></div>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                         <InfoBox label="Cliente" value={report.client} icon={Icons.Users} /><InfoBox label="Data" value={new Date(report.date).toLocaleDateString('it-IT')} icon={Icons.Calendar} />
                         {/* MODIFICA: Visualizzazione Tipo Contatto */}
@@ -1274,6 +1320,8 @@
             const saveItem = async (coll, data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); await setDoc(doc(db, `artifacts/${appId}/users/${key}/${coll}`, id), { ...data, id, createdAt: data.createdAt || new Date().toISOString() }); showMsg('Salvato!'); };
             const deleteItem = async (coll, id) => { if (confirm("Eliminare?")) { const key = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(doc(db, `artifacts/${appId}/users/${key}/${coll}`, id)); return true; } return false; };
             const toggleTaskCompletion = async (coll, id, current) => { const key = userKey.toLowerCase().replace(/\s/g, ''); await setDoc(doc(db, `artifacts/${appId}/users/${key}/${coll}`, id), { completed: !current }, { merge: true }); };
+            // NUOVO: funzione per scartare cliente
+            const discardClient = async (id) => { const key = userKey.toLowerCase().replace(/\s/g, ''); await updateDoc(doc(db, `artifacts/${appId}/users/${key}/clients`, id), { status: 'discarded' }); showMsg('Cliente scartato'); setView('clients'); };
 
             const handleCleanDuplicates = () => {
                 const groups = [];
@@ -1334,36 +1382,6 @@
                 showMsg('Backup scaricato!');
             };
 
-            // GESTIONE CRONOLOGIA BROWSER
-            const isPopping = useRef(false);
-
-            useEffect(() => {
-                const handlePopState = (e) => {
-                    if (e.state && e.state.view) {
-                        isPopping.current = true;
-                        setView(e.state.view);
-                    }
-                };
-                
-                window.addEventListener('popstate', handlePopState);
-                
-                if (!window.history.state) {
-                    window.history.replaceState({ view: 'dashboard' }, '');
-                }
-
-                return () => window.removeEventListener('popstate', handlePopState);
-            }, []);
-
-            useEffect(() => {
-                if (isPopping.current) {
-                    isPopping.current = false;
-                    return;
-                }
-                if (view !== (window.history.state?.view)) {
-                    window.history.pushState({ view }, '');
-                }
-            }, [view]);
-
             const contextValue = { 
                 db, userKey, view, setView, clients, reports, followups, ideas, orders,
                 selectedReport, setSelectedReport, selectedClient, setSelectedClient, 
@@ -1375,6 +1393,7 @@
                 saveFollowup: d => { saveItem('followups', d); setView(d._returnView || 'dashboard'); }, 
                 saveIdea: d => { saveItem('ideas', d); setView(d._returnView || 'dashboard'); }, 
                 saveOrder: d => { saveItem('orders', d); setView('ordersList'); },
+                discardClient, // EXPORTED
                 deleteItem, toggleTaskCompletion, handleLogout: () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); },
                 fileInputRef, exportToExcel, handleCleanDuplicates, setFollowupForm, setIdeaForm, setReportForm // Added missing export
             };
