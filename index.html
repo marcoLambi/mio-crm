@@ -854,6 +854,12 @@
                             </div>
                         </div>
                         
+                        {/* MODIFICA: Pulsanti Report e Ordini spostati QUI, sopra TO-DO Completati */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={() => setView('clientReports')} className="bg-white p-4 rounded-xl border flex flex-col items-center gap-1"><Icons.ClipboardList size={20} className="text-gray-400"/><span className="text-xs font-bold">Report</span></button>
+                            <button onClick={() => setView('clientOrders')} className="bg-white p-4 rounded-xl border flex flex-col items-center gap-1"><Icons.ShoppingBag size={20} className="text-blue-500"/><span className="text-xs font-bold">Ordini</span></button>
+                        </div>
+
                         <button onClick={() => setView('clientCompletedTodos')} className="w-full py-3 bg-green-50 text-green-600 font-bold rounded-xl flex items-center justify-center gap-2"><Icons.CheckSquare size={16}/> TO-DO Completati</button>
 
                         <SectionContainer title="Anagrafica" icon={Icons.Building2}>
@@ -880,10 +886,7 @@
                             if(!ct?.nome) return null;
                             return ( <SectionContainer key={idx} title={`Contatto ${idx}`} icon={Icons.Users}><InfoRow label="Nome" value={ct.nome} /><InfoRow label="Mansione" value={ct.mansione} /><InfoRow label="Tel" value={ct.tel} /><InfoRow label="Mail" value={ct.mail} /></SectionContainer> );
                         })}
-                        <div className="grid grid-cols-2 gap-3 pt-4">
-                            <button onClick={() => setView('clientReports')} className="bg-white p-4 rounded-xl border flex flex-col items-center gap-1"><Icons.ClipboardList size={20} className="text-gray-400"/><span className="text-xs font-bold">Report</span></button>
-                            <button onClick={() => setView('clientOrders')} className="bg-white p-4 rounded-xl border flex flex-col items-center gap-1"><Icons.ShoppingBag size={20} className="text-blue-500"/><span className="text-xs font-bold">Ordini</span></button>
-                        </div>
+                        {/* I pulsanti Report e Ordini sono stati rimossi da qui e spostati in alto */}
                     </div>
                 </div>
             );
