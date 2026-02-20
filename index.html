@@ -312,20 +312,20 @@
         };
 
         // --- NEW CHART COMPONENT UPDATED ---
-        const MonthChart = ({ data }) => {
+        const MonthChart = ({ data, onMonthClick, selectedMonth }) => {
             const max = Math.max(...data.map(d => d.value), 1);
             return (
                 <div className="flex items-end gap-3 h-32 mt-4 mb-6 px-2 overflow-x-auto scrollbar-hide border-b border-gray-100 pb-4">
                     {data.map((d, i) => (
-                        <div key={i} className="flex flex-col items-center min-w-[40px] h-full justify-end group">
+                        <div key={i} onClick={() => onMonthClick && onMonthClick(d.fullMonth)} className={`flex flex-col items-center min-w-[40px] h-full justify-end group cursor-pointer p-1 transition-colors ${selectedMonth === d.fullMonth ? 'bg-blue-50 rounded-xl' : 'hover:bg-gray-50 rounded-xl'}`}>
                             <div className="flex-1 w-full flex items-end justify-center mb-1">
                                 <div 
-                                    className="w-4 bg-blue-500 rounded-t-md opacity-80 group-hover:opacity-100 transition-all" 
+                                    className={`w-4 rounded-t-md transition-all ${selectedMonth === d.fullMonth ? 'bg-blue-600 opacity-100' : 'bg-blue-500 opacity-80 group-hover:opacity-100'}`} 
                                     style={{ height: `${(d.value / max) * 100}%`, minHeight: '4px' }}
                                 ></div>
                             </div>
-                            <div className="text-[10px] font-bold text-gray-800">€{Math.round(d.value)}</div>
-                            <div className="text-[9px] text-gray-400 uppercase font-bold mt-0.5">{d.label}</div>
+                            <div className={`text-[10px] font-bold ${selectedMonth === d.fullMonth ? 'text-blue-600' : 'text-gray-800'}`}>€{Math.round(d.value)}</div>
+                            <div className={`text-[9px] uppercase font-bold mt-0.5 ${selectedMonth === d.fullMonth ? 'text-blue-600' : 'text-gray-400'}`}>{d.label}</div>
                         </div>
                     ))}
                 </div>
@@ -609,8 +609,9 @@
         };
 
         const ClientsList = () => {
-            const { clients, reports, setView, setSelectedClient, setClientForm } = useContext(CRMContext);
+            const { clients, reports, orders, setView, setSelectedClient, setClientForm } = useContext(CRMContext);
             const [search, setSearch] = useState('');
+            
             // MODIFICA: Ordinamento alfabetico
             const filtered = clients
                 .filter(c => normalizeForSearch(c.ragioneSociale || '').includes(normalizeForSearch(search)))
@@ -636,18 +637,41 @@
 
             const isIncomplete = (c) => !c.telefono || !c.email || !c.pIva;
 
-            const renderClientCard = (c) => (
-                <div key={c.id} onClick={() => { setSelectedClient(c); setView('clientDetail'); }} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform flex flex-col gap-2">
-                    <div className="flex justify-between items-start">
-                        <div className="font-bold text-gray-800 flex items-center gap-2">
-                            {c.ragioneSociale}
-                            {isIncomplete(c) && <Icons.AlertTriangle size={14} className="text-orange-500" />}
+            const today = new Date();
+            const isAfter20th = today.getDate() >= 20;
+            const currentMonth = today.getMonth();
+            const currentYear = today.getFullYear();
+
+            const getClientTotalThisMonth = (clientName) => {
+                return orders.reduce((acc, o) => {
+                    if (o.client === clientName) {
+                        const d = new Date(o.createdAt);
+                        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                            return acc + (parseFloat(o.amount) || 0);
+                        }
+                    }
+                    return acc;
+                }, 0);
+            };
+
+            const renderClientCard = (c) => {
+                const totalThisMonth = getClientTotalThisMonth(c.ragioneSociale);
+                const needsHighlight = isAfter20th && totalThisMonth > 0 && totalThisMonth < 150;
+                const bgClass = needsHighlight ? 'bg-yellow-100 border-yellow-400' : 'bg-white border-gray-100';
+
+                return (
+                    <div key={c.id} onClick={() => { setSelectedClient(c); setView('clientDetail'); }} className={`${bgClass} p-4 rounded-xl shadow-sm border cursor-pointer active:scale-[0.99] transition-transform flex flex-col gap-2`}>
+                        <div className="flex justify-between items-start">
+                            <div className="font-bold text-gray-800 flex items-center gap-2">
+                                {c.ragioneSociale}
+                                {isIncomplete(c) && <Icons.AlertTriangle size={14} className="text-orange-500" />}
+                            </div>
+                            {getStatusBadge(c.ragioneSociale)}
                         </div>
-                        {getStatusBadge(c.ragioneSociale)}
+                        <div className="text-xs text-gray-400">{c.sedeOperativa || c.sedeLegale || '-'}</div>
                     </div>
-                    <div className="text-xs text-gray-400">{c.sedeOperativa || c.sedeLegale || '-'}</div>
-                </div>
-            );
+                );
+            };
 
             return (
                 <div className="animate-fade-in pb-32">
@@ -735,7 +759,6 @@
                  </div>
              )
         };
-
 
         const ClientForm = () => {
             const { clientForm: initialData, saveClient, setView, clients } = useContext(CRMContext);
@@ -832,7 +855,6 @@
         const ClientDetailView = () => {
             const { selectedClient: c, setView, setClientForm, deleteItem, orders, discardClient } = useContext(CRMContext);
             
-            // MODIFICA RICHIESTA: Scroll to top on mount
             useEffect(() => {
                 const mainContainer = document.querySelector('.flex-1.overflow-y-auto');
                 if(mainContainer) mainContainer.scrollTop = 0;
@@ -843,7 +865,14 @@
             const totalOrders = clientOrders.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
             return (
                 <div className="animate-fade-in pb-32">
-                    <div className="flex justify-between items-center mb-6"><button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2"><button onClick={() => { setClientForm(c); setView('createClient'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button><button onClick={async () => { if(confirm("Scartare cliente?")) await discardClient(c.id); }} className="p-2 text-orange-500 bg-orange-50 rounded-full"><Icons.UserMinus size={20}/></button><button onClick={async () => { if(await deleteItem('clients', c.id)) setView('clients'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button></div></div>
+                    <div className="flex justify-between items-center mb-6">
+                        <button onClick={() => setView('clients')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button>
+                        <div className="flex gap-2">
+                            <button onClick={() => { setClientForm(c); setView('createClient'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button>
+                            <button onClick={async () => { if(confirm("Scartare cliente?")) await discardClient(c.id); }} className="p-2 text-orange-500 bg-orange-50 rounded-full"><Icons.UserMinus size={20}/></button>
+                            <button onClick={async () => { if(await deleteItem('clients', c.id)) setView('clients'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button>
+                        </div>
+                    </div>
                     <div className="space-y-6">
                         <div className="bg-white p-6 rounded-2xl shadow-sm border">
                             <h1 className="text-2xl font-bold text-gray-900 mb-1">{c.ragioneSociale}</h1>
@@ -854,7 +883,6 @@
                             </div>
                         </div>
                         
-                        {/* MODIFICA: Pulsanti Report e Ordini spostati QUI, sopra TO-DO Completati */}
                         <div className="grid grid-cols-2 gap-3">
                             <button onClick={() => setView('clientReports')} className="bg-white p-4 rounded-xl border flex flex-col items-center gap-1"><Icons.ClipboardList size={20} className="text-gray-400"/><span className="text-xs font-bold">Report</span></button>
                             <button onClick={() => setView('clientOrders')} className="bg-white p-4 rounded-xl border flex flex-col items-center gap-1"><Icons.ShoppingBag size={20} className="text-blue-500"/><span className="text-xs font-bold">Ordini</span></button>
@@ -886,7 +914,6 @@
                             if(!ct?.nome) return null;
                             return ( <SectionContainer key={idx} title={`Contatto ${idx}`} icon={Icons.Users}><InfoRow label="Nome" value={ct.nome} /><InfoRow label="Mansione" value={ct.mansione} /><InfoRow label="Tel" value={ct.tel} /><InfoRow label="Mail" value={ct.mail} /></SectionContainer> );
                         })}
-                        {/* I pulsanti Report e Ordini sono stati rimossi da qui e spostati in alto */}
                     </div>
                 </div>
             );
@@ -894,7 +921,6 @@
 
         const ReportForm = () => {
             const { reportForm: initialData, saveReport, setView, clients } = useContext(CRMContext);
-            // MODIFICA: Inizializzo nextContactTime con default 09:00 se non presente
             const [formData, setFormData] = useState({ 
                 ...initialData, 
                 nextContactTime: initialData.nextContactTime || "09:00" 
@@ -911,7 +937,6 @@
                             <div><label className="block text-sm font-bold text-gray-700 mb-1">Referente</label><select name="contactRef" value={formData.contactRef} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"><option value="">Seleziona...</option>{availableContacts.map((c, idx) => (<option key={idx} value={c.nome}>{c.nome}</option>))}</select></div>
                         )}
                         <div className="grid grid-cols-2 gap-4"><Input label="Data" type="date" name="date" value={formData.date} onChange={handleChange} required /><TimeWheelPicker value={formData.hours} onChange={(val) => setFormData(prev => ({...prev, hours: val}))} /></div>
-                        {/* MODIFICA: Aggiunto campo Tipo Contatto */}
                         <SelectComponent label="Tipo Contatto" name="contactType" value={formData.contactType} onChange={handleChange} options={contactTypesList} />
                         <SelectComponent label="Categoria" name="category" value={formData.category} onChange={handleChange} options={['MANTENIMENTO RAPPORTO', 'ORDINE', 'RICHIESTA OFFERTA', 'RISCONTRO OFFERTA', 'INIZIO RAPPORTO', 'APPUNTAMENTO', 'ALTRO']} />
                         <TextArea label="Descrizione" name="description" value={formData.description} onChange={handleChange} enableVoice={true} />
@@ -922,7 +947,6 @@
                             </div>
                             <SelectComponent label="Tipo Follow-up" name="followupType" value={formData.followupType} onChange={handleChange} options={['TELEFONATA', 'APPUNTAMENTO']} />
                             <TextArea label="Appunti Futuri" name="futureNotes" value={formData.futureNotes} onChange={handleChange} />
-                            {/* MODIFICA: Aggiunto pulsante Google Calendar nel form */}
                             {formData.nextContactDate && (
                                 <div className="pt-2">
                                     <CalendarButton 
@@ -944,7 +968,6 @@
         const ReportList = () => {
             const { reports, setView, setSelectedReport, setReportForm } = useContext(CRMContext);
             const [search, setSearch] = useState('');
-            // MODIFICA: Ordinamento decrescente per data report e poi per data creazione
             const filtered = reports
                 .filter(r => normalizeForSearch(r.client).includes(normalizeForSearch(search)) || (r.description || '').toLowerCase().includes(search.toLowerCase()))
                 .sort((a, b) => {
@@ -980,7 +1003,6 @@
                     <button onClick={() => { setReportForm(report); setView('create'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button><button onClick={async () => { if(await deleteItem('reports', report.id)) setView(report._returnView || 'list'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button></div></div>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                         <InfoBox label="Cliente" value={report.client} icon={Icons.Users} /><InfoBox label="Data" value={new Date(report.date).toLocaleDateString('it-IT')} icon={Icons.Calendar} />
-                        {/* MODIFICA: Visualizzazione Tipo Contatto */}
                         <InfoBox label="Tipo Contatto" value={report.contactType} icon={Icons.Phone} />
                         <InfoBox label="Categoria" value={report.category} icon={Icons.Target} />
                         <SectionDisplay title="Descrizione" content={report.description} />
@@ -1010,11 +1032,9 @@
             );
         };
 
-        // FIX: Vista Report per Cliente Specifico
         const ClientReportsView = () => {
             const { reports, selectedClient, setView, setSelectedReport } = useContext(CRMContext);
             if(!selectedClient) return null;
-            // MODIFICA: Ordinamento decrescente per data report e poi per data creazione
             const filtered = reports
                 .filter(r => r.client === selectedClient.ragioneSociale)
                 .sort((a, b) => {
@@ -1059,7 +1079,6 @@
         const OrderForm = () => {
             const { orderForm: initialData, saveOrder, setView, clients } = useContext(CRMContext);
             
-            // Initialize with date handling
             const [formData, setFormData] = useState(() => {
                 const defaultDate = initialData.createdAt 
                     ? new Date(initialData.createdAt).toISOString().split('T')[0] 
@@ -1071,7 +1090,6 @@
             
             const handleSubmit = (e) => {
                 e.preventDefault();
-                // Ensure the createdAt timestamp matches the selected date
                 const finalData = {
                     ...formData,
                     createdAt: new Date(formData.dateInput).toISOString() 
@@ -1116,9 +1134,9 @@
 
         const OrdersListView = () => {
             const { orders, setView, setOrderForm } = useContext(CRMContext);
+            const [selectedMonthFilter, setSelectedMonthFilter] = useState(null);
             
             const { groups, grandTotal, sortedMonths } = useMemo(() => {
-                // Modifica ordinamento: per numero ordine decrescente
                 const sorted = [...orders].sort((a, b) => {
                     const valA = a.offerNumber || '';
                     const valB = b.offerNumber || '';
@@ -1147,8 +1165,8 @@
                 return { groups: g, grandTotal: tot, sortedMonths: months };
             }, [orders]);
 
-            // Data for chart
-            const chartData = [...sortedMonths].reverse().map(m => ({ label: m.split(' ')[0].substring(0, 3), value: groups[m].total }));
+            const chartData = [...sortedMonths].reverse().map(m => ({ label: m.split(' ')[0].substring(0, 3), value: groups[m].total, fullMonth: m }));
+            const displayedMonths = selectedMonthFilter ? [selectedMonthFilter] : sortedMonths;
 
             return (
                 <div className="animate-fade-in pb-32">
@@ -1164,11 +1182,11 @@
                         <div className="text-3xl font-bold">€ {grandTotal.toFixed(2)}</div>
                     </div>
 
-                    {chartData.length > 0 && <MonthChart data={chartData} />}
+                    {chartData.length > 0 && <MonthChart data={chartData} onMonthClick={(m) => setSelectedMonthFilter(prev => prev === m ? null : m)} selectedMonth={selectedMonthFilter} />}
 
                     <div className="space-y-6">
-                        {sortedMonths.length === 0 ? <div className="text-center py-10 text-gray-400">Nessun ordine.</div> :
-                        sortedMonths.map(month => (
+                        {displayedMonths.length === 0 ? <div className="text-center py-10 text-gray-400">Nessun ordine.</div> :
+                        displayedMonths.map(month => (
                             <div key={month}>
                                 <div className="flex justify-between items-end mb-2 px-1">
                                     <h3 className="font-bold text-gray-500 uppercase text-sm">{month}</h3>
@@ -1188,7 +1206,6 @@
                                         </div>
                                     ))}
                                 </div>
-                                {/* Totale Mensile Footer */}
                                 <div className="flex justify-end mt-2 mb-4 border-t border-gray-100 pt-2">
                                     <div className="text-sm font-bold text-gray-600">Totale {month}: <span className="text-blue-600">€ {groups[month].total.toFixed(2)}</span></div>
                                 </div>
@@ -1199,15 +1216,14 @@
             );
         };
 
-        // FIX: Vista Ordini per Cliente Specifico
         const ClientOrdersView = () => {
             const { orders, selectedClient, setView, setOrderForm } = useContext(CRMContext);
+            const [selectedMonthFilter, setSelectedMonthFilter] = useState(null);
             
             const { groups, grandTotal, sortedMonths } = useMemo(() => {
                 if (!selectedClient) return { groups: {}, grandTotal: 0, sortedMonths: [] };
                 const filtered = orders.filter(o => o.client === selectedClient.ragioneSociale);
                 
-                // Modifica ordinamento: per numero ordine decrescente
                 const sorted = [...filtered].sort((a, b) => {
                     const valA = a.offerNumber || '';
                     const valB = b.offerNumber || '';
@@ -1238,8 +1254,8 @@
 
             if(!selectedClient) return null;
 
-            // Data for chart
-            const chartData = [...sortedMonths].reverse().map(m => ({ label: m.split(' ')[0].substring(0, 3), value: groups[m].total }));
+            const chartData = [...sortedMonths].reverse().map(m => ({ label: m.split(' ')[0].substring(0, 3), value: groups[m].total, fullMonth: m }));
+            const displayedMonths = selectedMonthFilter ? [selectedMonthFilter] : sortedMonths;
 
             return (
                 <div className="animate-fade-in pb-32">
@@ -1253,11 +1269,11 @@
                         <div className="text-3xl font-bold text-blue-600">€ {grandTotal.toFixed(2)}</div>
                     </div>
 
-                    {chartData.length > 0 && <MonthChart data={chartData} />}
+                    {chartData.length > 0 && <MonthChart data={chartData} onMonthClick={(m) => setSelectedMonthFilter(prev => prev === m ? null : m)} selectedMonth={selectedMonthFilter} />}
 
                     <div className="space-y-6">
-                        {sortedMonths.length === 0 ? <div className="text-center py-10 text-gray-400">Nessun ordine.</div> : 
-                        sortedMonths.map(month => (
+                        {displayedMonths.length === 0 ? <div className="text-center py-10 text-gray-400">Nessun ordine.</div> : 
+                        displayedMonths.map(month => (
                             <div key={month}>
                                 <div className="flex justify-between items-end mb-2 px-1">
                                     <h3 className="font-bold text-gray-500 uppercase text-sm">{month}</h3>
@@ -1277,7 +1293,6 @@
                                         </div>
                                     ))}
                                 </div>
-                                {/* Totale Mensile Footer */}
                                 <div className="flex justify-end mt-2 mb-4 border-t border-gray-100 pt-2">
                                     <div className="text-sm font-bold text-gray-600">Totale {month}: <span className="text-blue-600">€ {groups[month].total.toFixed(2)}</span></div>
                                 </div>
@@ -1301,8 +1316,8 @@
             const [orders, setOrders] = useState([]); 
             const [selectedReport, setSelectedReport] = useState(null);
             const [selectedClient, setSelectedClient] = useState(null);
-            const [selectedFollowup, setSelectedFollowup] = useState(null); // NUOVO STATO
-            const [selectedIdea, setSelectedIdea] = useState(null); // NUOVO STATO
+            const [selectedFollowup, setSelectedFollowup] = useState(null);
+            const [selectedIdea, setSelectedIdea] = useState(null);
             const [reportForm, setReportForm] = useState({});
             const [clientForm, setClientForm] = useState({});
             const [followupForm, setFollowupForm] = useState({});
@@ -1331,13 +1346,11 @@
             const saveItem = async (coll, data) => { const key = userKey.toLowerCase().replace(/\s/g, ''); const id = data.id || String(Date.now()); await setDoc(doc(db, `artifacts/${appId}/users/${key}/${coll}`, id), { ...data, id, createdAt: data.createdAt || new Date().toISOString() }); showMsg('Salvato!'); };
             const deleteItem = async (coll, id) => { if (confirm("Eliminare?")) { const key = userKey.toLowerCase().replace(/\s/g, ''); await deleteDoc(doc(db, `artifacts/${appId}/users/${key}/${coll}`, id)); return true; } return false; };
             const toggleTaskCompletion = async (coll, id, current) => { const key = userKey.toLowerCase().replace(/\s/g, ''); await setDoc(doc(db, `artifacts/${appId}/users/${key}/${coll}`, id), { completed: !current }, { merge: true }); };
-            // NUOVO: funzione per scartare cliente
+            
             const discardClient = async (id) => { const key = userKey.toLowerCase().replace(/\s/g, ''); await updateDoc(doc(db, `artifacts/${appId}/users/${key}/clients`, id), { status: 'discarded' }); showMsg('Cliente scartato'); setView('clients'); };
 
             const handleCleanDuplicates = () => {
                 const groups = [];
-                
-                // Helper for grouping
                 const findDupes = (data, collectionName, keyFn, labelFn) => {
                     const map = {};
                     data.forEach(item => {
@@ -1351,19 +1364,10 @@
                     });
                 };
 
-                // 1. Clienti (Ragione Sociale)
                 findDupes(clients, 'clients', c => normalizeForSearch(c.ragioneSociale), c => c.ragioneSociale);
-
-                // 2. Report (Cliente + Data + Categoria)
                 findDupes(reports, 'reports', r => `${r.client}|${r.date}|${r.category}`, r => `${new Date(r.date).toLocaleDateString()} - ${r.category}`);
-
-                // 3. Ordini (Cliente + Numero o Importo)
                 findDupes(orders, 'orders', o => `${o.client}|${o.offerNumber || o.amount}`, o => `Ordine ${o.offerNumber || ''} - €${o.amount}`);
-
-                // 4. Offerte/Followup (Cliente + Numero)
                 findDupes(followups, 'followups', f => `${f.client}|${f.offerNumber}`, f => `Offerta ${f.offerNumber}`);
-
-                // 5. Idee (Cliente + Testo)
                 findDupes(ideas, 'ideas', i => `${i.client}|${(i.text || '').substring(0, 20)}`, i => i.text);
 
                 if (groups.length > 0) {
@@ -1393,20 +1397,45 @@
                 showMsg('Backup scaricato!');
             };
 
+            const isPopping = useRef(false);
+
+            useEffect(() => {
+                const handlePopState = (e) => {
+                    if (e.state && e.state.view) {
+                        isPopping.current = true;
+                        setView(e.state.view);
+                    }
+                };
+                window.addEventListener('popstate', handlePopState);
+                if (!window.history.state) {
+                    window.history.replaceState({ view: 'dashboard' }, '');
+                }
+                return () => window.removeEventListener('popstate', handlePopState);
+            }, []);
+
+            useEffect(() => {
+                if (isPopping.current) {
+                    isPopping.current = false;
+                    return;
+                }
+                if (view !== (window.history.state?.view)) {
+                    window.history.pushState({ view }, '');
+                }
+            }, [view]);
+
             const contextValue = { 
                 db, userKey, view, setView, clients, reports, followups, ideas, orders,
                 selectedReport, setSelectedReport, selectedClient, setSelectedClient, 
-                selectedFollowup, setSelectedFollowup, selectedIdea, setSelectedIdea, // AGGIUNTI
+                selectedFollowup, setSelectedFollowup, selectedIdea, setSelectedIdea,
                 reportForm, setReportForm, clientForm, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, orderForm, setOrderForm,
-                // MODIFICA: save functions support _returnView
                 saveReport: d => { saveItem('reports', d); setView(d._returnView || 'dashboard'); }, 
                 saveClient: d => { saveItem('clients', d); setView('clients'); }, 
                 saveFollowup: d => { saveItem('followups', d); setView(d._returnView || 'dashboard'); }, 
                 saveIdea: d => { saveItem('ideas', d); setView(d._returnView || 'dashboard'); }, 
                 saveOrder: d => { saveItem('orders', d); setView('ordersList'); },
-                discardClient, // EXPORTED
+                discardClient,
                 deleteItem, toggleTaskCompletion, handleLogout: () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); },
-                fileInputRef, exportToExcel, handleCleanDuplicates, setFollowupForm, setIdeaForm, setReportForm // Added missing export
+                fileInputRef, exportToExcel, handleCleanDuplicates, setFollowupForm, setIdeaForm, setReportForm
             };
 
             if (!isLoggedIn) return ( <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4"><form onSubmit={(e) => { e.preventDefault(); const val = e.target.elements[0].value.trim(); if(val) { localStorage.setItem('crm_user_key', val); setUserKey(val); setIsLoggedIn(true); } }} className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center"><Icons.Lock className="mx-auto mb-4 text-blue-600" size={48}/><h1 className="text-2xl font-bold mb-4">WorkReport CRM</h1><input type="text" placeholder="Chiave Segreta" className="w-full p-4 bg-gray-50 rounded-xl mb-4 text-center font-bold outline-none border focus:border-blue-500"/><button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Accedi</button></form></div> );
@@ -1415,7 +1444,6 @@
                 <CRMContext.Provider value={contextValue}>
                     <div className="min-h-screen bg-gray-100 flex justify-center">
                         <div className="w-full max-w-7xl h-dvh overflow-hidden flex flex-col bg-white sm:shadow-2xl sm:rounded-3xl relative">
-                            {/* MODIFICA: Logica per la barra di scorrimento laterale su liste specifiche */}
                             <div className={`flex-1 overflow-y-auto p-6 ${['clients', 'ordersList', 'list'].includes(view) ? 'custom-scrollbar' : 'scrollbar-hide'}`}>
                                 {view === 'dashboard' && <DashboardView />}
                                 {view === 'todo' && <TodoView />}
@@ -1427,8 +1455,8 @@
                                 {view === 'create' && <ReportForm />}
                                 {view === 'list' && <ReportList />}
                                 {view === 'detail' && <ReportDetailView />}
-                                {view === 'followupDetail' && <FollowupDetailView />} {/* NUOVA VISTA */}
-                                {view === 'ideaDetail' && <IdeaDetailView />} {/* NUOVA VISTA */}
+                                {view === 'followupDetail' && <FollowupDetailView />}
+                                {view === 'ideaDetail' && <IdeaDetailView />}
                                 {view === 'createFollowup' && <FollowupForm />}
                                 {view === 'createOrder' && <OrderForm />}
                                 {view === 'createIdea' && <IdeaForm />}
