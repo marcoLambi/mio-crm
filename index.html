@@ -754,7 +754,7 @@
         };
 
         const FollowupsListView = () => {
-             const { followups, setView, setFollowupForm } = useContext(CRMContext);
+             const { followups, setView, setFollowupForm, setSelectedFollowup } = useContext(CRMContext);
              const totalAmount = useMemo(() => followups.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0), [followups]);
 
              return (
@@ -774,7 +774,7 @@
 
                     <div className="space-y-3">
                         {followups.map(f => (
-                            <div key={f.id} onClick={() => { setFollowupForm(f); setView('createFollowup'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
+                            <div key={f.id} onClick={() => { setSelectedFollowup(f); setView('followupDetail'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <div className="font-bold text-gray-800">{f.client}</div>
