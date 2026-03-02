@@ -1181,6 +1181,16 @@
                         <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
                         <TextArea label="Testo Idea" name="text" value={formData.text} onChange={handleChange} required enableVoice={true} />
                         <Input label="Scadenza" type="date" name="deadline" value={formData.deadline} onChange={handleChange} required />
+                        {formData.deadline && (
+                            <div className="pt-2">
+                                <CalendarButton 
+                                    title={`Idea: ${formData.client || 'Cliente'}`} 
+                                    details={formData.text || ""} 
+                                    date={formData.deadline} 
+                                    time="09:00" 
+                                />
+                            </div>
+                        )}
                         <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView(formData._returnView || 'ideas')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
                     </form>
                 </div>
