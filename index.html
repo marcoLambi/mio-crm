@@ -375,7 +375,7 @@
         // --- SUB-VIEWS ---
 
         const DashboardView = () => {
-            const { clients, reports, followups, ideas, todos, orders, setView, setFollowupForm, setIdeaForm, setTodoForm, setOrderForm, handleLogout, fileInputRef, exportToExcel, handleCleanDuplicates } = useContext(CRMContext);
+            const { clients, reports, followups, ideas, todos, orders, setView, reportForm, setReportForm, setFollowupForm, setIdeaForm, setTodoForm, setOrderForm, handleLogout, fileInputRef, exportToExcel, handleCleanDuplicates } = useContext(CRMContext);
             // MODIFICA: Totale solo per il mese corrente
             const currentMonthTotal = useMemo(() => {
                 const now = new Date();
@@ -404,7 +404,14 @@
                         <div onClick={() => setView('list')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"><Icons.ClipboardList className="text-gray-600 mb-2" size={16}/><div className="text-2xl font-bold">{reports.length}</div><div className="text-[10px] text-gray-400 uppercase font-bold">Report</div></div>
                     </div>
                     <div className="flex flex-col gap-3">
-                        <button onClick={() => setView('create')} className="w-full bg-gray-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Plus size={22} /> Nuovo Report</button>
+                        {reportForm && (reportForm.client || reportForm.description) ? (
+                            <>
+                                <button onClick={() => setView('create')} className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Edit2 size={22} /> Riprendi Report in Corso</button>
+                                <button onClick={() => { setReportForm({}); setView('create'); }} className="w-full bg-gray-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Plus size={22} /> Nuovo Report</button>
+                            </>
+                        ) : (
+                            <button onClick={() => { setReportForm({}); setView('create'); }} className="w-full bg-gray-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Plus size={22} /> Nuovo Report</button>
+                        )}
                         <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="w-full bg-yellow-500 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Plus size={22} /> Nuova Offerta</button>
                         <button onClick={() => { setOrderForm({}); setView('createOrder'); }} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.ShoppingBag size={22} /> Nuovo Ordine</button>
                         <button onClick={() => { setTodoForm({}); setView('createTodo'); }} className="w-full bg-red-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Plus size={22} /> Nuovo TO-DO</button>
@@ -975,11 +982,17 @@
         };
 
         const ReportForm = () => {
-            const { reportForm: initialData, saveReport, setView, clients } = useContext(CRMContext);
+            const { reportForm: initialData, saveReport, setView, clients, setReportForm } = useContext(CRMContext);
+            // MODIFICA: Inizializzo nextContactTime con default 09:00 se non presente
             const [formData, setFormData] = useState({ 
                 ...initialData, 
                 nextContactTime: initialData.nextContactTime || "09:00" 
             });
+
+            useEffect(() => {
+                setReportForm(formData);
+            }, [formData, setReportForm]);
+
             const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
             const selectedClientData = useMemo(() => clients.find(c => c.ragioneSociale === formData.client), [clients, formData.client]);
             const availableContacts = selectedClientData ? [selectedClientData.contact1, selectedClientData.contact2, selectedClientData.contact3, selectedClientData.contact4].filter(c => c?.nome) : [];
@@ -1499,7 +1512,8 @@
                 selectedReport, setSelectedReport, selectedClient, setSelectedClient, 
                 selectedFollowup, setSelectedFollowup, selectedIdea, setSelectedIdea, selectedTodo, setSelectedTodo,
                 reportForm, setReportForm, clientForm, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, orderForm, setOrderForm, todoForm, setTodoForm,
-                saveReport: d => { saveItem('reports', d); setView(d._returnView || 'dashboard'); }, 
+                // MODIFICA: save functions support _returnView
+                saveReport: d => { saveItem('reports', d); setReportForm({}); setView(d._returnView || 'dashboard'); }, 
                 saveClient: d => { saveItem('clients', d); setView('clients'); }, 
                 saveFollowup: d => { saveItem('followups', d); setView(d._returnView || 'dashboard'); }, 
                 saveIdea: d => { saveItem('ideas', d); setView(d._returnView || 'dashboard'); }, 
