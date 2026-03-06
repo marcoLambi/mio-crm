@@ -936,22 +936,36 @@
              const [showInAttesa, setShowInAttesa] = useState(true);
              const [showOrdinate, setShowOrdinate] = useState(false);
              const [showNonOrdinate, setShowNonOrdinate] = useState(false);
+             const [search, setSearch] = useState('');
              
              const linkedOffers = useMemo(() => new Set(orders.map(o => o.linkedOffer).filter(Boolean)), [orders]);
 
              const visibleFollowups = useMemo(() => {
-                 return followups.filter(f => {
+                 const filtered = followups.filter(f => {
                      const isOrdinata = linkedOffers.has(f.offerNumber);
                      const isNonOrdinata = f.status === 'closed_not_ordered';
                      const isInAttesa = !isOrdinata && !isNonOrdinata;
 
-                     if (isOrdinata && showOrdinate) return true;
-                     if (isNonOrdinata && showNonOrdinate) return true;
-                     if (isInAttesa && showInAttesa) return true;
+                     let isStatusMatch = false;
+                     if (isOrdinata && showOrdinate) isStatusMatch = true;
+                     if (isNonOrdinata && showNonOrdinate) isStatusMatch = true;
+                     if (isInAttesa && showInAttesa) isStatusMatch = true;
                      
-                     return false;
+                     if (!isStatusMatch) return false;
+                     
+                     if (search && !normalizeForSearch(f.client).includes(normalizeForSearch(search))) {
+                         return false;
+                     }
+                     
+                     return true;
                  });
-             }, [followups, linkedOffers, showInAttesa, showOrdinate, showNonOrdinate]);
+                 
+                 return filtered.sort((a, b) => {
+                     const d1 = new Date(b.offerDate || b.createdAt || 0).getTime();
+                     const d2 = new Date(a.offerDate || a.createdAt || 0).getTime();
+                     return d1 - d2;
+                 });
+             }, [followups, linkedOffers, showInAttesa, showOrdinate, showNonOrdinate, search]);
 
              const totalAmount = useMemo(() => visibleFollowups.reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0), [visibleFollowups]);
 
@@ -963,6 +977,8 @@
                             <Icons.Plus size={16}/> Nuova
                         </button>
                     </div>
+
+                    <div className="mb-4 relative"><div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><Icons.Search size={18}/></div><input type="text" placeholder="Cerca cliente..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" /></div>
 
                     <div className="flex flex-wrap gap-4 mb-4 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
                         <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer">
@@ -986,7 +1002,7 @@
                     </div>
 
                     <div className="space-y-3">
-                        {visibleFollowups.map(f => (
+                        {visibleFollowups.length === 0 ? <div className="text-center py-10 text-gray-400">Nessuna offerta trovata.</div> : visibleFollowups.map(f => (
                             <div key={f.id} onClick={() => { setSelectedFollowup(f); setView('followupDetail'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
                                 <div className="flex justify-between items-start">
                                     <div>
@@ -995,7 +1011,7 @@
                                             {f.status === 'closed_not_ordered' && <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded uppercase">Non Ordinata</span>}
                                             {linkedOffers.has(f.offerNumber) && <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] rounded uppercase">Ordinata</span>}
                                         </div>
-                                        <div className="text-xs text-gray-500 mt-1">Offerta n. {f.offerNumber}</div>
+                                        <div className="text-xs text-gray-500 mt-1">Offerta n. {f.offerNumber} <span className="mx-1">-</span> {f.offerDate ? new Date(f.offerDate).toLocaleDateString('it-IT') : ''}</div>
                                         <div className="text-xs text-gray-400 mt-0.5">Riscontro: {new Date(f.feedbackDate).toLocaleDateString('it-IT')}</div>
                                     </div>
                                     <div className="text-right">
