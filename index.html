@@ -900,8 +900,8 @@
              const { followups, orders, setView, setFollowupForm, setSelectedFollowup } = useContext(CRMContext);
              
              const [showInAttesa, setShowInAttesa] = useState(true);
-             const [showOrdinate, setShowOrdinate] = useState(true);
-             const [showNonOrdinate, setShowNonOrdinate] = useState(true);
+             const [showOrdinate, setShowOrdinate] = useState(false);
+             const [showNonOrdinate, setShowNonOrdinate] = useState(false);
              
              const linkedOffers = useMemo(() => new Set(orders.map(o => o.linkedOffer).filter(Boolean)), [orders]);
 
