@@ -1438,8 +1438,14 @@
              
              const visibleFollowups = useMemo(() => {
                  const linkedOffers = new Set(orders.map(o => o.linkedOffer).filter(Boolean));
-                 return followups.filter(f => !linkedOffers.has(f.offerNumber));
-             }, [followups, orders]);
+                 return followups.filter(f => {
+                     const isMatchClient = orderForm.client ? f.client === orderForm.client : false;
+                     const isNotOrdered = !linkedOffers.has(f.offerNumber);
+                     const isNotClosed = f.status !== 'closed_not_ordered';
+                     
+                     return isMatchClient && isNotOrdered && isNotClosed;
+                 });
+             }, [followups, orders, orderForm.client]);
 
              return (
                  <div className="animate-fade-in pb-32">
@@ -1448,7 +1454,11 @@
                         <h2 className="text-xl font-bold text-gray-800">Seleziona Offerta per l'Ordine</h2>
                     </div>
                     <div className="space-y-3">
-                        {visibleFollowups.map(f => (
+                        {visibleFollowups.length === 0 ? (
+                            <div className="text-center py-10 text-gray-400">
+                                {orderForm.client ? "Nessuna offerta in attesa trovata per questo cliente." : "Seleziona prima un cliente nell'ordine."}
+                            </div>
+                        ) : visibleFollowups.map(f => (
                             <div key={f.id} onClick={() => { setOrderForm({...orderForm, linkedOffer: f.offerNumber}); setView('createOrder'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
                                 <div className="flex justify-between items-start">
                                     <div>
