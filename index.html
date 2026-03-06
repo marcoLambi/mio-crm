@@ -374,6 +374,72 @@
 
         // --- SUB-VIEWS ---
 
+        const MapView = () => {
+            const { clients, setView } = useContext(CRMContext);
+            const [selected, setSelected] = useState([]);
+            const [search, setSearch] = useState('');
+
+            const filtered = clients
+                .filter(c => !c.status || c.status !== 'discarded')
+                .filter(c => normalizeForSearch(c.ragioneSociale || '').includes(normalizeForSearch(search)) || normalizeForSearch(c.sedeOperativa || c.sedeLegale || '').includes(normalizeForSearch(search)))
+                .sort((a, b) => (a.ragioneSociale || '').localeCompare(b.ragioneSociale || ''));
+
+            const toggleSelect = (c) => {
+                if(selected.find(x => x.id === c.id)) {
+                    setSelected(selected.filter(x => x.id !== c.id));
+                } else {
+                    if(selected.length < 10) setSelected([...selected, c]);
+                    else alert("Puoi selezionare massimo 10 tappe per il percorso Google Maps.");
+                }
+            };
+
+            const openRoute = () => {
+                if(selected.length === 0) return;
+                const addresses = selected.map(c => encodeURIComponent(`${c.ragioneSociale}, ${c.sedeOperativa || c.sedeLegale || ''}`));
+                const dest = addresses.pop();
+                const waypoints = addresses.join('|');
+                let url = `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
+                if(waypoints) url += `&waypoints=${waypoints}`;
+                window.open(url, '_blank');
+            };
+
+            return (
+                <div className="animate-fade-in pb-32">
+                    <div className="flex justify-between items-center mb-6">
+                        <button onClick={() => setView('dashboard')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button>
+                        <h2 className="text-xl font-bold text-gray-800 flex-1 ml-2">Giro Visite</h2>
+                        <button onClick={openRoute} disabled={selected.length === 0} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1 shadow-sm ${selected.length > 0 ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                            <Icons.MapPin size={16}/> Naviga ({selected.length})
+                        </button>
+                    </div>
+                    <div className="mb-4 relative"><div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><Icons.Search size={18}/></div><input type="text" placeholder="Cerca per nome o indirizzo..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" /></div>
+                    
+                    <div className="bg-blue-50 text-blue-800 text-xs p-3 rounded-xl mb-4 border border-blue-100 flex items-start gap-2">
+                        <Icons.MapPin size={16} className="mt-0.5 flex-shrink-0" />
+                        Seleziona in ordine fino a 10 clienti e clicca su "Naviga" per creare il percorso automatico su Google Maps.
+                    </div>
+
+                    <div className="space-y-3">
+                        {filtered.map((c, idx) => {
+                            const selectedIndex = selected.findIndex(x => x.id === c.id);
+                            const isSelected = selectedIndex !== -1;
+                            const hasAddress = c.sedeOperativa || c.sedeLegale;
+                            return (
+                            <div key={c.id} onClick={() => hasAddress && toggleSelect(c)} className={`p-4 rounded-xl shadow-sm border cursor-pointer flex items-center gap-4 transition-all active:scale-[0.98] ${!hasAddress ? 'opacity-50 bg-gray-50' : (isSelected ? 'bg-emerald-50 border-emerald-500' : 'bg-white border-gray-100')}`}>
+                                <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold text-xs ${isSelected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 text-transparent'}`}>
+                                    {isSelected ? selectedIndex + 1 : ''}
+                                </div>
+                                <div className="flex-1">
+                                    <div className="font-bold text-gray-800">{c.ragioneSociale}</div>
+                                    <div className="text-xs text-gray-500 mt-1">{hasAddress ? (c.sedeOperativa || c.sedeLegale) : 'Indirizzo mancante'}</div>
+                                </div>
+                            </div>
+                        )})}
+                    </div>
+                </div>
+            );
+        };
+
         const DashboardView = () => {
             const { clients, reports, followups, ideas, todos, orders, setView, reportForm, setReportForm, setFollowupForm, setIdeaForm, setTodoForm, setOrderForm, handleLogout, fileInputRef, exportToExcel, handleCleanDuplicates } = useContext(CRMContext);
             // MODIFICA: Totale solo per il mese corrente
@@ -415,6 +481,7 @@
                         <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="w-full bg-yellow-500 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Plus size={22} /> Nuova Offerta</button>
                         <button onClick={() => { setOrderForm({}); setView('createOrder'); }} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.ShoppingBag size={22} /> Nuovo Ordine</button>
                         <button onClick={() => { setTodoForm({}); setView('createTodo'); }} className="w-full bg-red-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Plus size={22} /> Nuovo TO-DO</button>
+                        <button onClick={() => setView('map')} className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.MapPin size={22} /> Giro Visite (Mappa)</button>
                     </div>
                     <div className="grid grid-cols-2 gap-3 mt-4">
                         <input type="file" ref={fileInputRef} className="hidden" onChange={() => showMsg('Importazione...')} />
@@ -522,7 +589,7 @@
         };
         
         const FollowupDetailView = () => {
-             const { selectedFollowup: item, setView, setFollowupForm, deleteItem, toggleTaskCompletion } = useContext(CRMContext);
+             const { selectedFollowup: item, setView, setFollowupForm, deleteItem, toggleTaskCompletion, closeOffer } = useContext(CRMContext);
              if (!item) return null;
              return (
                  <div className="animate-fade-in pb-32">
@@ -530,11 +597,17 @@
                         <button onClick={() => setView(item._returnView || 'followupsList')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button>
                         <div className="flex gap-2">
                             <button onClick={() => { toggleTaskCompletion('followups', item.id, item.completed); setView(item._returnView || 'followupsList'); }} className="p-2 text-green-600 bg-green-50 rounded-full"><Icons.Check size={20}/></button>
+                            <button onClick={async () => { if(confirm("Chiudere questa offerta come NON ordinata?")) { await closeOffer(item.id); setView(item._returnView || 'followupsList'); } }} className="p-2 text-gray-600 bg-gray-100 rounded-full" title="Chiudi Offerta"><Icons.X size={20}/></button>
                             <button onClick={() => { setFollowupForm(item); setView('createFollowup'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button>
                             <button onClick={async () => { if(await deleteItem('followups', item.id)) setView(item._returnView || 'followupsList'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button>
                         </div>
                      </div>
                      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                        {item.status === 'closed_not_ordered' && (
+                             <div className="bg-gray-100 text-gray-600 p-3 rounded-xl text-sm font-bold flex items-center gap-2">
+                                 <Icons.X size={18} /> Offerta Chiusa (Non Ordinata)
+                             </div>
+                        )}
                         <InfoBox label="Cliente" value={item.client} icon={Icons.Users} />
                         <InfoBox label="N. Offerta" value={item.offerNumber} icon={Icons.FileText} />
                         <InfoBox label="Importo" value={`€ ${parseFloat(item.amount).toFixed(2)}`} icon={Icons.CreditCard} />
@@ -603,7 +676,7 @@
 
 
         const StatsView = () => {
-            const { reports, orders } = useContext(CRMContext);
+            const { reports, orders, followups } = useContext(CRMContext);
             const [sortBy, setSortBy] = useState('orders'); // 'orders', 'hours', 'commissions'
 
             const data = useMemo(() => {
@@ -628,10 +701,35 @@
             const maxHours = Math.max(...data.map(d => d.hours), 1);
             const maxCommissions = Math.max(...data.map(d => d.commissions), 1);
 
+            const totalOfferte = followups.length;
+            const importoOfferte = followups.reduce((acc, f) => acc + (parseFloat(f.amount) || 0), 0);
+            const totalOrdini = orders.length;
+            const importoOrdini = orders.reduce((acc, o) => acc + (parseFloat(o.amount) || 0), 0);
+            const conversionRate = totalOfferte > 0 ? ((totalOrdini / totalOfferte) * 100).toFixed(1) : 0;
+
             return (
                 <div className="animate-fade-in pb-32">
                     <h1 className="text-2xl font-bold mb-6">Situazione</h1>
                     
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                        <h2 className="text-sm font-bold text-gray-500 uppercase mb-4 flex items-center gap-2"><Icons.Target size={16}/> Funnel di Vendita</h2>
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-xl">
+                                <div><div className="text-xs text-yellow-600 font-bold uppercase">Offerte Fatte</div><div className="text-lg font-bold text-yellow-700">{totalOfferte}</div></div>
+                                <div className="text-right"><div className="text-xs text-yellow-600 font-bold uppercase">Valore</div><div className="text-lg font-bold text-yellow-700">€{importoOfferte.toFixed(2)}</div></div>
+                            </div>
+                            <div className="flex justify-center"><Icons.ArrowUpDown size={20} className="text-gray-300" /></div>
+                            <div className="flex justify-between items-center p-3 bg-blue-50 rounded-xl">
+                                <div><div className="text-xs text-blue-600 font-bold uppercase">Ordini Chiusi</div><div className="text-lg font-bold text-blue-700">{totalOrdini}</div></div>
+                                <div className="text-right"><div className="text-xs text-blue-600 font-bold uppercase">Valore</div><div className="text-lg font-bold text-blue-700">€{importoOrdini.toFixed(2)}</div></div>
+                            </div>
+                            <div className="pt-3 border-t mt-3 flex justify-between items-center">
+                                <span className="text-sm font-bold text-gray-600">Tasso Conversione (Q.tà)</span>
+                                <span className="text-xl font-bold text-emerald-600">{conversionRate}%</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
                          <button onClick={() => setSortBy('orders')} className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap ${sortBy === 'orders' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border'}`}>Ordini</button>
                          <button onClick={() => setSortBy('hours')} className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap ${sortBy === 'hours' ? 'bg-purple-600 text-white' : 'bg-white text-gray-600 border'}`}>Ore</button>
@@ -784,12 +882,15 @@
                             <div key={f.id} onClick={() => { setSelectedFollowup(f); setView('followupDetail'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <div className="font-bold text-gray-800">{f.client}</div>
+                                        <div className="font-bold text-gray-800 flex items-center gap-2">
+                                            {f.client}
+                                            {f.status === 'closed_not_ordered' && <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded uppercase">Non Ordinata</span>}
+                                        </div>
                                         <div className="text-xs text-gray-500 mt-1">Offerta n. {f.offerNumber}</div>
                                         <div className="text-xs text-gray-400 mt-0.5">Riscontro: {new Date(f.feedbackDate).toLocaleDateString('it-IT')}</div>
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-lg font-bold text-yellow-600">€ {parseFloat(f.amount).toFixed(2)}</div>
+                                        <div className={`text-lg font-bold ${f.status === 'closed_not_ordered' ? 'text-gray-400' : 'text-yellow-600'}`}>€ {parseFloat(f.amount).toFixed(2)}</div>
                                     </div>
                                 </div>
                             </div>
@@ -983,7 +1084,6 @@
 
         const ReportForm = () => {
             const { reportForm: initialData, saveReport, setView, clients, setReportForm } = useContext(CRMContext);
-            // MODIFICA: Inizializzo nextContactTime con default 09:00 se non presente
             const [formData, setFormData] = useState({ 
                 ...initialData, 
                 nextContactTime: initialData.nextContactTime || "09:00" 
@@ -1071,7 +1171,7 @@
                     <button onClick={() => { setReportForm(report); setView('create'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button><button onClick={async () => { if(await deleteItem('reports', report.id)) setView(report._returnView || 'list'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button></div></div>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                         <InfoBox label="Cliente" value={report.client} icon={Icons.Users} /><InfoBox label="Data" value={new Date(report.date).toLocaleDateString('it-IT')} icon={Icons.Calendar} />
-                        {/* MODIFICA: Visualizzazione Tipo Contatto */}
+                        <InfoBox label="Tipo Contatto" value={report.contactType} icon={Icons.Phone} />
                         <InfoBox label="Categoria" value={report.category} icon={Icons.Target} />
                         <SectionDisplay title="Descrizione" content={report.description} />
                         <SectionContainer title="Follow-up" icon={Icons.AlarmCheck}>
@@ -1174,6 +1274,10 @@
                         <div className="grid grid-cols-2 gap-4">
                             <Input label="Data" type="date" name="dateInput" value={formData.dateInput} onChange={handleChange} required />
                             <Input label="N. Ordine" name="offerNumber" value={formData.offerNumber} onChange={handleChange} required />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input label="N. Offerta (Rif.)" name="linkedOffer" value={formData.linkedOffer} onChange={handleChange} />
+                            <SelectComponent label="Tipo Ordine" name="orderType" value={formData.orderType} onChange={handleChange} options={['Totale', 'Parziale']} />
                         </div>
                         <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required />
                         <Input label="Provvigione (€)" type="number" step="0.01" name="commission" value={formData.commission} onChange={handleChange} required />
@@ -1280,7 +1384,13 @@
                                                     {o.commission > 0 && <div className="text-[10px] text-gray-400 font-normal">Provv. €{parseFloat(o.commission).toFixed(2)}</div>}
                                                 </div>
                                             </div>
-                                            <div className="text-xs text-gray-500 mt-1">Ordine: {o.offerNumber} - {new Date(o.createdAt).toLocaleDateString('it-IT')}</div>
+                                            <div className="text-xs text-gray-500 mt-1">
+                                                Ordine: {o.offerNumber} 
+                                                {o.linkedOffer && ` | Offerta Rif: ${o.linkedOffer}`}
+                                                {o.orderType && ` (${o.orderType})`}
+                                                <span className="mx-1">-</span> 
+                                                {new Date(o.createdAt).toLocaleDateString('it-IT')}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -1367,7 +1477,11 @@
                                                     {o.commission > 0 && <div className="text-[10px] text-gray-400 font-normal">Provv. €{parseFloat(o.commission).toFixed(2)}</div>}
                                                 </div>
                                             </div>
-                                            <div className="text-xs text-gray-500 mt-1">Ordine: {o.offerNumber}</div>
+                                            <div className="text-xs text-gray-500 mt-1">
+                                                Ordine: {o.offerNumber}
+                                                {o.linkedOffer && ` | Offerta Rif: ${o.linkedOffer}`}
+                                                {o.orderType && ` (${o.orderType})`}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -1430,6 +1544,9 @@
             const toggleTaskCompletion = async (coll, id, current) => { const key = userKey.toLowerCase().replace(/\s/g, ''); await setDoc(doc(db, `artifacts/${appId}/users/${key}/${coll}`, id), { completed: !current }, { merge: true }); };
             
             const discardClient = async (id) => { const key = userKey.toLowerCase().replace(/\s/g, ''); await updateDoc(doc(db, `artifacts/${appId}/users/${key}/clients`, id), { status: 'discarded' }); showMsg('Cliente scartato'); setView('clients'); };
+            
+            // Nuova funzione per chiudere l'offerta come NON ordinata
+            const closeOffer = async (id) => { const key = userKey.toLowerCase().replace(/\s/g, ''); await updateDoc(doc(db, `artifacts/${appId}/users/${key}/followups`, id), { status: 'closed_not_ordered', completed: true }); showMsg('Offerta chiusa (Non ordinata)'); };
 
             const handleCleanDuplicates = () => {
                 const groups = [];
@@ -1512,14 +1629,13 @@
                 selectedReport, setSelectedReport, selectedClient, setSelectedClient, 
                 selectedFollowup, setSelectedFollowup, selectedIdea, setSelectedIdea, selectedTodo, setSelectedTodo,
                 reportForm, setReportForm, clientForm, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, orderForm, setOrderForm, todoForm, setTodoForm,
-                // MODIFICA: save functions support _returnView
                 saveReport: d => { saveItem('reports', d); setReportForm({}); setView(d._returnView || 'dashboard'); }, 
                 saveClient: d => { saveItem('clients', d); setView('clients'); }, 
                 saveFollowup: d => { saveItem('followups', d); setView(d._returnView || 'dashboard'); }, 
                 saveIdea: d => { saveItem('ideas', d); setView(d._returnView || 'dashboard'); }, 
                 saveOrder: d => { saveItem('orders', d); setView('ordersList'); },
                 saveTodo: d => { saveItem('todos', d); setView(d._returnView || 'todo'); },
-                discardClient,
+                discardClient, closeOffer,
                 deleteItem, toggleTaskCompletion, handleLogout: () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); },
                 fileInputRef, exportToExcel, handleCleanDuplicates, setFollowupForm, setIdeaForm, setReportForm, setTodoForm
             };
@@ -1553,6 +1669,7 @@
                                 {view === 'clientReports' && <ClientReportsView />}
                                 {view === 'followupsList' && <FollowupsListView />}
                                 {view === 'ideasList' && <IdeasListView />}
+                                {view === 'map' && <MapView />}
                             </div>
                             <nav className="border-t p-3 bg-white flex justify-around">
                                 {[{ id: 'dashboard', icon: Icons.LayoutDashboard, label: 'Home' }, { id: 'todo', icon: Icons.CheckSquare, label: 'TO-DO' }, { id: 'stats', icon: Icons.BarChart, label: 'Situazione' }, { id: 'clients', icon: Icons.Users, label: 'Clienti' }].map(item => (<button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 transition-colors ${view === item.id || (view.startsWith('client') && item.id === 'clients') ? 'text-blue-600' : 'text-gray-400'}`}><item.icon size={24} /><span className="text-[10px] font-bold">{item.label}</span></button>))}
