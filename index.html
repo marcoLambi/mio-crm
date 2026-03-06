@@ -683,11 +683,23 @@
 
             const data = useMemo(() => {
                 const map = {};
-                reports.forEach(r => { if(!map[r.client]) map[r.client] = { orders: 0, hours: 0, commissions: 0 }; map[r.client].hours += parseFloat(r.hours || 0); });
+                const initClient = (name) => {
+                    if(!map[name]) map[name] = { orders: 0, hours: 0, commissions: 0, offerteFatte: 0, ordiniChiusi: 0, offerteRifiutate: 0 };
+                };
+
+                reports.forEach(r => { initClient(r.client); map[r.client].hours += parseFloat(r.hours || 0); });
                 orders.forEach(o => { 
-                    if(!map[o.client]) map[o.client] = { orders: 0, hours: 0, commissions: 0 }; 
+                    initClient(o.client); 
                     map[o.client].orders += parseFloat(o.amount || 0); 
                     map[o.client].commissions += parseFloat(o.commission || 0);
+                    map[o.client].ordiniChiusi += 1;
+                });
+                followups.forEach(f => {
+                    initClient(f.client);
+                    map[f.client].offerteFatte += 1;
+                    if (f.status === 'closed_not_ordered') {
+                        map[f.client].offerteRifiutate += 1;
+                    }
                 });
                 
                 let arr = Object.entries(map).map(([name, v]) => ({ name, ...v }));
@@ -697,7 +709,7 @@
                 else if (sortBy === 'commissions') arr = arr.sort((a,b) => b.commissions - a.commissions);
 
                 return arr;
-            }, [reports, orders, sortBy]);
+            }, [reports, orders, followups, sortBy]);
 
             const maxOrders = Math.max(...data.map(d => d.orders), 1);
             const maxHours = Math.max(...data.map(d => d.hours), 1);
@@ -775,7 +787,10 @@
                     </div>
 
                     <div className="space-y-4">
-                        {data.map(item => (
+                        {data.map(item => {
+                            const convRate = item.offerteFatte > 0 ? Math.min((item.ordiniChiusi / item.offerteFatte) * 100, 100) : 0;
+                            const rejRate = item.offerteFatte > 0 ? Math.min((item.offerteRifiutate / item.offerteFatte) * 100, 100) : 0;
+                            return (
                             <div key={item.name} className="bg-white p-4 rounded-xl border border-gray-100">
                                 <div className="font-bold text-gray-800 mb-2">{item.name}</div>
                                 
@@ -799,8 +814,27 @@
                                         <div className="h-full bg-yellow-500 rounded-full" style={{width: `${(item.commissions / maxCommissions) * 100}%`}}></div>
                                     </div>
                                 </div>
+
+                                <div className="mt-3 pt-3 border-t border-gray-50 space-y-2">
+                                    <div>
+                                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                            <span>Offerte Accettate</span>
+                                        </div>
+                                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-emerald-500 rounded-full" style={{width: `${convRate}%`}}></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                            <span>Offerte Rifiutate</span>
+                                        </div>
+                                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-red-500 rounded-full" style={{width: `${rejRate}%`}}></div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        ))}
+                        )})}
                     </div>
                 </div>
             );
