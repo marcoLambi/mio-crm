@@ -459,36 +459,36 @@
             return (
                 <div className="space-y-6 animate-fade-in pb-32">
                     <header><h1 className="text-2xl font-bold text-gray-800">Dashboard</h1></header>
-                    <div onClick={() => setView('ordersList')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center cursor-pointer active:scale-95 transition-transform">
-                        <div className="flex items-center space-x-2 text-blue-600"><Icons.ShoppingBag size={24} /><span className="text-xs font-bold uppercase text-gray-400">Totale Ordini Mese</span></div>
+                    <div onClick={() => setView('ordersList')} className="bg-gray-100 p-5 rounded-2xl shadow-lg border border-gray-200 flex justify-between items-center cursor-pointer active:scale-95 transition-transform">
+                        <div className="flex items-center space-x-2 text-blue-600"><Icons.ShoppingBag size={24} /><span className="text-xs font-bold uppercase text-gray-500">Totale Ordini Mese</span></div>
                         <div className="text-3xl font-bold text-gray-800">€ {currentMonthTotal.toFixed(2)}</div>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div onClick={() => setView('clients')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"><Icons.Users className="text-blue-600 mb-2" size={16}/><div className="text-2xl font-bold">{clients.length}</div><div className="text-[10px] text-gray-400 uppercase font-bold">Clienti</div></div>
-                        <div onClick={() => setView('followupsList')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"><Icons.Target className="text-yellow-600 mb-2" size={16}/><div className="text-2xl font-bold">{followups.filter(f => !orders.some(o => o.linkedOffer === f.offerNumber)).length}</div><div className="text-[10px] text-gray-400 uppercase font-bold">Offerte</div></div>
-                        <div onClick={() => setView('todo')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"><Icons.CheckSquare className="text-red-600 mb-2" size={16}/><div className="text-2xl font-bold">{ideas.length + todos.length}</div><div className="text-[10px] text-gray-400 uppercase font-bold">TO-DO</div></div>
-                        <div onClick={() => setView('list')} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-95 transition-transform"><Icons.ClipboardList className="text-gray-600 mb-2" size={16}/><div className="text-2xl font-bold">{reports.length}</div><div className="text-[10px] text-gray-400 uppercase font-bold">Report</div></div>
+                        <div onClick={() => setView('clients')} className="bg-gray-100 p-5 rounded-2xl shadow-lg border border-gray-200 cursor-pointer active:scale-95 transition-transform"><Icons.Users className="text-blue-600 mb-2" size={16}/><div className="text-2xl font-bold">{clients.length}</div><div className="text-[10px] text-gray-500 uppercase font-bold">Clienti</div></div>
+                        <div onClick={() => setView('followupsList')} className="bg-gray-100 p-5 rounded-2xl shadow-lg border border-gray-200 cursor-pointer active:scale-95 transition-transform"><Icons.Target className="text-yellow-600 mb-2" size={16}/><div className="text-2xl font-bold">{followups.filter(f => !orders.some(o => o.linkedOffer === f.offerNumber)).length}</div><div className="text-[10px] text-gray-500 uppercase font-bold">Offerte</div></div>
+                        <div onClick={() => setView('todo')} className="bg-gray-100 p-5 rounded-2xl shadow-lg border border-gray-200 cursor-pointer active:scale-95 transition-transform"><Icons.CheckSquare className="text-red-600 mb-2" size={16}/><div className="text-2xl font-bold">{ideas.length + todos.length}</div><div className="text-[10px] text-gray-500 uppercase font-bold">TO-DO</div></div>
+                        <div onClick={() => setView('list')} className="bg-gray-100 p-5 rounded-2xl shadow-lg border border-gray-200 cursor-pointer active:scale-95 transition-transform"><Icons.ClipboardList className="text-gray-600 mb-2" size={16}/><div className="text-2xl font-bold">{reports.length}</div><div className="text-[10px] text-gray-500 uppercase font-bold">Report</div></div>
                     </div>
                     <div className="flex flex-col gap-3">
                         {reportForm && (reportForm.client || reportForm.description) ? (
                             <>
-                                <button onClick={() => setView('create')} className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Edit2 size={22} /> Riprendi Report in Corso</button>
-                                <button onClick={() => { setReportForm({}); setView('create'); }} className="w-full bg-gray-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Plus size={22} /> Nuovo Report</button>
+                                <button onClick={() => setView('create')} className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.Edit2 size={22} /> Riprendi Report in Corso</button>
+                                <button onClick={() => { setReportForm({}); setView('create'); }} className="w-full bg-gray-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.Plus size={22} /> Nuovo Report</button>
                             </>
                         ) : (
-                            <button onClick={() => { setReportForm({}); setView('create'); }} className="w-full bg-gray-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Plus size={22} /> Nuovo Report</button>
+                            <button onClick={() => { setReportForm({}); setView('create'); }} className="w-full bg-gray-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.Plus size={22} /> Nuovo Report</button>
                         )}
-                        <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="w-full bg-yellow-500 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Plus size={22} /> Nuova Offerta</button>
-                        <button onClick={() => { setOrderForm({}); setView('createOrder'); }} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.ShoppingBag size={22} /> Nuovo Ordine</button>
-                        <button onClick={() => { setTodoForm({}); setView('createTodo'); }} className="w-full bg-red-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.Plus size={22} /> Nuovo TO-DO</button>
-                        <button onClick={() => setView('map')} className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg"><Icons.MapPin size={22} /> Giro Visite (Mappa)</button>
+                        <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="w-full bg-yellow-500 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.Plus size={22} /> Nuova Offerta</button>
+                        <button onClick={() => { setOrderForm({}); setView('createOrder'); }} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.ShoppingBag size={22} /> Nuovo Ordine</button>
+                        <button onClick={() => { setTodoForm({}); setView('createTodo'); }} className="w-full bg-red-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.Plus size={22} /> Nuovo TO-DO</button>
+                        <button onClick={() => setView('map')} className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.MapPin size={22} /> Giro Visite (Mappa)</button>
                     </div>
                     <div className="grid grid-cols-2 gap-3 mt-4">
                         <input type="file" ref={fileInputRef} className="hidden" onChange={() => showMsg('Importazione...')} />
-                        <button onClick={() => fileInputRef.current?.click()} className="p-3 bg-blue-50 text-blue-600 rounded-xl font-bold text-xs flex items-center justify-center gap-2"><Icons.Upload size={14}/> Importa</button>
-                        <button onClick={exportToExcel} className="p-3 bg-green-50 text-green-600 rounded-xl font-bold text-xs flex items-center justify-center gap-2"><Icons.Download size={14}/> Backup</button>
-                        <button onClick={handleCleanDuplicates} className="p-3 bg-purple-50 text-purple-600 rounded-xl font-bold text-xs flex items-center justify-center gap-2"><Icons.Trash2 size={14}/> Pulisci</button>
-                        <button onClick={handleLogout} className="p-3 bg-red-50 text-red-600 rounded-xl font-bold text-xs flex items-center justify-center gap-2"><Icons.LogOut size={14}/> Esci</button>
+                        <button onClick={() => fileInputRef.current?.click()} className="p-3 bg-blue-50 text-blue-600 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md"><Icons.Upload size={14}/> Importa</button>
+                        <button onClick={exportToExcel} className="p-3 bg-green-50 text-green-600 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md"><Icons.Download size={14}/> Backup</button>
+                        <button onClick={handleCleanDuplicates} className="p-3 bg-purple-50 text-purple-600 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md"><Icons.Trash2 size={14}/> Pulisci</button>
+                        <button onClick={handleLogout} className="p-3 bg-red-50 text-red-600 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md"><Icons.LogOut size={14}/> Esci</button>
                     </div>
                 </div>
             );
@@ -1407,7 +1407,7 @@
         };
 
         const OrderForm = () => {
-            const { orderForm: initialData, saveOrder, setView, clients, setOrderForm } = useContext(CRMContext);
+            const { orderForm: initialData, saveOrder, setView, clients, setOrderForm, setFollowupForm } = useContext(CRMContext);
             
             const [formData, setFormData] = useState(() => {
                 const defaultDate = initialData.createdAt 
@@ -1441,12 +1441,23 @@
                             <div>
                                 <div className="flex justify-between items-center mb-1">
                                     <label className="block text-sm font-bold text-gray-700">N. Offerta (Rif.)</label>
-                                    <div className="flex items-center gap-1">
-                                        <input type="checkbox" id="isBanco" name="isBanco" checked={formData.isBanco || false} onChange={(e) => setFormData(p => ({ ...p, isBanco: e.target.checked, linkedOffer: e.target.checked ? '' : p.linkedOffer, orderType: e.target.checked ? 'Totale' : p.orderType }))} className="w-4 h-4 accent-blue-600 cursor-pointer" />
-                                        <label htmlFor="isBanco" className="text-xs font-bold text-gray-600 cursor-pointer uppercase">Banco</label>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1">
+                                            <input type="checkbox" id="isNoleggio" name="isNoleggio" checked={formData.isNoleggio || false} onChange={(e) => setFormData(p => ({ ...p, isNoleggio: e.target.checked }))} className="w-4 h-4 accent-purple-600 cursor-pointer" />
+                                            <label htmlFor="isNoleggio" className="text-xs font-bold text-gray-600 cursor-pointer uppercase">Noleggio</label>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <input type="checkbox" id="isBanco" name="isBanco" checked={formData.isBanco || false} onChange={(e) => setFormData(p => ({ ...p, isBanco: e.target.checked, linkedOffer: e.target.checked ? '' : p.linkedOffer, orderType: e.target.checked ? 'Totale' : p.orderType }))} className="w-4 h-4 accent-blue-600 cursor-pointer" />
+                                            <label htmlFor="isBanco" className="text-xs font-bold text-gray-600 cursor-pointer uppercase">Banco</label>
+                                        </div>
                                     </div>
                                 </div>
                                 <input type="text" readOnly disabled={formData.isBanco} onClick={() => { if(!formData.isBanco){ setOrderForm(formData); setView('selectOfferForOrder'); } }} value={formData.isBanco ? 'BANCO' : (formData.linkedOffer || '')} placeholder="Seleziona..." className={`w-full p-3 border border-gray-200 rounded-xl outline-none transition-shadow ${formData.isBanco ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-gray-50 cursor-pointer text-blue-600 font-bold focus:ring-2 focus:ring-blue-500'}`} />
+                                {!formData.isBanco && (
+                                    <button type="button" onClick={() => { setOrderForm(formData); setFollowupForm({ client: formData.client, _returnView: 'createOrder' }); setView('createFollowup'); }} className="mt-2 text-xs font-bold text-yellow-600 flex items-center gap-1 active:scale-95 transition-transform">
+                                        <Icons.Plus size={14} /> Crea nuova offerta
+                                    </button>
+                                )}
                             </div>
                             <SelectComponent label="Tipo Ordine" name="orderType" value={formData.orderType} onChange={handleChange} options={formData.isBanco ? ['Totale'] : ['Totale', 'Parziale']} />
                         </div>
