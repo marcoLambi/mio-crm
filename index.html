@@ -1877,7 +1877,17 @@
                 saveClient: d => { saveItem('clients', d); setView('clients'); }, 
                 saveFollowup: d => { saveItem('followups', d); setView(d._returnView || 'dashboard'); }, 
                 saveIdea: d => { saveItem('ideas', d); setView(d._returnView || 'dashboard'); }, 
-                saveOrder: d => { saveItem('orders', d); setView('ordersList'); },
+                saveOrder: async (d) => { 
+                    saveItem('orders', d); 
+                    if (d.linkedOffer && !d.isBanco) {
+                        const offer = followups.find(f => f.offerNumber === d.linkedOffer);
+                        if (offer && !offer.completed) {
+                            const key = userKey.toLowerCase().replace(/\s/g, '');
+                            await setDoc(doc(db, `artifacts/${appId}/users/${key}/followups`, offer.id), { completed: true }, { merge: true });
+                        }
+                    }
+                    setView('ordersList'); 
+                },
                 saveTodo: d => { saveItem('todos', d); setView(d._returnView || 'todo'); },
                 discardClient, closeOffer,
                 deleteItem, toggleTaskCompletion, handleLogout: () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); },
