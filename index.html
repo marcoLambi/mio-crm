@@ -990,16 +990,22 @@
                      
                      if (!isStatusMatch) return false;
                      
-                     if (search && !normalizeForSearch(f.client).includes(normalizeForSearch(search))) {
-                         return false;
+                     if (search) {
+                         const s = normalizeForSearch(search);
+                         const matchClient = normalizeForSearch(String(f.client || '')).includes(s);
+                         const matchOffer = normalizeForSearch(String(f.offerNumber || '')).includes(s);
+                         const matchNotes = normalizeForSearch(String(f.notes || '')).includes(s);
+                         if (!matchClient && !matchOffer && !matchNotes) {
+                             return false;
+                         }
                      }
                      
                      return true;
                  });
                  
                  return filtered.sort((a, b) => {
-                     const valA = a.offerNumber || '';
-                     const valB = b.offerNumber || '';
+                     const valA = String(a.offerNumber || '');
+                     const valB = String(b.offerNumber || '');
                      return valB.localeCompare(valA, undefined, { numeric: true, sensitivity: 'base' });
                  });
              }, [followups, linkedOffers, showInAttesa, showOrdinate, showNonOrdinate, search]);
@@ -1031,7 +1037,10 @@
              }, [visibleFollowups]);
 
              const chartData = [...sortedMonths].reverse().map(m => ({ label: m.split(' ')[0].substring(0, 3), value: groups[m].total, fullMonth: m }));
-             const displayedMonths = selectedMonthFilter ? [selectedMonthFilter] : sortedMonths;
+             
+             const displayedMonths = selectedMonthFilter 
+                 ? (groups[selectedMonthFilter] ? [selectedMonthFilter] : []) 
+                 : sortedMonths;
 
              return (
                  <div className="animate-fade-in pb-32">
@@ -1042,7 +1051,7 @@
                         </button>
                     </div>
 
-                    <div className="mb-4 relative"><div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><Icons.Search size={18}/></div><input type="text" placeholder="Cerca cliente..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" /></div>
+                    <div className="mb-4 relative"><div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><Icons.Search size={18}/></div><input type="text" placeholder="Cerca cliente, numero, note..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" /></div>
 
                     <div className="flex flex-wrap gap-4 mb-4 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
                         <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer">
