@@ -1563,21 +1563,21 @@
         const SelectOfferForOrderView = () => {
              const { followups, orders, setView, orderForm, setOrderForm } = useContext(CRMContext);
              
+             const linkedOffers = useMemo(() => new Set(orders.map(o => o.linkedOffer).filter(Boolean)), [orders]);
+
              const visibleFollowups = useMemo(() => {
-                 const linkedOffers = new Set(orders.map(o => o.linkedOffer).filter(Boolean));
                  const filtered = followups.filter(f => {
                      const isMatchClient = orderForm.client ? f.client === orderForm.client : false;
-                     const isNotOrdered = !linkedOffers.has(f.offerNumber);
                      const isNotClosed = f.status !== 'closed_not_ordered';
                      
-                     return isMatchClient && isNotOrdered && isNotClosed;
+                     return isMatchClient && isNotClosed;
                  });
                  return filtered.sort((a, b) => {
                      const valA = a.offerNumber || '';
                      const valB = b.offerNumber || '';
                      return valB.localeCompare(valA, undefined, { numeric: true, sensitivity: 'base' });
                  });
-             }, [followups, orders, orderForm.client]);
+             }, [followups, orderForm.client]);
 
              return (
                  <div className="animate-fade-in pb-32">
@@ -1588,7 +1588,7 @@
                     <div className="space-y-3">
                         {visibleFollowups.length === 0 ? (
                             <div className="text-center py-10 text-gray-400">
-                                {orderForm.client ? "Nessuna offerta in attesa trovata per questo cliente." : "Seleziona prima un cliente nell'ordine."}
+                                {orderForm.client ? "Nessuna offerta trovata per questo cliente." : "Seleziona prima un cliente nell'ordine."}
                             </div>
                         ) : visibleFollowups.map(f => (
                             <div key={f.id} onClick={() => { setOrderForm({...orderForm, linkedOffer: f.offerNumber}); setView('createOrder'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
@@ -1597,6 +1597,7 @@
                                         <div className="font-bold text-gray-800 flex items-center gap-2">
                                             {f.client}
                                             {f.status === 'closed_not_ordered' && <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] rounded uppercase">Non Ordinata</span>}
+                                            {linkedOffers.has(f.offerNumber) && <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[10px] rounded uppercase">Ordinata</span>}
                                         </div>
                                         <div className="text-xs text-gray-500 mt-1">Offerta n. {f.offerNumber}</div>
                                         <div className="text-xs text-gray-400 mt-0.5">Riscontro: {new Date(f.feedbackDate).toLocaleDateString('it-IT')}</div>
@@ -1615,9 +1616,19 @@
         const OrdersListView = () => {
             const { orders, setView, setOrderForm } = useContext(CRMContext);
             const [selectedMonthFilter, setSelectedMonthFilter] = useState(null);
+            const [search, setSearch] = useState('');
             
             const { groups, grandTotal, sortedMonths } = useMemo(() => {
-                const sorted = [...orders].sort((a, b) => {
+                const filteredOrders = orders.filter(o => {
+                    if (!search) return true;
+                    const s = normalizeForSearch(search);
+                    const matchClient = normalizeForSearch(String(o.client || '')).includes(s);
+                    const matchOffer = normalizeForSearch(String(o.offerNumber || '')).includes(s);
+                    const matchLinkedOffer = normalizeForSearch(String(o.linkedOffer || '')).includes(s);
+                    return matchClient || matchOffer || matchLinkedOffer;
+                });
+
+                const sorted = [...filteredOrders].sort((a, b) => {
                     const valA = a.offerNumber || '';
                     const valB = b.offerNumber || '';
                     return valB.localeCompare(valA, undefined, { numeric: true, sensitivity: 'base' });
@@ -1643,10 +1654,12 @@
                 });
                 
                 return { groups: g, grandTotal: tot, sortedMonths: months };
-            }, [orders]);
+            }, [orders, search]);
 
             const chartData = [...sortedMonths].reverse().map(m => ({ label: m.split(' ')[0].substring(0, 3), value: groups[m].total, fullMonth: m }));
-            const displayedMonths = selectedMonthFilter ? [selectedMonthFilter] : sortedMonths;
+            const displayedMonths = selectedMonthFilter 
+                ? (groups[selectedMonthFilter] ? [selectedMonthFilter] : []) 
+                : sortedMonths;
 
             return (
                 <div className="animate-fade-in pb-32">
@@ -1656,6 +1669,8 @@
                             <Icons.Plus size={16}/> Nuovo
                         </button>
                     </div>
+
+                    <div className="mb-4 relative"><div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><Icons.Search size={18}/></div><input type="text" placeholder="Cerca ordine, cliente..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" /></div>
                     
                     <div className="bg-blue-600 p-5 rounded-2xl shadow-lg text-white mb-6">
                         <div className="text-xs font-bold uppercase opacity-80 mb-1">Totale Complessivo</div>
@@ -1665,7 +1680,7 @@
                     {chartData.length > 0 && <MonthChart data={chartData} onMonthClick={(m) => setSelectedMonthFilter(prev => prev === m ? null : m)} selectedMonth={selectedMonthFilter} />}
 
                     <div className="space-y-6">
-                        {displayedMonths.length === 0 ? <div className="text-center py-10 text-gray-400">Nessun ordine.</div> :
+                        {displayedMonths.length === 0 ? <div className="text-center py-10 text-gray-400">Nessun ordine trovato.</div> :
                         displayedMonths.map(month => (
                             <div key={month}>
                                 <div className="flex justify-between items-end mb-2 px-1">
