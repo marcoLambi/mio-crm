@@ -478,8 +478,8 @@
                         ) : (
                             <button onClick={() => { setReportForm({}); setView('create'); }} className="w-full bg-gray-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.Plus size={22} /> Nuovo Report</button>
                         )}
-                        <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="w-full bg-yellow-500 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.Plus size={22} /> Nuova Offerta</button>
-                        <button onClick={() => { setOrderForm({}); setView('createOrder'); }} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.ShoppingBag size={22} /> Nuovo Ordine</button>
+                        <button onClick={() => { setFollowupForm({ _returnView: 'dashboard' }); setView('createFollowup'); }} className="w-full bg-yellow-500 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.Plus size={22} /> Nuova Offerta</button>
+                        <button onClick={() => { setOrderForm({ _returnView: 'dashboard' }); setView('createOrder'); }} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.ShoppingBag size={22} /> Nuovo Ordine</button>
                         <button onClick={() => { setTodoForm({}); setView('createTodo'); }} className="w-full bg-red-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.Plus size={22} /> Nuovo TO-DO</button>
                         <button onClick={() => setView('map')} className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.MapPin size={22} /> Giro Visite (Mappa)</button>
                     </div>
@@ -1037,7 +1037,7 @@
                  <div className="animate-fade-in pb-32">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-gray-800">Lista Offerte</h2>
-                        <button onClick={() => { setFollowupForm({}); setView('createFollowup'); }} className="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1">
+                        <button onClick={() => { setFollowupForm({ _returnView: 'followupsList' }); setView('createFollowup'); }} className="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1">
                             <Icons.Plus size={16}/> Nuova
                         </button>
                     </div>
@@ -1077,7 +1077,7 @@
                                 </div>
                                 <div className="space-y-3">
                                     {groups[month].items.map(f => (
-                                        <div key={f.id} onClick={() => { setSelectedFollowup(f); setView('followupDetail'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
+                                        <div key={f.id} onClick={() => { setSelectedFollowup({...f, _returnView: 'followupsList'}); setView('followupDetail'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
                                             <div className="flex justify-between items-start">
                                                 <div>
                                                     <div className="font-bold text-gray-800 flex items-center gap-2">
@@ -1518,7 +1518,7 @@
                         </div>
                         <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required />
                         <Input label="Provvigione (€)" type="number" step="0.01" name="commission" value={formData.commission} onChange={handleChange} required />
-                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView('ordersList')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
+                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView(formData._returnView || 'ordersList')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
                     </form>
                 </div>
             );
@@ -1643,7 +1643,7 @@
                 <div className="animate-fade-in pb-32">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-gray-800">Storico Ordini</h2>
-                        <button onClick={() => { setOrderForm({}); setView('createOrder'); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1">
+                        <button onClick={() => { setOrderForm({ _returnView: 'ordersList' }); setView('createOrder'); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1">
                             <Icons.Plus size={16}/> Nuovo
                         </button>
                     </div>
@@ -1667,7 +1667,7 @@
                                     {groups[month].items.map(o => {
                                         const isMissing = !o.amount || !o.offerNumber || (!o.isBanco && !o.linkedOffer) || !o.orderType || o.commission === '' || o.commission === undefined || o.commission === null;
                                         return (
-                                        <div key={o.id} onClick={() => { setOrderForm(o); setView('createOrder'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
+                                        <div key={o.id} onClick={() => { setOrderForm({...o, _returnView: 'ordersList'}); setView('createOrder'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
                                             <div className="flex justify-between font-bold text-gray-800">
                                                 <span className="flex items-center gap-2">{o.client} {isMissing && <Icons.AlertTriangle size={14} className="text-yellow-500" title="Dati mancanti" />}</span>
                                                 <div className="text-right">
@@ -1762,7 +1762,7 @@
                                     {groups[month].items.map(o => {
                                         const isMissing = !o.amount || !o.offerNumber || (!o.isBanco && !o.linkedOffer) || !o.orderType || o.commission === '' || o.commission === undefined || o.commission === null;
                                         return (
-                                        <div key={o.id} onClick={() => { setOrderForm(o); setView('createOrder'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
+                                        <div key={o.id} onClick={() => { setOrderForm({...o, _returnView: 'clientOrders'}); setView('createOrder'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
                                             <div className="flex justify-between font-bold text-gray-800">
                                                 <span className="flex items-center gap-2">{new Date(o.createdAt).toLocaleDateString('it-IT')} {isMissing && <Icons.AlertTriangle size={14} className="text-yellow-500" title="Dati mancanti" />}</span>
                                                 <div className="text-right">
@@ -1935,7 +1935,7 @@
                             await setDoc(doc(db, `artifacts/${appId}/users/${key}/followups`, offer.id), { completed: true }, { merge: true });
                         }
                     }
-                    setView('ordersList'); 
+                    setView(d._returnView || 'ordersList'); 
                 },
                 saveTodo: d => { saveItem('todos', d); setView(d._returnView || 'todo'); },
                 discardClient, closeOffer,
