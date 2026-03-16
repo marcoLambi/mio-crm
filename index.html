@@ -998,9 +998,9 @@
                  });
                  
                  return filtered.sort((a, b) => {
-                     const d1 = new Date(b.offerDate || b.createdAt || 0).getTime();
-                     const d2 = new Date(a.offerDate || a.createdAt || 0).getTime();
-                     return d1 - d2;
+                     const valA = a.offerNumber || '';
+                     const valB = b.offerNumber || '';
+                     return valB.localeCompare(valA, undefined, { numeric: true, sensitivity: 'base' });
                  });
              }, [followups, linkedOffers, showInAttesa, showOrdinate, showNonOrdinate, search]);
 
@@ -1556,12 +1556,17 @@
              
              const visibleFollowups = useMemo(() => {
                  const linkedOffers = new Set(orders.map(o => o.linkedOffer).filter(Boolean));
-                 return followups.filter(f => {
+                 const filtered = followups.filter(f => {
                      const isMatchClient = orderForm.client ? f.client === orderForm.client : false;
                      const isNotOrdered = !linkedOffers.has(f.offerNumber);
                      const isNotClosed = f.status !== 'closed_not_ordered';
                      
                      return isMatchClient && isNotOrdered && isNotClosed;
+                 });
+                 return filtered.sort((a, b) => {
+                     const valA = a.offerNumber || '';
+                     const valB = b.offerNumber || '';
+                     return valB.localeCompare(valA, undefined, { numeric: true, sensitivity: 'base' });
                  });
              }, [followups, orders, orderForm.client]);
 
