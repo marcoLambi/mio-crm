@@ -441,7 +441,7 @@
         };
 
         const RdoForm = () => {
-            const { rdoForm: initialData, saveRdo, setView, clients } = useContext(CRMContext);
+            const { rdoForm: initialData, saveRdo, setView, clients, setRdoForm, setFollowupForm } = useContext(CRMContext);
             const [formData, setFormData] = useState(() => {
                 const defaultDate = initialData.date || new Date().toISOString().split('T')[0];
                 return { ...initialData, date: defaultDate };
@@ -498,6 +498,9 @@
                                 </span>
                             </div>
                             <Input name="numeroOfferta" value={formData.numeroOfferta} onChange={handleChange} placeholder="Inserisci in un secondo momento..." />
+                            <button type="button" onClick={() => { setRdoForm(formData); setFollowupForm({ client: formData.client, _returnView: 'createRdo' }); setView('createFollowup'); }} className="mt-2 text-xs font-bold text-yellow-600 flex items-center gap-1 active:scale-95 transition-transform">
+                                <Icons.Plus size={14} /> NUOVA offerta
+                            </button>
                         </div>
 
                         <div className="pt-2 flex gap-3">
@@ -2118,7 +2121,17 @@
                 reportForm, setReportForm, clientForm, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, orderForm, setOrderForm, todoForm, setTodoForm, rdoForm, setRdoForm,
                 saveReport: d => { saveItem('reports', d); setReportForm({}); setView(d._returnView || 'dashboard'); }, 
                 saveClient: d => { saveItem('clients', d); setView('clients'); }, 
-                saveFollowup: d => { saveItem('followups', d); setView(d._returnView || 'dashboard'); }, 
+                saveFollowup: d => { 
+                    saveItem('followups', d); 
+                    if (d._returnView === 'createRdo') {
+                        setRdoForm(prev => ({ 
+                            ...prev, 
+                            numeroOfferta: d.offerNumber, 
+                            dataInserimentoOfferta: prev.dataInserimentoOfferta || new Date().toISOString().split('T')[0] 
+                        }));
+                    }
+                    setView(d._returnView || 'dashboard'); 
+                }, 
                 saveIdea: d => { saveItem('ideas', d); setView(d._returnView || 'dashboard'); }, 
                 saveRdo: d => { saveItem('rdos', d); setRdoForm({}); setView(d._returnView || 'dashboard'); },
                 saveOrder: async (d) => { 
