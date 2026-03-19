@@ -1982,6 +1982,91 @@
             );
         };
 
+        const NoteForm = () => {
+            const { noteForm: initialData, saveNote, setView } = useContext(CRMContext);
+            const [formData, setFormData] = useState(() => {
+                const defaultDate = initialData.createdAt 
+                    ? new Date(initialData.createdAt).toISOString().split('T')[0] 
+                    : new Date().toISOString().split('T')[0];
+                return { ...initialData, dateInput: defaultDate };
+            });
+
+            const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const finalData = {
+                    ...formData,
+                    createdAt: new Date(formData.dateInput).toISOString() 
+                };
+                delete finalData.dateInput;
+                saveNote(finalData);
+            };
+
+            return (
+                <div className="animate-fade-in pb-32">
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica Nota/Procedura' : 'Nuova Nota/Procedura'}</h2>
+                    <form onSubmit={handleSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <Input label="Titolo" name="titolo" value={formData.titolo} onChange={handleChange} required />
+                        <TextArea label="Descrizione" name="descrizione" value={formData.descrizione} onChange={handleChange} required enableVoice={true} />
+                        
+                        <div className="text-xs text-gray-500 font-bold mt-4 text-center">
+                            Data di inserimento: {new Date(formData.dateInput).toLocaleDateString('it-IT')}
+                        </div>
+
+                        <div className="pt-2 flex gap-3">
+                            <button type="button" onClick={() => setView(formData._returnView || 'notesList')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button>
+                            <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button>
+                        </div>
+                    </form>
+                </div>
+            );
+        };
+
+        const NoteDetailView = () => {
+             const { selectedNote: item, setView, setNoteForm, deleteItem } = useContext(CRMContext);
+             if (!item) return null;
+             return (
+                 <div className="animate-fade-in pb-32">
+                     <div className="flex justify-between items-center mb-6">
+                        <button onClick={() => setView(item._returnView || 'notesList')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button>
+                        <div className="flex gap-2">
+                            <button onClick={() => { setNoteForm(item); setView('createNote'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button>
+                            <button onClick={async () => { if(await deleteItem('notes', item.id)) setView(item._returnView || 'notesList'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button>
+                        </div>
+                     </div>
+                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                        <div className="font-bold text-2xl text-gray-800">{item.titolo}</div>
+                        <div className="text-xs text-gray-400 font-bold mb-4 uppercase">Data: {item.createdAt ? new Date(item.createdAt).toLocaleDateString('it-IT') : '-'}</div>
+                        <div className="pt-2 border-t border-gray-100">
+                            <SectionDisplay title="Descrizione" content={item.descrizione} />
+                        </div>
+                     </div>
+                 </div>
+             );
+        };
+
+        const NotesListView = () => {
+             const { notes, setView, setNoteForm, setSelectedNote } = useContext(CRMContext);
+             return (
+                 <div className="animate-fade-in pb-32">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-gray-800">Note e Procedure</h2>
+                        <button onClick={() => { setNoteForm({ _returnView: 'notesList' }); setView('createNote'); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1">
+                            <Icons.Plus size={16}/> Nuovo
+                        </button>
+                    </div>
+                    <div className="space-y-3">
+                        {notes.length === 0 ? <div className="text-center py-10 text-gray-400">Nessuna nota o procedura inserita.</div> : notes.map(n => (
+                            <div key={n.id} onClick={() => { setSelectedNote({...n, _returnView: 'notesList'}); setView('noteDetail'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
+                                <div className="font-bold text-gray-800">{n.titolo}</div>
+                            </div>
+                        ))}
+                    </div>
+                 </div>
+             )
+        };
+
         // --- APP MAIN COMPONENT ---
         const App = () => {
             const [db, setDb] = useState(null);
@@ -1995,11 +2080,13 @@
             const [orders, setOrders] = useState([]); 
             const [todos, setTodos] = useState([]);
             const [rdos, setRdos] = useState([]);
+            const [notes, setNotes] = useState([]);
             const [selectedReport, setSelectedReport] = useState(null);
             const [selectedClient, setSelectedClient] = useState(null);
             const [selectedFollowup, setSelectedFollowup] = useState(null);
             const [selectedIdea, setSelectedIdea] = useState(null);
             const [selectedTodo, setSelectedTodo] = useState(null);
+            const [selectedNote, setSelectedNote] = useState(null);
             const [reportForm, setReportForm] = useState({});
             const [clientForm, setClientForm] = useState({});
             const [followupForm, setFollowupForm] = useState({});
@@ -2007,6 +2094,7 @@
             const [orderForm, setOrderForm] = useState({}); 
             const [todoForm, setTodoForm] = useState({});
             const [rdoForm, setRdoForm] = useState({});
+            const [noteForm, setNoteForm] = useState({});
             const [message, setMessage] = useState({ text: '', type: '' });
             const [showCleanModal, setShowCleanModal] = useState(false);
             const [duplicatesData, setDuplicatesData] = useState([]);
@@ -2024,7 +2112,8 @@
                     onSnapshot(collection(db, `artifacts/${appId}/users/${key}/ideas`), s => setIdeas(s.docs.map(d => ({ ...d.data(), id: d.id })))),
                     onSnapshot(collection(db, `artifacts/${appId}/users/${key}/orders`), s => setOrders(s.docs.map(d => ({ ...d.data(), id: d.id })))),
                     onSnapshot(collection(db, `artifacts/${appId}/users/${key}/todos`), s => setTodos(s.docs.map(d => ({ ...d.data(), id: d.id })))),
-                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/rdos`), s => setRdos(s.docs.map(d => ({ ...d.data(), id: d.id }))))
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/rdos`), s => setRdos(s.docs.map(d => ({ ...d.data(), id: d.id })))),
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/notes`), s => setNotes(s.docs.map(d => ({ ...d.data(), id: d.id }))))
                 ];
                 return () => subs.forEach(unsub => unsub());
             }, [db, userKey]);
@@ -2115,10 +2204,10 @@
             }, [view]);
 
             const contextValue = { 
-                db, userKey, view, setView, clients, reports, followups, ideas, orders, todos, rdos,
+                db, userKey, view, setView, clients, reports, followups, ideas, orders, todos, rdos, notes,
                 selectedReport, setSelectedReport, selectedClient, setSelectedClient, 
-                selectedFollowup, setSelectedFollowup, selectedIdea, setSelectedIdea, selectedTodo, setSelectedTodo,
-                reportForm, setReportForm, clientForm, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, orderForm, setOrderForm, todoForm, setTodoForm, rdoForm, setRdoForm,
+                selectedFollowup, setSelectedFollowup, selectedIdea, setSelectedIdea, selectedTodo, setSelectedTodo, selectedNote, setSelectedNote,
+                reportForm, setReportForm, clientForm, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, orderForm, setOrderForm, todoForm, setTodoForm, rdoForm, setRdoForm, noteForm, setNoteForm,
                 saveReport: d => { saveItem('reports', d); setReportForm({}); setView(d._returnView || 'dashboard'); }, 
                 saveClient: d => { saveItem('clients', d); setView('clients'); }, 
                 saveFollowup: d => { 
@@ -2134,6 +2223,7 @@
                 }, 
                 saveIdea: d => { saveItem('ideas', d); setView(d._returnView || 'dashboard'); }, 
                 saveRdo: d => { saveItem('rdos', d); setRdoForm({}); setView(d._returnView || 'dashboard'); },
+                saveNote: d => { saveItem('notes', d); setNoteForm({}); setView(d._returnView || 'notesList'); },
                 saveOrder: async (d) => { 
                     saveItem('orders', d); 
                     if (d.linkedOffer && !d.isBanco) {
@@ -2148,7 +2238,7 @@
                 saveTodo: d => { saveItem('todos', d); setView(d._returnView || 'todo'); },
                 discardClient, closeOffer,
                 deleteItem, toggleTaskCompletion, handleLogout: () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); },
-                fileInputRef, exportToExcel, handleCleanDuplicates, setFollowupForm, setIdeaForm, setReportForm, setTodoForm, setRdoForm
+                fileInputRef, exportToExcel, handleCleanDuplicates, setFollowupForm, setIdeaForm, setReportForm, setTodoForm, setRdoForm, setNoteForm
             };
 
             if (!isLoggedIn) return ( <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4"><form onSubmit={(e) => { e.preventDefault(); const val = e.target.elements[0].value.trim(); if(val) { localStorage.setItem('crm_user_key', val); setUserKey(val); setIsLoggedIn(true); } }} className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center"><Icons.Lock className="mx-auto mb-4 text-blue-600" size={48}/><h1 className="text-2xl font-bold mb-4">WorkReport CRM</h1><input type="text" placeholder="Chiave Segreta" className="w-full p-4 bg-gray-50 rounded-xl mb-4 text-center font-bold outline-none border focus:border-blue-500"/><button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Accedi</button></form></div> );
@@ -2183,10 +2273,13 @@
                                 {view === 'clientReports' && <ClientReportsView />}
                                 {view === 'followupsList' && <FollowupsListView />}
                                 {view === 'ideasList' && <IdeasListView />}
+                                {view === 'notesList' && <NotesListView />}
+                                {view === 'createNote' && <NoteForm />}
+                                {view === 'noteDetail' && <NoteDetailView />}
                                 {view === 'map' && <MapView />}
                             </div>
                             <nav className="border-t p-3 bg-white flex justify-around">
-                                {[{ id: 'dashboard', icon: Icons.LayoutDashboard, label: 'Home' }, { id: 'todo', icon: Icons.CheckSquare, label: 'TO-DO' }, { id: 'stats', icon: Icons.BarChart, label: 'Situazione' }, { id: 'clients', icon: Icons.Users, label: 'Clienti' }].map(item => (<button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 transition-colors ${view === item.id || (view.startsWith('client') && item.id === 'clients') ? 'text-blue-600' : 'text-gray-400'}`}><item.icon size={24} /><span className="text-[10px] font-bold">{item.label}</span></button>))}
+                                {[{ id: 'dashboard', icon: Icons.LayoutDashboard, label: 'Home' }, { id: 'todo', icon: Icons.CheckSquare, label: 'TO-DO' }, { id: 'stats', icon: Icons.BarChart, label: 'Situazione' }, { id: 'clients', icon: Icons.Users, label: 'Clienti' }, { id: 'notesList', icon: Icons.BookOpen, label: 'Note e Proc.' }].map(item => (<button key={item.id} onClick={() => setView(item.id)} className={`flex flex-col items-center p-2 transition-colors ${view === item.id || (view.startsWith('client') && item.id === 'clients') ? 'text-blue-600' : 'text-gray-400'}`}><item.icon size={24} /><span className="text-[10px] font-bold">{item.label}</span></button>))}
                             </nav>
                             {message.text && (<div className="fixed top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-xl text-white font-bold text-sm z-50 bg-blue-500 animate-fade-in">{message.text}</div>)}
                             {showCleanModal && <CleanDuplicatesModal groups={duplicatesData} onClose={() => setShowCleanModal(false)} onDelete={executeClean} />}
