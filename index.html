@@ -440,8 +440,153 @@
             );
         };
 
+        const RdoForm = () => {
+            const { rdoForm: initialData, saveRdo, setView, clients } = useContext(CRMContext);
+            const [formData, setFormData] = useState(() => {
+                const defaultDate = initialData.date || new Date().toISOString().split('T')[0];
+                return { ...initialData, date: defaultDate };
+            });
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(p => {
+                    const newData = { ...p, [name]: value };
+                    if (name === 'numeroOfferta') {
+                        if (value && !p.dataInserimentoOfferta) {
+                            newData.dataInserimentoOfferta = new Date().toISOString().split('T')[0];
+                        } else if (!value) {
+                            newData.dataInserimentoOfferta = null;
+                        }
+                    }
+                    return newData;
+                });
+            };
+
+            const workingDaysPassed = useMemo(() => {
+                if (!formData.date) return 0;
+                const start = new Date(formData.date);
+                const end = formData.dataInserimentoOfferta ? new Date(formData.dataInserimentoOfferta) : new Date();
+                start.setHours(0,0,0,0);
+                end.setHours(0,0,0,0);
+                
+                let count = 0;
+                let current = new Date(start);
+                while (current < end) {
+                    current.setDate(current.getDate() + 1);
+                    const dayOfWeek = current.getDay();
+                    if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Esclude Domenica (0) e Sabato (6)
+                        count++;
+                    }
+                }
+                return count;
+            }, [formData.date, formData.dataInserimentoOfferta]);
+
+            return (
+                <div className="animate-fade-in pb-32">
+                    <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica RDO' : 'Nuova RDO'}</h2>
+                    <form onSubmit={(e) => { e.preventDefault(); saveRdo(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <Input label="Data" type="date" name="date" value={formData.date} onChange={handleChange} required />
+                        <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
+                        <TextArea label="Richiesta" name="richiesta" value={formData.richiesta} onChange={handleChange} required />
+                        <Input label="Destinazione" name="destinazione" value={formData.destinazione} onChange={handleChange} required />
+                        
+                        <div className="pt-4 mt-4">
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="block text-sm font-bold text-gray-700">Numero di Offerta</label>
+                                <span className="text-[10px] font-bold px-2 py-1 bg-yellow-100 text-yellow-700 rounded uppercase">
+                                    Trascorsi: {workingDaysPassed} gg lav.
+                                </span>
+                            </div>
+                            <Input name="numeroOfferta" value={formData.numeroOfferta} onChange={handleChange} placeholder="Inserisci in un secondo momento..." />
+                        </div>
+
+                        <div className="pt-2 flex gap-3">
+                            <button type="button" onClick={() => setView(formData._returnView || 'dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button>
+                            <button type="submit" className="flex-1 py-3 bg-purple-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button>
+                        </div>
+                    </form>
+                </div>
+            );
+        };
+
+        const RdosListView = () => {
+             const { rdos, setView, setRdoForm } = useContext(CRMContext);
+             const [search, setSearch] = useState('');
+             
+             const filtered = useMemo(() => rdos.filter(r => 
+                 normalizeForSearch(r.client).includes(normalizeForSearch(search)) || 
+                 normalizeForSearch(r.richiesta).includes(normalizeForSearch(search)) ||
+                 normalizeForSearch(r.numeroOfferta).includes(normalizeForSearch(search))
+             ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [rdos, search]);
+
+             const averageWorkingDays = useMemo(() => {
+                 let totalDays = 0;
+                 let count = 0;
+                 
+                 rdos.forEach(r => {
+                     if (r.numeroOfferta && r.dataInserimentoOfferta && r.date) {
+                         const start = new Date(r.date);
+                         const end = new Date(r.dataInserimentoOfferta);
+                         start.setHours(0,0,0,0);
+                         end.setHours(0,0,0,0);
+                         
+                         if (end >= start) {
+                             let days = 0;
+                             let current = new Date(start);
+                             while (current < end) {
+                                 current.setDate(current.getDate() + 1);
+                                 const dayOfWeek = current.getDay();
+                                 if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                                     days++;
+                                 }
+                             }
+                             totalDays += days;
+                             count++;
+                         }
+                     }
+                 });
+                 
+                 return count > 0 ? (totalDays / count).toFixed(1) : 0;
+             }, [rdos]);
+
+             return (
+                 <div className="animate-fade-in pb-32">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-gray-800">Lista RDO</h2>
+                        <button onClick={() => { setRdoForm({ _returnView: 'rdosList' }); setView('createRdo'); }} className="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1">
+                            <Icons.Plus size={16}/> Nuova
+                        </button>
+                    </div>
+                    <div className="mb-4 relative"><div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><Icons.Search size={18}/></div><input type="text" placeholder="Cerca RDO..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" /></div>
+                    
+                    <div className="bg-purple-600 p-5 rounded-2xl shadow-lg text-white mb-6">
+                        <div className="text-xs font-bold uppercase opacity-80 mb-1">Tempo Medio Evasione RDO</div>
+                        <div className="text-3xl font-bold">{averageWorkingDays} <span className="text-lg font-normal">gg lavorativi</span></div>
+                    </div>
+
+                    <div className="space-y-3">
+                        {filtered.length === 0 ? <div className="text-center py-10 text-gray-400">Nessuna RDO trovata.</div> : filtered.map(r => (
+                            <div key={r.id} onClick={() => { setRdoForm({...r, _returnView: 'rdosList'}); setView('createRdo'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <div className="font-bold text-gray-800">{r.client}</div>
+                                        <div className="text-xs text-gray-500 mt-1">Destinazione: {r.destinazione}</div>
+                                        <div className="text-sm mt-2 text-gray-700 bg-gray-50 p-2 rounded">{r.richiesta}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-xs font-bold text-purple-600">{new Date(r.date).toLocaleDateString('it-IT')}</div>
+                                        {r.numeroOfferta && <div className="text-[10px] text-gray-600 font-bold bg-yellow-100 px-2 py-1 rounded mt-2 uppercase inline-block">Off: {r.numeroOfferta}</div>}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                 </div>
+             )
+        };
+
         const DashboardView = () => {
-            const { clients, reports, followups, ideas, todos, orders, setView, reportForm, setReportForm, setFollowupForm, setIdeaForm, setTodoForm, setOrderForm, handleLogout, fileInputRef, exportToExcel, handleCleanDuplicates } = useContext(CRMContext);
+            const { clients, reports, followups, ideas, todos, orders, rdos, setView, reportForm, setReportForm, setFollowupForm, setIdeaForm, setTodoForm, setOrderForm, setRdoForm, handleLogout, fileInputRef, exportToExcel, handleCleanDuplicates } = useContext(CRMContext);
             // MODIFICA: Totale solo per il mese corrente
             const currentMonthTotal = useMemo(() => {
                 const now = new Date();
@@ -459,9 +604,16 @@
             return (
                 <div className="space-y-6 animate-fade-in pb-32">
                     <header><h1 className="text-2xl font-bold text-gray-800">Dashboard</h1></header>
-                    <div onClick={() => setView('ordersList')} className="bg-gray-100 p-5 rounded-2xl shadow-lg border border-gray-200 flex justify-between items-center cursor-pointer active:scale-95 transition-transform">
-                        <div className="flex items-center space-x-2 text-blue-600"><Icons.ShoppingBag size={24} /><span className="text-xs font-bold uppercase text-gray-500">Totale Ordini Mese</span></div>
-                        <div className="text-3xl font-bold text-gray-800">€ {currentMonthTotal.toFixed(2)}</div>
+                    <div className="flex gap-4">
+                        <div onClick={() => setView('ordersList')} className="flex-1 bg-gray-100 p-4 md:p-5 rounded-2xl shadow-lg border border-gray-200 flex flex-col md:flex-row justify-center md:justify-between items-start md:items-center cursor-pointer active:scale-95 transition-transform overflow-hidden">
+                            <div className="flex items-center space-x-2 text-blue-600 mb-1 md:mb-0"><Icons.ShoppingBag size={20} className="md:w-6 md:h-6" /><span className="text-[10px] md:text-xs font-bold uppercase text-gray-500">Totale Ordini Mese</span></div>
+                            <div className="text-xl md:text-3xl font-bold text-gray-800">€ {currentMonthTotal.toFixed(2)}</div>
+                        </div>
+                        <div onClick={() => setView('rdosList')} className="w-[calc(50%-0.5rem)] md:w-[calc(25%-0.75rem)] shrink-0 bg-gray-100 p-5 rounded-2xl shadow-lg border border-gray-200 flex flex-col items-center justify-center cursor-pointer active:scale-95 transition-transform">
+                            <Icons.FileText className="text-purple-600 mb-2" size={16}/>
+                            <div className="text-2xl font-bold">{rdos.length}</div>
+                            <div className="text-[10px] text-gray-500 uppercase font-bold">RDO</div>
+                        </div>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div onClick={() => setView('clients')} className="bg-gray-100 p-5 rounded-2xl shadow-lg border border-gray-200 cursor-pointer active:scale-95 transition-transform"><Icons.Users className="text-blue-600 mb-2" size={16}/><div className="text-2xl font-bold">{clients.length}</div><div className="text-[10px] text-gray-500 uppercase font-bold">Clienti</div></div>
@@ -470,6 +622,7 @@
                         <div onClick={() => setView('list')} className="bg-gray-100 p-5 rounded-2xl shadow-lg border border-gray-200 cursor-pointer active:scale-95 transition-transform"><Icons.ClipboardList className="text-gray-600 mb-2" size={16}/><div className="text-2xl font-bold">{reports.length}</div><div className="text-[10px] text-gray-500 uppercase font-bold">Report</div></div>
                     </div>
                     <div className="flex flex-col gap-3">
+                        <button onClick={() => { setRdoForm({ _returnView: 'dashboard' }); setView('createRdo'); }} className="w-full bg-yellow-500 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.FileText size={22} /> Nuova RDO</button>
                         {reportForm && (reportForm.client || reportForm.description) ? (
                             <>
                                 <button onClick={() => setView('create')} className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold flex justify-center items-center gap-2 shadow-xl"><Icons.Edit2 size={22} /> Riprendi Report in Corso</button>
@@ -535,12 +688,13 @@
                                     else if(item.type === 'todo') { setSelectedTodo(itemWithReturn); setView('todoDetail'); }
                                 }}
                             >
-                                <div>
+                                <div className="flex-1 pr-4">
                                     <div className="flex items-center gap-2 text-xs font-bold uppercase text-gray-400 mb-1"><item.icon size={12}/> {item.label}</div>
                                     <div className="font-bold text-gray-800">{item.client}</div>
-                                    <div className={`text-xs font-bold mt-1 ${isPast ? 'text-yellow-700' : 'text-red-500'}`}>Scade: {new Date(item.todoDate).toLocaleDateString('it-IT')}</div>
+                                    <div className="text-sm mt-1 text-gray-700">{item.text || item.futureNotes || item.description || item.notes}</div>
+                                    <div className={`text-xs font-bold mt-2 ${isPast ? 'text-yellow-700' : 'text-red-500'}`}>Scade: {new Date(item.todoDate).toLocaleDateString('it-IT')}</div>
                                 </div>
-                                <button onClick={(e) => { e.stopPropagation(); toggleTaskCompletion(item.type === 'report' ? 'reports' : (item.type === 'offer' ? 'followups' : (item.type === 'idea' ? 'ideas' : 'todos')), item.id, false); }} className="p-2 bg-green-500 text-white rounded-full"><Icons.Check size={16}/></button>
+                                <button onClick={(e) => { e.stopPropagation(); toggleTaskCompletion(item.type === 'report' ? 'reports' : (item.type === 'offer' ? 'followups' : (item.type === 'idea' ? 'ideas' : 'todos')), item.id, false); }} className="p-2 bg-green-500 text-white rounded-full shrink-0"><Icons.Check size={16}/></button>
                             </div>
                         )})}
                     </div>
@@ -1837,6 +1991,7 @@
             const [ideas, setIdeas] = useState([]);
             const [orders, setOrders] = useState([]); 
             const [todos, setTodos] = useState([]);
+            const [rdos, setRdos] = useState([]);
             const [selectedReport, setSelectedReport] = useState(null);
             const [selectedClient, setSelectedClient] = useState(null);
             const [selectedFollowup, setSelectedFollowup] = useState(null);
@@ -1848,6 +2003,7 @@
             const [ideaForm, setIdeaForm] = useState({});
             const [orderForm, setOrderForm] = useState({}); 
             const [todoForm, setTodoForm] = useState({});
+            const [rdoForm, setRdoForm] = useState({});
             const [message, setMessage] = useState({ text: '', type: '' });
             const [showCleanModal, setShowCleanModal] = useState(false);
             const [duplicatesData, setDuplicatesData] = useState([]);
@@ -1864,7 +2020,8 @@
                     onSnapshot(collection(db, `artifacts/${appId}/users/${key}/followups`), s => setFollowups(s.docs.map(d => ({ ...d.data(), id: d.id })))), 
                     onSnapshot(collection(db, `artifacts/${appId}/users/${key}/ideas`), s => setIdeas(s.docs.map(d => ({ ...d.data(), id: d.id })))),
                     onSnapshot(collection(db, `artifacts/${appId}/users/${key}/orders`), s => setOrders(s.docs.map(d => ({ ...d.data(), id: d.id })))),
-                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/todos`), s => setTodos(s.docs.map(d => ({ ...d.data(), id: d.id }))))
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/todos`), s => setTodos(s.docs.map(d => ({ ...d.data(), id: d.id })))),
+                    onSnapshot(collection(db, `artifacts/${appId}/users/${key}/rdos`), s => setRdos(s.docs.map(d => ({ ...d.data(), id: d.id }))))
                 ];
                 return () => subs.forEach(unsub => unsub());
             }, [db, userKey]);
@@ -1955,14 +2112,15 @@
             }, [view]);
 
             const contextValue = { 
-                db, userKey, view, setView, clients, reports, followups, ideas, orders, todos,
+                db, userKey, view, setView, clients, reports, followups, ideas, orders, todos, rdos,
                 selectedReport, setSelectedReport, selectedClient, setSelectedClient, 
                 selectedFollowup, setSelectedFollowup, selectedIdea, setSelectedIdea, selectedTodo, setSelectedTodo,
-                reportForm, setReportForm, clientForm, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, orderForm, setOrderForm, todoForm, setTodoForm,
+                reportForm, setReportForm, clientForm, setClientForm, followupForm, setFollowupForm, ideaForm, setIdeaForm, orderForm, setOrderForm, todoForm, setTodoForm, rdoForm, setRdoForm,
                 saveReport: d => { saveItem('reports', d); setReportForm({}); setView(d._returnView || 'dashboard'); }, 
                 saveClient: d => { saveItem('clients', d); setView('clients'); }, 
                 saveFollowup: d => { saveItem('followups', d); setView(d._returnView || 'dashboard'); }, 
                 saveIdea: d => { saveItem('ideas', d); setView(d._returnView || 'dashboard'); }, 
+                saveRdo: d => { saveItem('rdos', d); setRdoForm({}); setView(d._returnView || 'dashboard'); },
                 saveOrder: async (d) => { 
                     saveItem('orders', d); 
                     if (d.linkedOffer && !d.isBanco) {
@@ -1977,7 +2135,7 @@
                 saveTodo: d => { saveItem('todos', d); setView(d._returnView || 'todo'); },
                 discardClient, closeOffer,
                 deleteItem, toggleTaskCompletion, handleLogout: () => { localStorage.removeItem('crm_user_key'); setUserKey(''); setIsLoggedIn(false); },
-                fileInputRef, exportToExcel, handleCleanDuplicates, setFollowupForm, setIdeaForm, setReportForm, setTodoForm
+                fileInputRef, exportToExcel, handleCleanDuplicates, setFollowupForm, setIdeaForm, setReportForm, setTodoForm, setRdoForm
             };
 
             if (!isLoggedIn) return ( <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4"><form onSubmit={(e) => { e.preventDefault(); const val = e.target.elements[0].value.trim(); if(val) { localStorage.setItem('crm_user_key', val); setUserKey(val); setIsLoggedIn(true); } }} className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center"><Icons.Lock className="mx-auto mb-4 text-blue-600" size={48}/><h1 className="text-2xl font-bold mb-4">WorkReport CRM</h1><input type="text" placeholder="Chiave Segreta" className="w-full p-4 bg-gray-50 rounded-xl mb-4 text-center font-bold outline-none border focus:border-blue-500"/><button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Accedi</button></form></div> );
@@ -2005,6 +2163,8 @@
                                 {view === 'createOrder' && <OrderForm />}
                                 {view === 'selectOfferForOrder' && <SelectOfferForOrderView />}
                                 {view === 'createIdea' && <IdeaForm />}
+                                {view === 'createRdo' && <RdoForm />}
+                                {view === 'rdosList' && <RdosListView />}
                                 {view === 'ordersList' && <OrdersListView />}
                                 {view === 'clientOrders' && <ClientOrdersView />}
                                 {view === 'clientReports' && <ClientReportsView />}
