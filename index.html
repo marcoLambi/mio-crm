@@ -108,7 +108,8 @@
             ShoppingBag: (p) => <IconBase {...p}><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" x2="21" y1="6" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></IconBase>,
             AlertTriangle: (p) => <IconBase {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconBase>,
             Phone: (p) => <IconBase {...p}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></IconBase>,
-            UserMinus: (p) => <IconBase {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" x2="17" y1="11" y2="11"/></IconBase>
+            UserMinus: (p) => <IconBase {...p}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="23" x2="17" y1="11" y2="11"/></IconBase>,
+            Brain: (p) => <IconBase {...p}><path d="M12 2a5 5 0 0 0-4.962 4.585A4.482 4.482 0 0 0 3 11a4.5 4.5 0 0 0 4.5 4.5V17a3 3 0 0 0 3 3h4a3 3 0 0 0 3-3v-1.5a4.5 4.5 0 0 0 4.5-4.5 4.482 4.482 0 0 0-4.038-4.415A5 5 0 0 0 12 2Z"/><path d="M12 11h.01"/><path d="M9 14h.01"/><path d="M15 14h.01"/></IconBase>
         };
 
         // --- UI COMPONENTS ---
@@ -441,7 +442,7 @@
         };
 
         const RdoForm = () => {
-            const { rdoForm: initialData, saveRdo, setView, clients, setRdoForm, setFollowupForm } = useContext(CRMContext);
+            const { rdoForm: initialData, saveRdo, setView, clients, setRdoForm, setFollowupForm, deleteItem } = useContext(CRMContext);
             const [formData, setFormData] = useState(() => {
                 const defaultDate = initialData.date || new Date().toISOString().split('T')[0];
                 return { ...initialData, date: defaultDate };
@@ -504,6 +505,11 @@
                         </div>
 
                         <div className="pt-2 flex gap-3">
+                            {formData.id && (
+                                <button type="button" onClick={async () => { if(await deleteItem('rdos', formData.id)) setView(formData._returnView || 'dashboard'); }} className="p-3 bg-red-50 text-red-600 font-bold rounded-xl flex justify-center items-center">
+                                    <Icons.Trash2 size={20} />
+                                </button>
+                            )}
                             <button type="button" onClick={() => setView(formData._returnView || 'dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button>
                             <button type="submit" className="flex-1 py-3 bg-purple-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button>
                         </div>
@@ -676,7 +682,7 @@
                             <Icons.Plus size={16}/> NUOVO TODO
                         </button>
                     </div>
-                    <div className="mb-4 relative"><div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><Icons.Search size={18}/></div><input type="text" placeholder="Cerca to-do..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" /></div>
+                    <div className="mb-4 relative"><div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><Icons.Search size={18}/></div><input type="text" placeholder="Cerca di fare..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none" /></div>
                     <div className="space-y-3">
                         {filteredItems.length === 0 ? <div className="text-center py-10 text-gray-400">Tutto fatto!</div> : filteredItems.map((item, idx) => {
                             const isPast = new Date(item.todoDate).setHours(0,0,0,0) < today.getTime();
@@ -780,6 +786,7 @@
                         <InfoBox label="Data Offerta" value={item.offerDate ? new Date(item.offerDate).toLocaleDateString('it-IT') : '-'} icon={Icons.Calendar} />
                         <InfoBox label="N. Offerta" value={item.offerNumber} icon={Icons.FileText} />
                         <InfoBox label="Importo" value={`€ ${parseFloat(item.amount).toFixed(2)}`} icon={Icons.CreditCard} />
+                        {item.commission && <InfoBox label="Provvigione" value={`€ ${parseFloat(item.commission).toFixed(2)}`} icon={Icons.CreditCard} />}
                         <InfoBox label="Data Riscontro" value={new Date(item.feedbackDate).toLocaleDateString('it-IT')} icon={Icons.Calendar} />
                         <SectionDisplay title="Note" content={item.notes} />
                      </div>
@@ -1539,7 +1546,7 @@
                 <div className="animate-fade-in pb-32">
                     <div className="flex justify-between items-center mb-6"><button onClick={() => setView(report._returnView || 'list')} className="p-2 -ml-2 rounded-full hover:bg-gray-200"><Icons.ChevronRight size={24} className="rotate-180" /></button><div className="flex gap-2">
                     <button onClick={() => { toggleTaskCompletion('reports', report.id, report.completed); setView(report._returnView || 'list'); }} className="p-2 text-green-600 bg-green-50 rounded-full"><Icons.Check size={20}/></button>
-                    <button onClick={() => { setReportForm(report); setView('create'); }} className="p-2 text-blue-600 bg-blue-50 rounded-full"><Icons.Edit2 size={20}/></button><button onClick={async () => { if(await deleteItem('reports', report.id)) setView(report._returnView || 'list'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button></div></div>
+                    <button onClick={async () => { if(await deleteItem('reports', report.id)) setView(report._returnView || 'list'); }} className="p-2 text-red-500 bg-red-50 rounded-full"><Icons.Trash2 size={20}/></button></div></div>
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                         <InfoBox label="Cliente" value={report.client} icon={Icons.Users} /><InfoBox label="Data" value={new Date(report.date).toLocaleDateString('it-IT')} icon={Icons.Calendar} />
                         <InfoBox label="Tipo Contatto" value={report.contactType} icon={Icons.Phone} />
@@ -1599,6 +1606,7 @@
         const FollowupForm = () => {
             const { followupForm: initialData, saveFollowup, setView, clients, followups } = useContext(CRMContext);
             const [formData, setFormData] = useState(initialData);
+            const [isAnalyzing, setIsAnalyzing] = useState(false);
             const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
             
             const isOfferNumberDuplicate = useMemo(() => {
@@ -1606,14 +1614,113 @@
                 return followups.some(f => f.offerNumber === formData.offerNumber && f.id !== formData.id);
             }, [formData.offerNumber, formData.id, followups]);
 
+            const processImage = async (base64Data) => {
+                setIsAnalyzing(true);
+                const apiKey = "";
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                
+                const systemPrompt = `Sei un assistente CRM esperto. Analizza l'immagine di questa offerta commerciale ed estrai i dati richiesti in formato JSON. 
+                Se un dato non è presente, usa una stringa vuota. 
+                Schema JSON richiesto:
+                {
+                    "client": "Nome Cliente/Ragione Sociale",
+                    "offerDate": "YYYY-MM-DD",
+                    "offerNumber": "Numero Offerta",
+                    "amount": 123.45 (solo numero),
+                    "commission": 12.34 (solo numero, provvigione prevista se indicata),
+                    "feedbackDate": "YYYY-MM-DD (se non presente, calcola +7gg da offerDate)"
+                }`;
+
+                const payload = {
+                    contents: [{
+                        parts: [
+                            { text: "Estrai i dati da questa offerta." },
+                            { inlineData: { mimeType: "image/png", data: base64Data } }
+                        ]
+                    }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                    generationConfig: { responseMimeType: "application/json" }
+                };
+
+                const callApi = async (retryCount = 0) => {
+                    try {
+                        const resp = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!resp.ok) throw new Error('API Error');
+                        const result = await resp.json();
+                        return JSON.parse(result.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+                    } catch (err) {
+                        if (retryCount < 5) {
+                            const delay = Math.pow(2, retryCount) * 1000;
+                            await new Promise(r => setTimeout(r, delay));
+                            return callApi(retryCount + 1);
+                        }
+                        throw err;
+                    }
+                };
+
+                try {
+                    const data = await callApi();
+                    const finalData = {
+                        ...formData,
+                        client: data.client || formData.client,
+                        offerDate: data.offerDate || formData.offerDate,
+                        offerNumber: data.offerNumber || formData.offerNumber,
+                        amount: data.amount || formData.amount,
+                        commission: data.commission || formData.commission,
+                        feedbackDate: data.feedbackDate || formData.feedbackDate
+                    };
+                    saveFollowup(finalData);
+                } catch (e) {
+                    alert("Errore durante l'analisi dell'immagine. Riprova o inserisci manualmente.");
+                    setIsAnalyzing(false);
+                }
+            };
+
+            const handlePaste = (e) => {
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf("image") !== -1) {
+                        const blob = items[i].getAsFile();
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            const base64 = event.target.result.split(',')[1];
+                            processImage(base64);
+                        };
+                        reader.readAsDataURL(blob);
+                    }
+                }
+            };
+
             return (
                 <div className="animate-fade-in pb-32">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica Offerta' : 'Nuova Offerta'}</h2>
+                    
+                    {/* Sezione Paste Immagine */}
+                    <div 
+                        onPaste={handlePaste}
+                        className={`mb-6 p-6 border-2 border-dashed rounded-2xl transition-all flex flex-col items-center justify-center gap-3 cursor-pointer ${isAnalyzing ? 'bg-indigo-50 border-indigo-300 animate-pulse' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}
+                    >
+                        <div className={`p-3 rounded-full ${isAnalyzing ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                            {isAnalyzing ? <Icons.Brain size={32} /> : <Icons.Upload size={32} />}
+                        </div>
+                        <div className="text-center">
+                            <div className="font-bold text-sm text-gray-700">{isAnalyzing ? 'IA sta analizzando e salvando...' : 'Compilazione Intelligente'}</div>
+                            <div className="text-xs text-gray-500 mt-1">Incolla qui l'immagine dell'offerta (Ctrl+V)</div>
+                        </div>
+                    </div>
+
                     <form onSubmit={(e) => { e.preventDefault(); saveFollowup(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
                         <Input label="Data Offerta" type="date" name="offerDate" value={formData.offerDate} onChange={handleChange} required />
                         <Input label="N. Offerta" name="offerNumber" value={formData.offerNumber} onChange={handleChange} required isError={isOfferNumberDuplicate} />
-                        <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required />
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required />
+                            <Input label="Provvigione (€)" type="number" step="0.01" name="commission" value={formData.commission} onChange={handleChange} />
+                        </div>
                         <Input label="Data Riscontro" type="date" name="feedbackDate" value={formData.feedbackDate} onChange={handleChange} required />
                         <TextArea label="Note" name="notes" value={formData.notes} onChange={handleChange} />
                         <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView(formData._returnView || 'dashboard')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-yellow-500 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
@@ -1632,6 +1739,8 @@
                 return { ...initialData, dateInput: defaultDate };
             });
 
+            const [isAnalyzing, setIsAnalyzing] = useState(false);
+
             const handleChange = (e) => {
                 const { name, value } = e.target;
                 setFormData(p => {
@@ -1640,12 +1749,94 @@
                         const offer = followups.find(f => f.offerNumber === newData.linkedOffer);
                         if (offer) {
                             newData.amount = offer.amount;
+                            if (offer.commission) newData.commission = offer.commission;
                         }
                     }
                     return newData;
                 });
             };
             
+            const processImage = async (base64Data) => {
+                setIsAnalyzing(true);
+                const apiKey = "";
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                
+                const systemPrompt = `Sei un assistente CRM esperto. Analizza l'immagine di questo ordine commerciale ed estrai i dati richiesti in formato JSON. 
+                Se un dato non è presente, usa una stringa vuota. 
+                Schema JSON richiesto:
+                {
+                    "client": "Nome Cliente/Ragione Sociale",
+                    "date": "YYYY-MM-DD",
+                    "orderNumber": "Numero Ordine",
+                    "amount": 123.45 (solo numero),
+                    "commission": 12.34 (solo numero)
+                }`;
+
+                const payload = {
+                    contents: [{
+                        parts: [
+                            { text: "Estrai i dati da questo ordine." },
+                            { inlineData: { mimeType: "image/png", data: base64Data } }
+                        ]
+                    }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                    generationConfig: { responseMimeType: "application/json" }
+                };
+
+                const callApi = async (retryCount = 0) => {
+                    try {
+                        const resp = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!resp.ok) throw new Error('API Error');
+                        const result = await resp.json();
+                        return JSON.parse(result.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+                    } catch (err) {
+                        if (retryCount < 5) {
+                            const delay = Math.pow(2, retryCount) * 1000;
+                            await new Promise(r => setTimeout(r, delay));
+                            return callApi(retryCount + 1);
+                        }
+                        throw err;
+                    }
+                };
+
+                try {
+                    const data = await callApi();
+                    const finalData = {
+                        ...formData,
+                        client: data.client || formData.client,
+                        offerNumber: data.orderNumber || formData.offerNumber,
+                        amount: data.amount || formData.amount,
+                        commission: data.commission || formData.commission,
+                        createdAt: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
+                        orderType: 'Totale',
+                        isBanco: false
+                    };
+                    saveOrder(finalData);
+                } catch (e) {
+                    alert("Errore durante l'analisi dell'immagine. Riprova o inserisci manualmente.");
+                    setIsAnalyzing(false);
+                }
+            };
+
+            const handlePaste = (e) => {
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf("image") !== -1) {
+                        const blob = items[i].getAsFile();
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            const base64 = event.target.result.split(',')[1];
+                            processImage(base64);
+                        };
+                        reader.readAsDataURL(blob);
+                    }
+                }
+            };
+
             const handleSubmit = (e) => {
                 e.preventDefault();
                 const finalData = {
@@ -1664,6 +1855,21 @@
             return (
                 <div className="animate-fade-in pb-32">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica Ordine' : 'Nuovo Ordine'}</h2>
+                    
+                    {/* Sezione Paste Immagine */}
+                    <div 
+                        onPaste={handlePaste}
+                        className={`mb-6 p-6 border-2 border-dashed rounded-2xl transition-all flex flex-col items-center justify-center gap-3 cursor-pointer ${isAnalyzing ? 'bg-indigo-50 border-indigo-300 animate-pulse' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}
+                    >
+                        <div className={`p-3 rounded-full ${isAnalyzing ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                            {isAnalyzing ? <Icons.Brain size={32} /> : <Icons.Upload size={32} />}
+                        </div>
+                        <div className="text-center">
+                            <div className="font-bold text-sm text-gray-700">{isAnalyzing ? 'IA sta analizzando e salvando...' : 'Compilazione Intelligente'}</div>
+                            <div className="text-xs text-gray-500 mt-1">Incolla qui l'immagine dell'ordine (Ctrl+V)</div>
+                        </div>
+                    </div>
+
                     <form onSubmit={handleSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
                         <div className="grid grid-cols-2 gap-4">
@@ -1760,7 +1966,7 @@
                                 {orderForm.client ? "Nessuna offerta trovata per questo cliente." : "Seleziona prima un cliente nell'ordine."}
                             </div>
                         ) : visibleFollowups.map(f => (
-                            <div key={f.id} onClick={() => { setOrderForm({...orderForm, linkedOffer: f.offerNumber}); setView('createOrder'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
+                            <div key={f.id} onClick={() => { setOrderForm({...orderForm, linkedOffer: f.offerNumber, commission: f.commission || orderForm.commission}); setView('createOrder'); }} className="p-4 bg-white rounded-xl border border-gray-100 cursor-pointer active:scale-[0.99] transition-transform">
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <div className="font-bold text-gray-800 flex items-center gap-2">
