@@ -1599,6 +1599,90 @@
         const FollowupForm = () => {
             const { followupForm: initialData, saveFollowup, setView, clients, followups } = useContext(CRMContext);
             const [formData, setFormData] = useState(initialData);
+            
+            const [isProcessing, setIsProcessing] = useState(false);
+            const [errorMsg, setErrorMsg] = useState('');
+            const fileRef = useRef(null);
+
+            const handleSmartFill = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setIsProcessing(true);
+                setErrorMsg('');
+                try {
+                    const base64Data = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.readAsDataURL(file);
+                    });
+
+                    const apiKey = "";
+                    const prompt = `Estrai i dati da questo documento. Restituisci SOLO un oggetto JSON valido con le seguenti chiavi (se non trovi un dato, metti una stringa vuota ""):
+                    - client: Nome del cliente o ragione sociale
+                    - offerDate: Data del documento nel formato YYYY-MM-DD
+                    - offerNumber: Numero identificativo dell'offerta
+                    - amount: Importo totale (solo numero, usa il punto per i decimali)
+                    - feedbackDate: Suggerisci una data di riscontro (es. 7 giorni dopo offerDate) nel formato YYYY-MM-DD
+                    - notes: Eventuali note`;
+
+                    const payload = {
+                        contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64Data } }] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    };
+
+                    let response;
+                    let retries = 5;
+                    let delay = 1000;
+                    while (retries > 0) {
+                        try {
+                            response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            if (response.ok) break;
+                        } catch (e) { }
+                        retries--;
+                        await new Promise(r => setTimeout(r, delay));
+                        delay *= 2;
+                    }
+
+                    if (!response || !response.ok) throw new Error("API failed");
+
+                    const result = await response.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    
+                    if (text) {
+                        const parsed = JSON.parse(text);
+                        const newFormData = { ...formData };
+                        if (parsed.client) newFormData.client = parsed.client;
+                        if (parsed.offerDate) newFormData.offerDate = parsed.offerDate;
+                        if (parsed.offerNumber) newFormData.offerNumber = String(parsed.offerNumber);
+                        if (parsed.amount) newFormData.amount = parsed.amount;
+                        if (parsed.feedbackDate) newFormData.feedbackDate = parsed.feedbackDate;
+                        if (parsed.notes) newFormData.notes = parsed.notes;
+
+                        if (!newFormData.offerDate) newFormData.offerDate = new Date().toISOString().split('T')[0];
+                        if (!newFormData.feedbackDate) {
+                            const fd = new Date();
+                            fd.setDate(fd.getDate() + 7);
+                            newFormData.feedbackDate = fd.toISOString().split('T')[0];
+                        }
+                        if(!newFormData.amount) newFormData.amount = "0";
+
+                        setFormData(newFormData);
+                        saveFollowup(newFormData);
+                    } else {
+                        setErrorMsg("Impossibile estrarre i dati.");
+                    }
+                } catch (err) {
+                    setErrorMsg("Errore di elaborazione documento.");
+                } finally {
+                    setIsProcessing(false);
+                    if (fileRef.current) fileRef.current.value = '';
+                }
+            };
+
             const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
             
             const isOfferNumberDuplicate = useMemo(() => {
@@ -1609,6 +1693,17 @@
             return (
                 <div className="animate-fade-in pb-32">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica Offerta' : 'Nuova Offerta'}</h2>
+                    
+                    <div className="mb-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex flex-col gap-2">
+                        <div className="text-sm font-bold text-indigo-800 flex items-center gap-2"><Icons.Lightbulb size={18}/> Compilazione Intelligente AI</div>
+                        <div className="text-xs text-indigo-600">Carica foto o PDF per estrarre i dati e salvare in automatico.</div>
+                        <input type="file" accept="image/*,application/pdf" className="hidden" ref={fileRef} onChange={handleSmartFill} />
+                        <button type="button" onClick={() => fileRef.current?.click()} disabled={isProcessing} className="w-full py-3 bg-indigo-600 text-white rounded-lg font-bold text-sm flex justify-center items-center gap-2 shadow-md disabled:opacity-50">
+                            {isProcessing ? <span className="animate-pulse">Analisi dati in corso...</span> : <><Icons.Upload size={16}/> Scansiona Documento</>}
+                        </button>
+                        {errorMsg && <div className="text-xs text-red-600 font-bold mt-1 text-center">{errorMsg}</div>}
+                    </div>
+
                     <form onSubmit={(e) => { e.preventDefault(); saveFollowup(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
                         <Input label="Data Offerta" type="date" name="offerDate" value={formData.offerDate} onChange={handleChange} required />
@@ -1631,6 +1726,86 @@
                     : new Date().toISOString().split('T')[0];
                 return { ...initialData, dateInput: defaultDate };
             });
+
+            const [isProcessing, setIsProcessing] = useState(false);
+            const [errorMsg, setErrorMsg] = useState('');
+            const fileRef = useRef(null);
+
+            const handleSmartFill = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setIsProcessing(true);
+                setErrorMsg('');
+                try {
+                    const base64Data = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.readAsDataURL(file);
+                    });
+
+                    const apiKey = "";
+                    const prompt = `Estrai i dati da questo documento d'ordine. Restituisci SOLO un oggetto JSON valido con le seguenti chiavi (se non trovi un dato, metti una stringa vuota ""):
+                    - client: Nome del cliente o ragione sociale
+                    - dateInput: Data del documento nel formato YYYY-MM-DD
+                    - offerNumber: Numero identificativo dell'ordine o dell'offerta di riferimento
+                    - amount: Importo totale (solo numero, usa il punto per i decimali)
+                    - commission: Calcola il 5% di amount e restituisci il numero (usa il punto per i decimali)`;
+
+                    const payload = {
+                        contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64Data } }] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    };
+
+                    let response;
+                    let retries = 5;
+                    let delay = 1000;
+                    while (retries > 0) {
+                        try {
+                            response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            if (response.ok) break;
+                        } catch (e) { }
+                        retries--;
+                        await new Promise(r => setTimeout(r, delay));
+                        delay *= 2;
+                    }
+
+                    if (!response || !response.ok) throw new Error("API failed");
+
+                    const result = await response.json();
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    
+                    if (text) {
+                        const parsed = JSON.parse(text);
+                        const newFormData = { ...formData };
+                        if (parsed.client) newFormData.client = parsed.client;
+                        if (parsed.dateInput) newFormData.dateInput = parsed.dateInput;
+                        if (parsed.offerNumber) newFormData.offerNumber = String(parsed.offerNumber);
+                        if (parsed.amount) newFormData.amount = parsed.amount;
+                        if (parsed.commission) newFormData.commission = parsed.commission;
+
+                        if (!newFormData.dateInput) newFormData.dateInput = new Date().toISOString().split('T')[0];
+                        if(!newFormData.amount) newFormData.amount = "0";
+                        if(!newFormData.orderType) newFormData.orderType = "Totale";
+
+                        setFormData(newFormData);
+                        
+                        const finalData = { ...newFormData, createdAt: new Date(newFormData.dateInput).toISOString() };
+                        delete finalData.dateInput;
+                        saveOrder(finalData);
+                    } else {
+                        setErrorMsg("Impossibile estrarre i dati.");
+                    }
+                } catch (err) {
+                    setErrorMsg("Errore di elaborazione documento.");
+                } finally {
+                    setIsProcessing(false);
+                    if (fileRef.current) fileRef.current.value = '';
+                }
+            };
 
             const handleChange = (e) => {
                 const { name, value } = e.target;
@@ -1664,6 +1839,17 @@
             return (
                 <div className="animate-fade-in pb-32">
                     <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica Ordine' : 'Nuovo Ordine'}</h2>
+                    
+                    <div className="mb-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex flex-col gap-2">
+                        <div className="text-sm font-bold text-indigo-800 flex items-center gap-2"><Icons.Lightbulb size={18}/> Compilazione Intelligente AI</div>
+                        <div className="text-xs text-indigo-600">Carica foto o PDF per estrarre i dati e salvare in automatico.</div>
+                        <input type="file" accept="image/*,application/pdf" className="hidden" ref={fileRef} onChange={handleSmartFill} />
+                        <button type="button" onClick={() => fileRef.current?.click()} disabled={isProcessing} className="w-full py-3 bg-indigo-600 text-white rounded-lg font-bold text-sm flex justify-center items-center gap-2 shadow-md disabled:opacity-50">
+                            {isProcessing ? <span className="animate-pulse">Analisi dati in corso...</span> : <><Icons.Upload size={16}/> Scansiona Documento</>}
+                        </button>
+                        {errorMsg && <div className="text-xs text-red-600 font-bold mt-1 text-center">{errorMsg}</div>}
+                    </div>
+
                     <form onSubmit={handleSubmit} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                         <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
                         <div className="grid grid-cols-2 gap-4">
