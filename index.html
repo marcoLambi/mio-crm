@@ -1618,52 +1618,19 @@
                 setIsProcessing(true);
                 setErrorMsg('');
                 try {
-                    let base64Data;
-                    let mimeType = file.type || 'image/jpeg';
-
-                    if (mimeType.startsWith('image/')) {
-                        try {
-                            base64Data = await new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onload = (e) => {
-                                    const img = new Image();
-                                    img.onload = () => {
-                                        const canvas = document.createElement('canvas');
-                                        const max_size = 1200; // Riduce l'immagine per non sovraccaricare l'API
-                                        let w = img.width;
-                                        let h = img.height;
-                                        if (w > h && w > max_size) { h = Math.round((h * max_size) / w); w = max_size; }
-                                        else if (h > max_size) { w = Math.round((w * max_size) / h); h = max_size; }
-                                        canvas.width = w; canvas.height = h;
-                                        const ctx = canvas.getContext('2d');
-                                        ctx.drawImage(img, 0, 0, w, h);
-                                        resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
-                                    };
-                                    img.onerror = () => reject(new Error("Errore conversione immagine"));
-                                    img.src = e.target.result;
-                                };
-                                reader.onerror = () => reject(new Error("Errore lettura file locale"));
-                                reader.readAsDataURL(file);
-                            });
-                            mimeType = 'image/jpeg';
-                        } catch (e) {
-                            // Fallback se il ridimensionamento fallisce
-                            base64Data = await new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onload = () => resolve(reader.result.split(',')[1]);
-                                reader.onerror = () => reject(new Error("Errore lettura fallback"));
-                                reader.readAsDataURL(file);
-                            });
-                        }
-                    } else {
-                        // File PDF
-                        base64Data = await new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result.split(',')[1]);
-                            reader.onerror = () => reject(new Error("Errore lettura PDF"));
-                            reader.readAsDataURL(file);
-                        });
-                    }
+                    const { mimeType, base64Data } = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const result = reader.result;
+                            const match = result.match(/^data:(.*?);base64,/);
+                            let mime = match ? match[1] : (file.type || 'image/jpeg');
+                            if(mime === 'image/jpg') mime = 'image/jpeg';
+                            const b64 = result.replace(/^data:.*?;base64,/, '');
+                            resolve({ mimeType: mime, base64Data: b64 });
+                        };
+                        reader.onerror = () => reject(new Error("Errore lettura file"));
+                        reader.readAsDataURL(file);
+                    });
 
                     const apiKey = "";
                     const prompt = `Estrai i dati da questo documento. Restituisci SOLO un oggetto JSON valido con le seguenti chiavi (se non trovi un dato, metti una stringa vuota ""):
@@ -1697,17 +1664,16 @@
                     }
 
                     if (!response || !response.ok) {
-                        if (response && (response.status === 400 || response.status === 413)) {
-                            throw new Error("File ancora troppo grande. Riprova con una foto più leggera.");
-                        }
-                        throw new Error("API fallita o chiave mancante");
+                        const status = response ? response.status : "Network";
+                        throw new Error(`API fallita (Codice HTTP ${status})`);
                     }
 
                     const result = await response.json();
                     const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
                     
                     if (text) {
-                        const parsed = JSON.parse(text);
+                        let cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                        const parsed = JSON.parse(cleanText);
                         const newFormData = { ...formData };
                         if (parsed.client) newFormData.client = parsed.client;
                         if (parsed.offerDate) newFormData.offerDate = parsed.offerDate;
@@ -1727,7 +1693,7 @@
                         setFormData(newFormData);
                         saveFollowup(newFormData);
                     } else {
-                        setErrorMsg("Impossibile estrarre i dati.");
+                        setErrorMsg("Impossibile estrarre i dati dal file.");
                     }
                 } catch (err) {
                     console.error("SmartFill Error:", err);
@@ -1771,12 +1737,12 @@
                     
                     <div className="mb-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex flex-col gap-2">
                         <div className="text-sm font-bold text-indigo-800 flex items-center gap-2"><Icons.Lightbulb size={18}/> Compilazione Intelligente AI</div>
-                        <div className="text-xs text-indigo-600">Carica foto o PDF per estrarre i dati.</div>
+                        <div className="text-xs text-indigo-600">Carica foto o PDF, oppure clicca nel box qui sotto per incollare.</div>
                         <input type="file" accept="image/*,application/pdf" className="hidden" ref={fileRef} onChange={handleSmartFill} />
                         <button type="button" onClick={() => fileRef.current?.click()} disabled={isProcessing} className="w-full py-3 bg-indigo-600 text-white rounded-lg font-bold text-sm flex justify-center items-center gap-2 shadow-md disabled:opacity-50">
-                            {isProcessing ? <span className="animate-pulse">Analisi in corso...</span> : <><Icons.Upload size={16}/> Carica File</>}
+                            {isProcessing ? <span className="animate-pulse">Analisi in corso...</span> : <><Icons.Upload size={16}/> Carica File Documento</>}
                         </button>
-                        <input type="text" placeholder="Oppure tieni premuto qui per INCOLLARE" onPaste={handlePaste} value="" onChange={() => {}} className="w-full mt-1 p-3 text-xs text-center border border-indigo-300 border-dashed rounded-lg bg-white text-indigo-700 font-bold focus:ring-2 focus:ring-indigo-500 outline-none placeholder-indigo-400" />
+                        <input type="text" placeholder="Oppure tieni premuto qui per INCOLLARE" onPaste={handlePaste} value="" onChange={() => {}} className="w-full mt-1 p-3 text-xs text-center border-2 border-indigo-300 border-dashed rounded-lg bg-white text-indigo-700 font-bold focus:ring-2 focus:ring-indigo-500 outline-none placeholder-indigo-400" />
                         {errorMsg && <div className="text-xs text-red-600 font-bold mt-1 text-center">{errorMsg}</div>}
                     </div>
 
@@ -1818,50 +1784,19 @@
                 setIsProcessing(true);
                 setErrorMsg('');
                 try {
-                    let base64Data;
-                    let mimeType = file.type || 'image/jpeg';
-
-                    if (mimeType.startsWith('image/')) {
-                        try {
-                            base64Data = await new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onload = (e) => {
-                                    const img = new Image();
-                                    img.onload = () => {
-                                        const canvas = document.createElement('canvas');
-                                        const max_size = 1200; // Riduce l'immagine per l'API
-                                        let w = img.width;
-                                        let h = img.height;
-                                        if (w > h && w > max_size) { h = Math.round((h * max_size) / w); w = max_size; }
-                                        else if (h > max_size) { w = Math.round((w * max_size) / h); h = max_size; }
-                                        canvas.width = w; canvas.height = h;
-                                        const ctx = canvas.getContext('2d');
-                                        ctx.drawImage(img, 0, 0, w, h);
-                                        resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
-                                    };
-                                    img.onerror = () => reject(new Error("Errore conversione immagine"));
-                                    img.src = e.target.result;
-                                };
-                                reader.onerror = () => reject(new Error("Errore lettura file locale"));
-                                reader.readAsDataURL(file);
-                            });
-                            mimeType = 'image/jpeg';
-                        } catch (e) {
-                            base64Data = await new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onload = () => resolve(reader.result.split(',')[1]);
-                                reader.onerror = () => reject(new Error("Errore lettura fallback"));
-                                reader.readAsDataURL(file);
-                            });
-                        }
-                    } else {
-                        base64Data = await new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onload = () => resolve(reader.result.split(',')[1]);
-                            reader.onerror = () => reject(new Error("Errore lettura PDF"));
-                            reader.readAsDataURL(file);
-                        });
-                    }
+                    const { mimeType, base64Data } = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const result = reader.result;
+                            const match = result.match(/^data:(.*?);base64,/);
+                            let mime = match ? match[1] : (file.type || 'image/jpeg');
+                            if(mime === 'image/jpg') mime = 'image/jpeg';
+                            const b64 = result.replace(/^data:.*?;base64,/, '');
+                            resolve({ mimeType: mime, base64Data: b64 });
+                        };
+                        reader.onerror = () => reject(new Error("Errore lettura file"));
+                        reader.readAsDataURL(file);
+                    });
 
                     const apiKey = "";
                     const prompt = `Estrai i dati da questo documento d'ordine. Restituisci SOLO un oggetto JSON valido con le seguenti chiavi (se non trovi un dato, metti una stringa vuota ""):
@@ -1894,17 +1829,16 @@
                     }
 
                     if (!response || !response.ok) {
-                        if (response && (response.status === 400 || response.status === 413)) {
-                            throw new Error("File ancora troppo grande. Riprova con una foto più leggera.");
-                        }
-                        throw new Error("API fallita o chiave mancante");
+                        const status = response ? response.status : "Network";
+                        throw new Error(`API fallita (Codice HTTP ${status})`);
                     }
 
                     const result = await response.json();
                     const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
                     
                     if (text) {
-                        const parsed = JSON.parse(text);
+                        let cleanText = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                        const parsed = JSON.parse(cleanText);
                         const newFormData = { ...formData };
                         if (parsed.client) newFormData.client = parsed.client;
                         if (parsed.dateInput) newFormData.dateInput = parsed.dateInput;
@@ -1922,7 +1856,7 @@
                         delete finalData.dateInput;
                         saveOrder(finalData);
                     } else {
-                        setErrorMsg("Impossibile estrarre i dati.");
+                        setErrorMsg("Impossibile estrarre i dati dal file.");
                     }
                 } catch (err) {
                     console.error("SmartFill Error:", err);
@@ -1988,12 +1922,12 @@
                     
                     <div className="mb-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex flex-col gap-2">
                         <div className="text-sm font-bold text-indigo-800 flex items-center gap-2"><Icons.Lightbulb size={18}/> Compilazione Intelligente AI</div>
-                        <div className="text-xs text-indigo-600">Carica foto o PDF per estrarre i dati.</div>
+                        <div className="text-xs text-indigo-600">Carica foto o PDF, oppure clicca nel box qui sotto per incollare.</div>
                         <input type="file" accept="image/*,application/pdf" className="hidden" ref={fileRef} onChange={handleSmartFill} />
                         <button type="button" onClick={() => fileRef.current?.click()} disabled={isProcessing} className="w-full py-3 bg-indigo-600 text-white rounded-lg font-bold text-sm flex justify-center items-center gap-2 shadow-md disabled:opacity-50">
-                            {isProcessing ? <span className="animate-pulse">Analisi in corso...</span> : <><Icons.Upload size={16}/> Carica File</>}
+                            {isProcessing ? <span className="animate-pulse">Analisi in corso...</span> : <><Icons.Upload size={16}/> Carica File Documento</>}
                         </button>
-                        <input type="text" placeholder="Oppure tieni premuto qui per INCOLLARE" onPaste={handlePaste} value="" onChange={() => {}} className="w-full mt-1 p-3 text-xs text-center border border-indigo-300 border-dashed rounded-lg bg-white text-indigo-700 font-bold focus:ring-2 focus:ring-indigo-500 outline-none placeholder-indigo-400" />
+                        <input type="text" placeholder="Oppure tieni premuto qui per INCOLLARE" onPaste={handlePaste} value="" onChange={() => {}} className="w-full mt-1 p-3 text-xs text-center border-2 border-indigo-300 border-dashed rounded-lg bg-white text-indigo-700 font-bold focus:ring-2 focus:ring-indigo-500 outline-none placeholder-indigo-400" />
                         {errorMsg && <div className="text-xs text-red-600 font-bold mt-1 text-center">{errorMsg}</div>}
                     </div>
 
