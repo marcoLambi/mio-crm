@@ -1668,6 +1668,7 @@
                     form.append('base64Image', base64Data);
                     form.append('language', 'ita');
                     form.append('isOverlayRequired', 'false');
+                    form.append('isTable', 'true'); // Attiva la lettura tabellare
 
                     const response = await fetch('https://api.ocr.space/parse/image', {
                         method: 'POST',
@@ -1690,51 +1691,82 @@
                     let parsedAmount = "0";
                     let parsedDateStr = "";
 
-                    // Ricerca precisa per etichette
+                    // Prima passata: cerchiamo in ogni riga i dati in formato Orizzontale standard
                     for (let i = 0; i < lines.length; i++) {
                         const line = lines[i].toUpperCase();
-                        const nextLine = i + 1 < lines.length ? lines[i+1] : "";
+                        
+                        if (line.startsWith('NOME:') || line.startsWith('CLIENTE:')) {
+                            parsedClient = lines[i].split(':')[1].trim();
+                        } else if ((line.startsWith('NOME') || line.startsWith('CLIENTE')) && line.split(/\s+/).length > 1) {
+                            const parts = lines[i].split(/\s+/);
+                            parts.shift();
+                            if(!['RIFERIMENTO', 'IMPORTO', 'DATA'].includes(parts[0].toUpperCase())) {
+                                parsedClient = parts.join(' ');
+                            }
+                        }
 
-                        if (line === 'NOME' || line === 'CLIENTE' || line.startsWith('NOME:') || line.startsWith('CLIENTE:')) {
-                            parsedClient = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
+                        if (line.startsWith('NUMERO:') || line.startsWith('OFFERTA:')) {
+                            parsedOffer = lines[i].split(':')[1].trim();
+                        } else if (line.startsWith('NUMERO') && line.split(/\s+/).length === 2) {
+                            parsedOffer = lines[i].split(/\s+/)[1];
                         }
-                        if (line === 'NUMERO' || line === 'N. ORDINE' || line === 'N. OFFERTA' || line.startsWith('NUMERO:')) {
-                            parsedOffer = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
-                        }
-                        if (line === 'IMPORTO' || line === 'TOTALE' || line.startsWith('IMPORTO:') || line.startsWith('TOTALE:')) {
-                            let amtStr = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
-                            const amtMatch = amtStr.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/);
-                            if (amtMatch) parsedAmount = amtMatch[1].replace(/\./g, '').replace(',', '.');
-                        }
-                        if (line === 'DATA' || line.startsWith('DATA:')) {
-                            parsedDateStr = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
+
+                        if (line.startsWith('IMPORTO:') || line.startsWith('TOTALE:')) {
+                            const match = lines[i].match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/);
+                            if(match) parsedAmount = match[1].replace(/\./g, '').replace(',', '.');
+                        } else if (line.startsWith('IMPORTO') && line.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/)) {
+                            const match = lines[i].match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/);
+                            parsedAmount = match[1].replace(/\./g, '').replace(',', '.');
                         }
                     }
 
-                    // Fallback se le etichette non vengono trovate
-                    if (!parsedClient && lines.length > 0) {
-                        parsedClient = lines.find(l => !l.match(/^[\d\W]+$/) && !['NUMERO', 'STATO', 'DATA', 'NOME', 'IMPORTO', 'PROVVIGIONE', 'RIFERIMENTO'].includes(l.toUpperCase())) || "Cliente Sconosciuto";
-                    }
-
-                    if (!parsedAmount || parsedAmount === "0") {
-                        const amountRegex = /(?:totale|importo|imponibile|pagare|saldo)[\s\S]{0,30}?€?\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/i;
-                        const amountMatch = text.match(amountRegex) || text.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*€/);
-                        if (amountMatch) parsedAmount = amountMatch[1].replace(/\./g, '').replace(',', '.');
-                    }
-
+                    // Seconda passata: Regex su tutto il testo per scovare i dati isolati (Layout a Colonne/Tabella)
+                    
+                    // 1. DATA
+                    const dateMatch = text.match(/\b(\d{2}[\/\-]\d{2}[\/\-]\d{4})\b/);
                     let parsedDate = new Date().toISOString().split('T')[0];
-                    const dateMatch = parsedDateStr.match(/\b(\d{2}[\/\-]\d{2}[\/\-]\d{4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})\b/) || text.match(/\b(\d{2}[\/\-]\d{2}[\/\-]\d{4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})\b/);
                     if (dateMatch) {
-                        const dStr = dateMatch[1].replace(/\//g, '-');
-                        const parts = dStr.split('-');
-                        if (parts[0].length === 4) parsedDate = `${parts[0]}-${parts[1]}-${parts[2]}`;
-                        else parsedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        const parts = dateMatch[1].replace(/\//g, '-').split('-');
+                        parsedDate = parts[0].length === 4 ? `${parts[0]}-${parts[1]}-${parts[2]}` : `${parts[2]}-${parts[1]}-${parts[0]}`;
                     }
 
-                    if (!parsedOffer) {
-                        const offerMatch = text.match(/(?:preventivo|offerta|ordine|doc\.?|n\.|numero)[\s:]*([A-Z0-9\-\/]{3,15})/i);
-                        parsedOffer = offerMatch ? offerMatch[1] : `DOC-${Math.floor(Math.random()*10000)}`;
+                    // 2. IMPORTO MASSIMO REALE (cerca i simboli valuta per non confonderlo con altro)
+                    if (!parsedAmount || parsedAmount === "0") {
+                        const currencyMatches = [...text.matchAll(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*€/g)];
+                        if (currencyMatches.length > 0) {
+                            const amounts = currencyMatches.map(m => parseFloat(m[1].replace(/\./g, '').replace(',', '.')));
+                            parsedAmount = Math.max(...amounts).toString();
+                        }
                     }
+
+                    // 3. NUMERO OFFERTA (Codice alfanumerico es. 1651L26)
+                    if (!parsedOffer) {
+                        const alphaNumRegex = /\b(?=[A-Z]*[0-9])(?=[0-9]*[A-Z])[A-Z0-9]{4,15}\b/gi;
+                        const codes = text.match(alphaNumRegex);
+                        if (codes) parsedOffer = codes[0];
+                        else parsedOffer = `DOC-${Math.floor(Math.random()*10000)}`;
+                    }
+
+                    // 4. CLIENTE (Logica intelligente per la lettura a colonne sfalsate)
+                    if (!parsedClient) {
+                        const clientRegex = /([A-Z0-9\s\&]+(?:S\.?P\.?A\.?|S\.?R\.?L\.?|S\.?N\.?C\.?|S\.?A\.?S\.?))/i;
+                        const clientMatch = text.match(clientRegex);
+                        if (clientMatch) {
+                            parsedClient = clientMatch[1].trim();
+                        } else {
+                            const nomeIdx = lines.findIndex(l => l.toUpperCase() === 'NOME' || l.toUpperCase() === 'CLIENTE');
+                            if (nomeIdx !== -1) {
+                                // Trova la riga nella seconda colonna cercando pattern noti (Date, Numeri, o Parole che non sono le Etichette)
+                                const firstValueIdx = lines.findIndex(l => l.match(/\d{2}\/\d{2}\/\d{4}/) || l.match(/[0-9]+[A-Z]+/i) || l.includes('€') || l.toUpperCase() === 'PRONTO');
+                                if (firstValueIdx > nomeIdx) {
+                                    parsedClient = lines[firstValueIdx + nomeIdx];
+                                } else if (nomeIdx + 1 < lines.length && !['RIFERIMENTO', 'IMPORTO', 'DATA', 'STATO', 'PROVVIGIONE'].includes(lines[nomeIdx + 1].toUpperCase())) {
+                                    parsedClient = lines[nomeIdx + 1];
+                                }
+                            }
+                        }
+                    }
+                    if (!parsedClient || ['RIFERIMENTO', 'IMPORTO', 'STATO', 'NUMERO', 'DATA', 'PROVVIGIONE'].includes(parsedClient.toUpperCase())) parsedClient = "Cliente Sconosciuto";
 
                     const newFormData = { ...formData };
                     newFormData.client = parsedClient;
@@ -1893,6 +1925,7 @@
                     form.append('base64Image', base64Data);
                     form.append('language', 'ita');
                     form.append('isOverlayRequired', 'false');
+                    form.append('isTable', 'true');
 
                     const response = await fetch('https://api.ocr.space/parse/image', {
                         method: 'POST',
@@ -1915,49 +1948,77 @@
                     let parsedAmount = "0";
                     let parsedDateStr = "";
 
+                    // Prima passata: cerchiamo in ogni riga i dati in formato Orizzontale standard
                     for (let i = 0; i < lines.length; i++) {
                         const line = lines[i].toUpperCase();
-                        const nextLine = i + 1 < lines.length ? lines[i+1] : "";
+                        
+                        if (line.startsWith('NOME:') || line.startsWith('CLIENTE:')) {
+                            parsedClient = lines[i].split(':')[1].trim();
+                        } else if ((line.startsWith('NOME') || line.startsWith('CLIENTE')) && line.split(/\s+/).length > 1) {
+                            const parts = lines[i].split(/\s+/);
+                            parts.shift();
+                            if(!['RIFERIMENTO', 'IMPORTO', 'DATA'].includes(parts[0].toUpperCase())) {
+                                parsedClient = parts.join(' ');
+                            }
+                        }
 
-                        if (line === 'NOME' || line === 'CLIENTE' || line.startsWith('NOME:') || line.startsWith('CLIENTE:')) {
-                            parsedClient = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
+                        if (line.startsWith('NUMERO:') || line.startsWith('OFFERTA:') || line.startsWith('ORDINE:')) {
+                            parsedOffer = lines[i].split(':')[1].trim();
+                        } else if (line.startsWith('NUMERO') && line.split(/\s+/).length === 2) {
+                            parsedOffer = lines[i].split(/\s+/)[1];
                         }
-                        if (line === 'NUMERO' || line === 'N. ORDINE' || line === 'N. OFFERTA' || line.startsWith('NUMERO:')) {
-                            parsedOffer = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
-                        }
-                        if (line === 'IMPORTO' || line === 'TOTALE' || line.startsWith('IMPORTO:') || line.startsWith('TOTALE:')) {
-                            let amtStr = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
-                            const amtMatch = amtStr.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/);
-                            if (amtMatch) parsedAmount = amtMatch[1].replace(/\./g, '').replace(',', '.');
-                        }
-                        if (line === 'DATA' || line.startsWith('DATA:')) {
-                            parsedDateStr = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
+
+                        if (line.startsWith('IMPORTO:') || line.startsWith('TOTALE:')) {
+                            const match = lines[i].match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/);
+                            if(match) parsedAmount = match[1].replace(/\./g, '').replace(',', '.');
+                        } else if (line.startsWith('IMPORTO') && line.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/)) {
+                            const match = lines[i].match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/);
+                            parsedAmount = match[1].replace(/\./g, '').replace(',', '.');
                         }
                     }
 
-                    if (!parsedClient && lines.length > 0) {
-                        parsedClient = lines.find(l => !l.match(/^[\d\W]+$/) && !['NUMERO', 'STATO', 'DATA', 'NOME', 'IMPORTO', 'PROVVIGIONE', 'RIFERIMENTO'].includes(l.toUpperCase())) || "Cliente Sconosciuto";
+                    // Seconda passata: Regex su tutto il testo per scovare i dati isolati (Layout a Colonne/Tabella)
+                    
+                    const dateMatch = text.match(/\b(\d{2}[\/\-]\d{2}[\/\-]\d{4})\b/);
+                    let parsedDate = new Date().toISOString().split('T')[0];
+                    if (dateMatch) {
+                        const parts = dateMatch[1].replace(/\//g, '-').split('-');
+                        parsedDate = parts[0].length === 4 ? `${parts[0]}-${parts[1]}-${parts[2]}` : `${parts[2]}-${parts[1]}-${parts[0]}`;
                     }
 
                     if (!parsedAmount || parsedAmount === "0") {
-                        const amountRegex = /(?:totale|importo|imponibile|pagare|saldo)[\s\S]{0,30}?€?\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/i;
-                        const amountMatch = text.match(amountRegex) || text.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*€/);
-                        if (amountMatch) parsedAmount = amountMatch[1].replace(/\./g, '').replace(',', '.');
-                    }
-
-                    let parsedDate = new Date().toISOString().split('T')[0];
-                    const dateMatch = parsedDateStr.match(/\b(\d{2}[\/\-]\d{2}[\/\-]\d{4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})\b/) || text.match(/\b(\d{2}[\/\-]\d{2}[\/\-]\d{4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})\b/);
-                    if (dateMatch) {
-                        const dStr = dateMatch[1].replace(/\//g, '-');
-                        const parts = dStr.split('-');
-                        if (parts[0].length === 4) parsedDate = `${parts[0]}-${parts[1]}-${parts[2]}`;
-                        else parsedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                        const currencyMatches = [...text.matchAll(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*€/g)];
+                        if (currencyMatches.length > 0) {
+                            const amounts = currencyMatches.map(m => parseFloat(m[1].replace(/\./g, '').replace(',', '.')));
+                            parsedAmount = Math.max(...amounts).toString();
+                        }
                     }
 
                     if (!parsedOffer) {
-                        const offerMatch = text.match(/(?:preventivo|offerta|ordine|doc\.?|n\.|numero)[\s:]*([A-Z0-9\-\/]{3,15})/i);
-                        parsedOffer = offerMatch ? offerMatch[1] : `DOC-${Math.floor(Math.random()*10000)}`;
+                        const alphaNumRegex = /\b(?=[A-Z]*[0-9])(?=[0-9]*[A-Z])[A-Z0-9]{4,15}\b/gi;
+                        const codes = text.match(alphaNumRegex);
+                        if (codes) parsedOffer = codes[0];
+                        else parsedOffer = `DOC-${Math.floor(Math.random()*10000)}`;
                     }
+
+                    if (!parsedClient) {
+                        const clientRegex = /([A-Z0-9\s\&]+(?:S\.?P\.?A\.?|S\.?R\.?L\.?|S\.?N\.?C\.?|S\.?A\.?S\.?))/i;
+                        const clientMatch = text.match(clientRegex);
+                        if (clientMatch) {
+                            parsedClient = clientMatch[1].trim();
+                        } else {
+                            const nomeIdx = lines.findIndex(l => l.toUpperCase() === 'NOME' || l.toUpperCase() === 'CLIENTE');
+                            if (nomeIdx !== -1) {
+                                const firstValueIdx = lines.findIndex(l => l.match(/\d{2}\/\d{2}\/\d{4}/) || l.match(/[0-9]+[A-Z]+/i) || l.includes('€') || l.toUpperCase() === 'PRONTO');
+                                if (firstValueIdx > nomeIdx) {
+                                    parsedClient = lines[firstValueIdx + nomeIdx];
+                                } else if (nomeIdx + 1 < lines.length && !['RIFERIMENTO', 'IMPORTO', 'DATA', 'STATO', 'PROVVIGIONE'].includes(lines[nomeIdx + 1].toUpperCase())) {
+                                    parsedClient = lines[nomeIdx + 1];
+                                }
+                            }
+                        }
+                    }
+                    if (!parsedClient || ['RIFERIMENTO', 'IMPORTO', 'STATO', 'NUMERO', 'DATA', 'PROVVIGIONE'].includes(parsedClient.toUpperCase())) parsedClient = "Cliente Sconosciuto";
 
                     const newFormData = { ...formData };
                     newFormData.client = parsedClient;
