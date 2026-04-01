@@ -789,6 +789,7 @@
                         <InfoBox label="Data Offerta" value={item.offerDate ? new Date(item.offerDate).toLocaleDateString('it-IT') : '-'} icon={Icons.Calendar} />
                         <InfoBox label="N. Offerta" value={item.offerNumber} icon={Icons.FileText} />
                         <InfoBox label="Importo" value={`€ ${parseFloat(item.amount).toFixed(2)}`} icon={Icons.CreditCard} />
+                        <InfoBox label="Provvigione" value={item.commission ? `€ ${parseFloat(item.commission).toFixed(2)}` : '-'} icon={Icons.CreditCard} />
                         <InfoBox label="Data Riscontro" value={new Date(item.feedbackDate).toLocaleDateString('it-IT')} icon={Icons.Calendar} />
                         <SectionDisplay title="Note" content={item.notes} />
                      </div>
@@ -1265,6 +1266,7 @@
                                                 </div>
                                                 <div className="text-right">
                                                     <div className={`text-lg font-bold ${f.status === 'closed_not_ordered' ? 'text-gray-400' : 'text-yellow-600'}`}>€ {parseFloat(f.amount).toFixed(2)}</div>
+                                                    {f.commission > 0 && <div className="text-[10px] text-gray-400 font-normal">Provv. €{parseFloat(f.commission).toFixed(2)}</div>}
                                                 </div>
                                             </div>
                                         </div>
@@ -1681,20 +1683,47 @@
                     const text = result.ParsedResults?.[0]?.ParsedText || '';
                     if (!text || text.trim() === '') throw new Error("Nessun dato rilevato nel documento.");
 
-                    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+                    const lines = text.replace(/\r/g, '').split('\n').map(l => l.trim()).filter(l => l !== '');
                     
-                    let parsedClient = lines.length > 0 ? lines[0] : "Cliente Sconosciuto";
-                    if (parsedClient.match(/^[\d\-\/\.]+$/) && lines.length > 1) parsedClient = lines[1];
-
-                    const amountRegex = /(?:totale|importo|imponibile|pagare|saldo)[\s\S]{0,30}?€?\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/i;
-                    const amountMatch = text.match(amountRegex) || text.match(/€\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/);
+                    let parsedClient = "";
+                    let parsedOffer = "";
                     let parsedAmount = "0";
-                    if (amountMatch) {
-                        parsedAmount = amountMatch[1].replace(/\./g, '').replace(',', '.');
+                    let parsedDateStr = "";
+
+                    // Ricerca precisa per etichette
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i].toUpperCase();
+                        const nextLine = i + 1 < lines.length ? lines[i+1] : "";
+
+                        if (line === 'NOME' || line === 'CLIENTE' || line.startsWith('NOME:') || line.startsWith('CLIENTE:')) {
+                            parsedClient = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
+                        }
+                        if (line === 'NUMERO' || line === 'N. ORDINE' || line === 'N. OFFERTA' || line.startsWith('NUMERO:')) {
+                            parsedOffer = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
+                        }
+                        if (line === 'IMPORTO' || line === 'TOTALE' || line.startsWith('IMPORTO:') || line.startsWith('TOTALE:')) {
+                            let amtStr = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
+                            const amtMatch = amtStr.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/);
+                            if (amtMatch) parsedAmount = amtMatch[1].replace(/\./g, '').replace(',', '.');
+                        }
+                        if (line === 'DATA' || line.startsWith('DATA:')) {
+                            parsedDateStr = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
+                        }
                     }
 
-                    const dateMatch = text.match(/\b(\d{2}[\/\-]\d{2}[\/\-]\d{4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})\b/);
+                    // Fallback se le etichette non vengono trovate
+                    if (!parsedClient && lines.length > 0) {
+                        parsedClient = lines.find(l => !l.match(/^[\d\W]+$/) && !['NUMERO', 'STATO', 'DATA', 'NOME', 'IMPORTO', 'PROVVIGIONE', 'RIFERIMENTO'].includes(l.toUpperCase())) || "Cliente Sconosciuto";
+                    }
+
+                    if (!parsedAmount || parsedAmount === "0") {
+                        const amountRegex = /(?:totale|importo|imponibile|pagare|saldo)[\s\S]{0,30}?€?\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/i;
+                        const amountMatch = text.match(amountRegex) || text.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*€/);
+                        if (amountMatch) parsedAmount = amountMatch[1].replace(/\./g, '').replace(',', '.');
+                    }
+
                     let parsedDate = new Date().toISOString().split('T')[0];
+                    const dateMatch = parsedDateStr.match(/\b(\d{2}[\/\-]\d{2}[\/\-]\d{4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})\b/) || text.match(/\b(\d{2}[\/\-]\d{2}[\/\-]\d{4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})\b/);
                     if (dateMatch) {
                         const dStr = dateMatch[1].replace(/\//g, '-');
                         const parts = dStr.split('-');
@@ -1702,8 +1731,10 @@
                         else parsedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
                     }
 
-                    const offerMatch = text.match(/(?:preventivo|offerta|ordine|doc\.?|n\.|numero)[\s:]*([A-Z0-9\-\/]{3,15})/i);
-                    let parsedOffer = offerMatch ? offerMatch[1] : `DOC-${Math.floor(Math.random()*10000)}`;
+                    if (!parsedOffer) {
+                        const offerMatch = text.match(/(?:preventivo|offerta|ordine|doc\.?|n\.|numero)[\s:]*([A-Z0-9\-\/]{3,15})/i);
+                        parsedOffer = offerMatch ? offerMatch[1] : `DOC-${Math.floor(Math.random()*10000)}`;
+                    }
 
                     const newFormData = { ...formData };
                     newFormData.client = parsedClient;
@@ -1711,6 +1742,9 @@
                     newFormData.offerNumber = parsedOffer;
                     newFormData.amount = parsedAmount;
                     
+                    const numAmount = parseFloat(parsedAmount) || 0;
+                    newFormData.commission = (numAmount * 0.05).toFixed(2);
+
                     let fd = new Date(parsedDate);
                     if(isNaN(fd.getTime())) fd = new Date();
                     fd.setDate(fd.getDate() + 7);
@@ -1777,6 +1811,7 @@
                         <Input label="Data Offerta" type="date" name="offerDate" value={formData.offerDate} onChange={handleChange} required />
                         <Input label="N. Offerta" name="offerNumber" value={formData.offerNumber} onChange={handleChange} required isError={isOfferNumberDuplicate} />
                         <Input label="Importo (€)" type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required />
+                        <Input label="Provvigione (€)" type="number" step="0.01" name="commission" value={formData.commission} onChange={handleChange} />
                         <Input label="Data Riscontro" type="date" name="feedbackDate" value={formData.feedbackDate} onChange={handleChange} required />
                         <TextArea label="Note" name="notes" value={formData.notes} onChange={handleChange} />
                         <div className="pt-2 flex gap-3">
@@ -1873,20 +1908,45 @@
                     const text = result.ParsedResults?.[0]?.ParsedText || '';
                     if (!text || text.trim() === '') throw new Error("Nessun dato rilevato nel documento.");
 
-                    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+                    const lines = text.replace(/\r/g, '').split('\n').map(l => l.trim()).filter(l => l !== '');
                     
-                    let parsedClient = lines.length > 0 ? lines[0] : "Cliente Sconosciuto";
-                    if (parsedClient.match(/^[\d\-\/\.]+$/) && lines.length > 1) parsedClient = lines[1];
-
-                    const amountRegex = /(?:totale|importo|imponibile|pagare|saldo)[\s\S]{0,30}?€?\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/i;
-                    const amountMatch = text.match(amountRegex) || text.match(/€\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/);
+                    let parsedClient = "";
+                    let parsedOffer = "";
                     let parsedAmount = "0";
-                    if (amountMatch) {
-                        parsedAmount = amountMatch[1].replace(/\./g, '').replace(',', '.');
+                    let parsedDateStr = "";
+
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i].toUpperCase();
+                        const nextLine = i + 1 < lines.length ? lines[i+1] : "";
+
+                        if (line === 'NOME' || line === 'CLIENTE' || line.startsWith('NOME:') || line.startsWith('CLIENTE:')) {
+                            parsedClient = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
+                        }
+                        if (line === 'NUMERO' || line === 'N. ORDINE' || line === 'N. OFFERTA' || line.startsWith('NUMERO:')) {
+                            parsedOffer = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
+                        }
+                        if (line === 'IMPORTO' || line === 'TOTALE' || line.startsWith('IMPORTO:') || line.startsWith('TOTALE:')) {
+                            let amtStr = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
+                            const amtMatch = amtStr.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/);
+                            if (amtMatch) parsedAmount = amtMatch[1].replace(/\./g, '').replace(',', '.');
+                        }
+                        if (line === 'DATA' || line.startsWith('DATA:')) {
+                            parsedDateStr = line.includes(':') ? lines[i].substring(lines[i].indexOf(':')+1).trim() : nextLine;
+                        }
                     }
 
-                    const dateMatch = text.match(/\b(\d{2}[\/\-]\d{2}[\/\-]\d{4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})\b/);
+                    if (!parsedClient && lines.length > 0) {
+                        parsedClient = lines.find(l => !l.match(/^[\d\W]+$/) && !['NUMERO', 'STATO', 'DATA', 'NOME', 'IMPORTO', 'PROVVIGIONE', 'RIFERIMENTO'].includes(l.toUpperCase())) || "Cliente Sconosciuto";
+                    }
+
+                    if (!parsedAmount || parsedAmount === "0") {
+                        const amountRegex = /(?:totale|importo|imponibile|pagare|saldo)[\s\S]{0,30}?€?\s?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)/i;
+                        const amountMatch = text.match(amountRegex) || text.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*€/);
+                        if (amountMatch) parsedAmount = amountMatch[1].replace(/\./g, '').replace(',', '.');
+                    }
+
                     let parsedDate = new Date().toISOString().split('T')[0];
+                    const dateMatch = parsedDateStr.match(/\b(\d{2}[\/\-]\d{2}[\/\-]\d{4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})\b/) || text.match(/\b(\d{2}[\/\-]\d{2}[\/\-]\d{4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})\b/);
                     if (dateMatch) {
                         const dStr = dateMatch[1].replace(/\//g, '-');
                         const parts = dStr.split('-');
@@ -1894,8 +1954,10 @@
                         else parsedDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
                     }
 
-                    const offerMatch = text.match(/(?:preventivo|offerta|ordine|doc\.?|n\.|numero)[\s:]*([A-Z0-9\-\/]{3,15})/i);
-                    let parsedOffer = offerMatch ? offerMatch[1] : `DOC-${Math.floor(Math.random()*10000)}`;
+                    if (!parsedOffer) {
+                        const offerMatch = text.match(/(?:preventivo|offerta|ordine|doc\.?|n\.|numero)[\s:]*([A-Z0-9\-\/]{3,15})/i);
+                        parsedOffer = offerMatch ? offerMatch[1] : `DOC-${Math.floor(Math.random()*10000)}`;
+                    }
 
                     const newFormData = { ...formData };
                     newFormData.client = parsedClient;
@@ -2026,33 +2088,6 @@
                             <button type="button" onClick={() => setView(formData._returnView || 'ordersList')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button>
                             <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button>
                         </div>
-                    </form>
-                </div>
-            );
-        };
-
-        const IdeaForm = () => {
-            const { ideaForm: initialData, saveIdea, setView, clients } = useContext(CRMContext);
-            const [formData, setFormData] = useState(initialData);
-            const handleChange = (e) => setFormData(p => ({ ...p, [e.target.name]: e.target.value }));
-            return (
-                <div className="animate-fade-in pb-32">
-                    <h2 className="text-xl font-bold text-gray-800 mb-6">{formData.id ? 'Modifica Idea' : 'Nuova Idea'}</h2>
-                    <form onSubmit={(e) => { e.preventDefault(); saveIdea(formData); }} className="space-y-5 bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                        <ClientSearchInput clients={clients} value={formData.client} onChange={handleChange} required />
-                        <TextArea label="Testo Idea" name="text" value={formData.text} onChange={handleChange} required enableVoice={true} />
-                        <Input label="Scadenza" type="date" name="deadline" value={formData.deadline} onChange={handleChange} required />
-                        {formData.deadline && (
-                            <div className="pt-2">
-                                <CalendarButton 
-                                    title={`Idea: ${formData.client || 'Cliente'}`} 
-                                    details={formData.text || ""} 
-                                    date={formData.deadline} 
-                                    time="09:00" 
-                                />
-                            </div>
-                        )}
-                        <div className="pt-2 flex gap-3"><button type="button" onClick={() => setView(formData._returnView || 'ideas')} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl">Annulla</button><button type="submit" className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg flex justify-center gap-2"><Icons.Save size={18} /> Salva</button></div>
                     </form>
                 </div>
             );
