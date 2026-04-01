@@ -1618,12 +1618,14 @@
                 setIsProcessing(true);
                 setErrorMsg('');
                 try {
-                    const base64Data = await new Promise((resolve) => {
+                    const base64Data = await new Promise((resolve, reject) => {
                         const reader = new FileReader();
                         reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.onerror = () => reject(new Error("Errore lettura file locale"));
                         reader.readAsDataURL(file);
                     });
 
+                    const mimeType = file.type || 'image/jpeg';
                     const apiKey = "";
                     const prompt = `Estrai i dati da questo documento. Restituisci SOLO un oggetto JSON valido con le seguenti chiavi (se non trovi un dato, metti una stringa vuota ""):
                     - client: Nome del cliente o ragione sociale
@@ -1634,7 +1636,7 @@
                     - notes: Eventuali note`;
 
                     const payload = {
-                        contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64Data } }] }],
+                        contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: mimeType, data: base64Data } }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     };
 
@@ -1655,7 +1657,7 @@
                         delay *= 2;
                     }
 
-                    if (!response || !response.ok) throw new Error("API failed");
+                    if (!response || !response.ok) throw new Error("API fallita o chiave mancante");
 
                     const result = await response.json();
                     const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -1684,7 +1686,8 @@
                         setErrorMsg("Impossibile estrarre i dati.");
                     }
                 } catch (err) {
-                    setErrorMsg("Errore di elaborazione documento.");
+                    console.error("SmartFill Error:", err);
+                    setErrorMsg("Errore: " + (err.message || "Impossibile elaborare il documento."));
                 } finally {
                     setIsProcessing(false);
                     if (fileRef.current) fileRef.current.value = '';
@@ -1770,12 +1773,14 @@
                 setIsProcessing(true);
                 setErrorMsg('');
                 try {
-                    const base64Data = await new Promise((resolve) => {
+                    const base64Data = await new Promise((resolve, reject) => {
                         const reader = new FileReader();
                         reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.onerror = () => reject(new Error("Errore lettura file locale"));
                         reader.readAsDataURL(file);
                     });
 
+                    const mimeType = file.type || 'image/jpeg';
                     const apiKey = "";
                     const prompt = `Estrai i dati da questo documento d'ordine. Restituisci SOLO un oggetto JSON valido con le seguenti chiavi (se non trovi un dato, metti una stringa vuota ""):
                     - client: Nome del cliente o ragione sociale
@@ -1785,7 +1790,7 @@
                     - commission: Calcola il 5% di amount e restituisci il numero (usa il punto per i decimali)`;
 
                     const payload = {
-                        contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: file.type, data: base64Data } }] }],
+                        contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: mimeType, data: base64Data } }] }],
                         generationConfig: { responseMimeType: "application/json" }
                     };
 
@@ -1806,7 +1811,7 @@
                         delay *= 2;
                     }
 
-                    if (!response || !response.ok) throw new Error("API failed");
+                    if (!response || !response.ok) throw new Error("API fallita o chiave mancante");
 
                     const result = await response.json();
                     const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -1833,7 +1838,8 @@
                         setErrorMsg("Impossibile estrarre i dati.");
                     }
                 } catch (err) {
-                    setErrorMsg("Errore di elaborazione documento.");
+                    console.error("SmartFill Error:", err);
+                    setErrorMsg("Errore: " + (err.message || "Impossibile elaborare il documento."));
                 } finally {
                     setIsProcessing(false);
                     if (fileRef.current) fileRef.current.value = '';
